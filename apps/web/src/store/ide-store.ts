@@ -1,0 +1,227 @@
+"use client";
+
+import { create } from "zustand";
+import type { ProjectFile, AiMessage, DeploymentState } from "@/types";
+import { STARTER_FILES } from "@/lib/mock-data";
+import { getLanguageFromPath } from "@/lib/utils";
+
+export type WorkspaceView = "code" | "preview";
+export type PreviewDevice = "desktop" | "tablet" | "mobile";
+export type WorkspaceMode = "edit" | "submitted";
+
+export interface SubmissionMeta {
+  submittedAt: string;
+  score?: number;
+  deployUrl?: string;
+  assignmentTitle?: string;
+}
+
+interface IdeState {
+  projectId: string;
+  projectName: string;
+  files: ProjectFile[];
+  activeFilePath: string;
+  isExplorerOpen: boolean;
+  isAiPanelOpen: boolean;
+  isTerminalOpen: boolean;
+  terminalLogs: string[];
+  aiMessages: AiMessage[];
+  isAiThinking: boolean;
+  deployment: DeploymentState;
+  lastSaved: Date | null;
+  isDirty: boolean;
+
+  viewMode: WorkspaceView;
+  workspaceMode: WorkspaceMode;
+  submissionMeta: SubmissionMeta | null;
+  previewKey: number;
+  previewDevice: PreviewDevice;
+  activeAssignmentId: string | null;
+
+  isDeployModalOpen: boolean;
+  openDeployModal: () => void;
+  closeDeployModal: () => void;
+
+  setActiveFile: (path: string) => void;
+  updateFileContent: (path: string, content: string) => void;
+  toggleExplorer: () => void;
+  toggleAiPanel: () => void;
+  toggleTerminal: () => void;
+  setViewMode: (mode: WorkspaceView) => void;
+  openPreview: () => void;
+  refreshPreview: () => void;
+  setPreviewDevice: (device: PreviewDevice) => void;
+  loadProject: (
+    name: string,
+    files: ProjectFile[],
+    assignmentId?: string,
+    opts?: { mode?: WorkspaceMode; submission?: SubmissionMeta | null }
+  ) => void;
+  exitSubmittedView: () => void;
+  updateSubmissionMeta: (partial: Partial<SubmissionMeta>) => void;
+  setLiveDeployUrl: (url: string) => void;
+  resetWorkspaceSession: () => void;
+  addTerminalLog: (log: string) => void;
+  clearTerminal: () => void;
+  addAiMessage: (message: Omit<AiMessage, "id" | "timestamp">) => void;
+  setAiThinking: (thinking: boolean) => void;
+  setDeployment: (deployment: Partial<DeploymentState>) => void;
+  resetDeployment: () => void;
+  markSaved: () => void;
+  setDirty: (dirty: boolean) => void;
+  isReadOnly: () => boolean;
+}
+
+const defaultDeployment: DeploymentState = {
+  status: "idle",
+  logs: [],
+  progress: 0,
+};
+
+function mapFiles(files: ProjectFile[]) {
+  return files.map((f) => ({
+    ...f,
+    language: f.language ?? getLanguageFromPath(f.path),
+  }));
+}
+
+export const useIdeStore = create<IdeState>((set, get) => ({
+  projectId: "proj-demo-001",
+  projectName: "My Dream Project",
+  files: mapFiles(STARTER_FILES),
+  activeFilePath: "index.html",
+  isExplorerOpen: true,
+  isAiPanelOpen: false,
+  isTerminalOpen: false,
+  viewMode: "code",
+  workspaceMode: "edit",
+  submissionMeta: null,
+  previewKey: 0,
+  previewDevice: "desktop",
+  activeAssignmentId: null,
+  isDeployModalOpen: false,
+  terminalLogs: ["Project ULA ready.", "Press Run to launch your project in full preview."],
+  aiMessages: [
+    {
+      id: "welcome",
+      role: "assistant",
+      content: "Hey! I'm your AI coding mentor. Hit Run when you want to see your project come alive.",
+      timestamp: new Date().toISOString(),
+    },
+  ],
+  isAiThinking: false,
+  deployment: defaultDeployment,
+  lastSaved: null,
+  isDirty: false,
+
+  setActiveFile: (path) => set({ activeFilePath: path }),
+  updateFileContent: (path, content) => {
+    if (get().workspaceMode === "submitted") return;
+    set((state) => ({
+      files: state.files.map((f) => (f.path === path ? { ...f, content } : f)),
+      isDirty: true,
+    }));
+  },
+  toggleExplorer: () => set((s) => ({ isExplorerOpen: !s.isExplorerOpen })),
+  toggleAiPanel: () => set((s) => ({ isAiPanelOpen: !s.isAiPanelOpen })),
+  toggleTerminal: () => set((s) => ({ isTerminalOpen: !s.isTerminalOpen })),
+  setViewMode: (mode) => set({ viewMode: mode }),
+  openPreview: () =>
+    set((s) => ({
+      viewMode: "preview",
+      previewKey: s.previewKey + 1,
+      isTerminalOpen: false,
+    })),
+  refreshPreview: () => set((s) => ({ previewKey: s.previewKey + 1 })),
+  setPreviewDevice: (device) => set({ previewDevice: device }),
+  openDeployModal: () => set({ isDeployModalOpen: true }),
+  closeDeployModal: () => set({ isDeployModalOpen: false }),
+  loadProject: (name, files, assignmentId, opts) => {
+    const mode = opts?.mode ?? "edit";
+    const deployUrl = opts?.submission?.deployUrl;
+    set({
+      projectId: assignmentId ?? get().projectId,
+      projectName: name,
+      files: mapFiles(files),
+      activeFilePath: files[0]?.path ?? "index.html",
+      activeAssignmentId: assignmentId ?? null,
+      workspaceMode: mode,
+      submissionMeta: opts?.submission ?? null,
+      isDirty: false,
+      previewKey: Date.now(),
+      viewMode: mode === "submitted" ? "preview" : "code",
+      isTerminalOpen: false,
+      deployment: deployUrl
+        ? {
+            status: "success",
+            url: deployUrl,
+            progress: 100,
+            logs: ["Live deployment ready"],
+          }
+        : defaultDeployment,
+    });
+  },
+  exitSubmittedView: () =>
+    set((s) => ({
+      workspaceMode: "edit",
+      submissionMeta: null,
+      viewMode: "code",
+      deployment: s.deployment.url
+        ? {
+            status: "success",
+            url: s.deployment.url,
+            progress: 100,
+            logs: s.deployment.logs,
+          }
+        : defaultDeployment,
+    })),
+  updateSubmissionMeta: (partial) =>
+    set((s) => ({
+      submissionMeta: s.submissionMeta ? { ...s.submissionMeta, ...partial } : s.submissionMeta,
+    })),
+  setLiveDeployUrl: (url) =>
+    set((s) => ({
+      deployment: {
+        status: "success",
+        url,
+        progress: 100,
+        logs: [...(s.deployment.logs ?? []), "Live URL updated"],
+      },
+      submissionMeta: s.submissionMeta
+        ? { ...s.submissionMeta, deployUrl: url }
+        : s.submissionMeta,
+    })),
+  resetWorkspaceSession: () =>
+    set({
+      workspaceMode: "edit",
+      submissionMeta: null,
+      viewMode: "code",
+      activeAssignmentId: null,
+      projectName: "My Dream Project",
+      files: mapFiles(STARTER_FILES),
+      activeFilePath: "index.html",
+      isDirty: false,
+      deployment: defaultDeployment,
+      previewKey: Date.now(),
+      isDeployModalOpen: false,
+    }),
+  addTerminalLog: (log) =>
+    set((s) => ({
+      terminalLogs: [...s.terminalLogs, `[${new Date().toLocaleTimeString()}] ${log}`],
+    })),
+  clearTerminal: () => set({ terminalLogs: [] }),
+  addAiMessage: (message) =>
+    set((s) => ({
+      aiMessages: [
+        ...s.aiMessages,
+        { ...message, id: crypto.randomUUID(), timestamp: new Date().toISOString() },
+      ],
+    })),
+  setAiThinking: (thinking) => set({ isAiThinking: thinking }),
+  setDeployment: (deployment) =>
+    set((s) => ({ deployment: { ...s.deployment, ...deployment } })),
+  resetDeployment: () => set({ deployment: defaultDeployment }),
+  markSaved: () => set({ lastSaved: new Date(), isDirty: false }),
+  setDirty: (dirty) => set({ isDirty: dirty }),
+  isReadOnly: () => get().workspaceMode === "submitted",
+}));

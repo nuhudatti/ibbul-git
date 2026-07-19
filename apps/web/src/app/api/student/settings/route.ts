@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from "next/server";
+import {
+  getProfileRecord,
+  resolveStudentProfile,
+  updateStudentProfile,
+} from "@/lib/student-profile-server";
+import { normalizeMatric } from "@/lib/matric";
+
+export async function GET(req: NextRequest) {
+  const matric = req.nextUrl.searchParams.get("matric");
+  if (!matric) {
+    return NextResponse.json({ error: "matric required" }, { status: 400 });
+  }
+
+  const profile = resolveStudentProfile(matric);
+  const record = getProfileRecord(matric);
+
+  return NextResponse.json({
+    settings: {
+      ...profile,
+      displayName: profile.displayName,
+      updatedAt: record?.updatedAt,
+    },
+  });
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const matric = body.matric as string | undefined;
+    if (!matric) {
+      return NextResponse.json({ error: "matric required" }, { status: 400 });
+    }
+
+    const norm = normalizeMatric(matric);
+    const updated = updateStudentProfile(norm, {
+      headline: body.headline,
+      email: body.email,
+      notifyAssignments: body.notifyAssignments,
+      notifyGrades: body.notifyGrades,
+      notifyPortfolio: body.notifyPortfolio,
+      publicProfile: body.publicProfile,
+    });
+
+    if (!updated) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    }
+
+    const settings = resolveStudentProfile(norm);
+    return NextResponse.json({ settings: { ...settings, updatedAt: updated.updatedAt } });
+  } catch {
+    return NextResponse.json({ error: "Update failed" }, { status: 500 });
+  }
+}

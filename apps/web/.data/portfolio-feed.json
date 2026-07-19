@@ -1,0 +1,206 @@
+[
+  {
+    "id": "feed-1784490099037-9ges6",
+    "type": "verify",
+    "studentMatric": "U22/FNS/CSC/5555",
+    "studentName": "U22/FNS/CSC/5555",
+    "title": "to-do-list app",
+    "message": "verified to-do-list app",
+    "timestamp": "2026-07-19T19:41:39.037Z",
+    "artifactId": "art-U22/FNS/CSC/5555-asn-1784476560068-1784489640709",
+    "score": 85
+  },
+  {
+    "id": "feed-v-1784489692819",
+    "type": "verify",
+    "studentMatric": "U22/FNS/CSC/5555",
+    "studentName": "U22/FNS/CSC/5555",
+    "title": "to-do-list app",
+    "message": "lecturer verified to-do-list app",
+    "timestamp": "2026-07-19T19:34:52.819Z",
+    "artifactId": "art-U22/FNS/CSC/5555-asn-1784476560068-1784489640709",
+    "score": 85
+  },
+  {
+    "id": "feed-1784489692614-qu5cw",
+    "type": "verify",
+    "studentMatric": "U22/FNS/CSC/5555",
+    "studentName": "U22/FNS/CSC/5555",
+    "title": "to-do-list app",
+    "message": "verified to-do-list app",
+    "timestamp": "2026-07-19T19:34:52.614Z",
+    "artifactId": "art-U22/FNS/CSC/5555-asn-1784476560068-1784489640709",
+    "score": 85
+  },
+  {
+    "id": "feed-1784489640781-slomt",
+    "type": "deploy",
+    "studentMatric": "U22/FNS/CSC/5555",
+    "studentName": "U22/FNS/CSC/5555",
+    "title": "to-do-list app",
+    "message": "deployed to-do-list app",
+    "timestamp": "2026-07-19T19:34:00.781Z",
+    "artifactId": "art-U22/FNS/CSC/5555-asn-1784476560068-1784489640709",
+    "score": 85
+  },
+  {
+    "id": "feed-1784489160485-36niv",
+    "type": "submit",
+    "studentMatric": "U22/FNS/CSC/9999",
+    "studentName": "Test Student",
+    "title": "Smoke Test Artifact",
+    "message": "submitted Smoke Test Artifact",
+    "timestamp": "2026-07-19T19:26:00.485Z",
+    "artifactId": "art-test-2",
+    "score": 75
+  },
+  {
+    "id": "feed-1784489129298-1d9xx",
+    "type": "verify",
+    "studentMatric": "U22/FNS/CSC/1101",
+    "studentName": "Nuhu Ibrahim",
+    "title": "Interactive Calculator App",
+    "message": "verified Interactive Calculator App",
+    "timestamp": "2026-07-19T19:25:29.298Z",
+    "artifactId": "art-demo-3",
+    "score": 94
+  },
+  {
+    "id": "feed-1784489129269-1rpd1",
+    "type": "verify",
+    "studentMatric": "U22/FNS/CSC/1102",
+    "studentName": "Amina Yusuf",
+    "title": "Personal Portfolio Website",
+    "message": "verified Personal Portfolio Website",
+    "timestamp": "2026-07-19T19:25:29.269Z",
+    "artifactId": "art-demo-2",
+    "score": 87
+  },
+  {
+    "id": "feed-1784489129265-la2gk",
+    "type": "verify",
+    "studentMatric": "U22/FNS/CSC/1103",
+    "studentName": "Chidi Okafor",
+    "title": "Personal Portfolio Website",
+    "message": "verified Personal Portfolio Website",
+    "timestamp": "2026-07-19T19:25:29.265Z",
+    "artifactId": "art-demo-1",
+    "score": 92
+  },
+  {
+    "type": "submit",
+    "studentMatric": "U22/FNS/CSC/1104",
+    "studentName": "Fatima Bello",
+    "title": "Data Dashboard",
+    "message": "submitted Data Dashboard",
+    "timestamp": "2026-07-19T19:20:30.202Z",
+    "id": "feed-seed-10-U22/FNS/CSC/1104"
+  },
+  {
+    "type": "deploy",
+    "studentMatric": "U22/FNS/CSC/1104",
+    "studentName": "Fatima Bello",
+    "title": "Data Dashboard",
+    "message": "deployed Data Dashboard",
+    "timestamp": "2026-07-19T19:15:30.202Z",
+    "id": "feed-seed-9-U22/FNS/CSC/1104"
+  },
+  {
+    "type": "verify",
+    "studentMatric": "U22/FNS/CSC/1102",
+    "studentName": "Amina Yusuf",
+    "title": "Personal Portfolio Website",
+    "message": "lecturer verified Personal Portfolio Website",
+    "timestamp": "2026-07-19T19:10:30.202Z",
+    "artifactId": "art-demo-2",
+    "score": 87,
+    "id": "feed-seed-8-U22/FNS/CSC/1102"
+  },
+  {
+    "type": "portfolio",
+    "studentMatric": "U22/FNS/CSC/1102",
+    "studentName": "Amina Yusuf",
+    "title": "Credential QR",
+    "message": "activated public verification QR",
+    "timestamp": "2026-07-19T19:05:30.202Z",
+    "id": "feed-seed-7-U22/FNS/CSC/1102"
+  },
+  {
+    "type": "submit",
+    "studentMatric": "U22/FNS/CSC/1106",
+    "studentName": "Zainab Ahmed",
+    "title": "Network Scanner UI",
+    "message": "submitted Network Scanner UI",
+    "timestamp": "2026-07-19T18:55:30.202Z",
+    "id": "feed-seed-6-U22/FNS/CSC/1106"
+  },
+  {
+    "type": "deploy",
+    "studentMatric": "U22/FNS/CSC/1101",
+    "studentName": "Nuhu Ibrahim",
+    "title": "Interactive Calculator App",
+    "message": "deployed Interactive Calculator App",
+    "timestamp": "2026-07-19T18:45:30.202Z",
+    "artifactId": "art-demo-3",
+    "id": "feed-seed-5-U22/FNS/CSC/1101"
+  },
+  {
+    "id": "feed-1784486212788-suaew",
+    "type": "submit",
+    "studentMatric": "U22/FNS/CSC/9999",
+    "studentName": "Test Student",
+    "title": "Test App",
+    "message": "submitted Test App",
+    "timestamp": "2026-07-19T18:36:52.788Z",
+    "artifactId": "art-test-1",
+    "score": 84
+  },
+  {
+    "type": "verify",
+    "studentMatric": "U22/FNS/CSC/1103",
+    "studentName": "Chidi Okafor",
+    "title": "Personal Portfolio Website",
+    "message": "lecturer verified Personal Portfolio Website",
+    "timestamp": "2026-07-19T18:35:30.202Z",
+    "artifactId": "art-demo-1",
+    "score": 92,
+    "id": "feed-seed-4-U22/FNS/CSC/1103"
+  },
+  {
+    "type": "grade",
+    "studentMatric": "U22/FNS/CSC/1106",
+    "studentName": "Zainab Ahmed",
+    "title": "Security Audit Lab",
+    "message": "received provisional score 88%",
+    "timestamp": "2026-07-19T18:25:30.202Z",
+    "score": 88,
+    "id": "feed-seed-3-U22/FNS/CSC/1106"
+  },
+  {
+    "type": "deploy",
+    "studentMatric": "U22/FNS/CSC/1105",
+    "studentName": "Emeka Nwosu",
+    "title": "REST API Client",
+    "message": "deployed live preview to ULA edge",
+    "timestamp": "2026-07-19T18:05:30.202Z",
+    "id": "feed-seed-2-U22/FNS/CSC/1105"
+  },
+  {
+    "type": "submit",
+    "studentMatric": "U22/FNS/CSC/1105",
+    "studentName": "Emeka Nwosu",
+    "title": "REST API Client",
+    "message": "submitted REST API Client",
+    "timestamp": "2026-07-19T17:55:30.202Z",
+    "id": "feed-seed-1-U22/FNS/CSC/1105"
+  },
+  {
+    "type": "portfolio",
+    "studentMatric": "U22/FNS/CSC/1104",
+    "studentName": "Fatima Bello",
+    "title": "ULA public profile",
+    "message": "published verified developer identity",
+    "timestamp": "2026-07-19T17:25:30.202Z",
+    "id": "feed-seed-0-U22/FNS/CSC/1104"
+  }
+]

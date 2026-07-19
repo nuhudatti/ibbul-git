@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Prisma
+prisma/dev.db
+# Workspace dependencies
+apps/*/node_modules/
+packages/*/node_modules/
+
+# Workspace builds
+apps/*/.next/
+packages/*/dist/
+
+# Dependencies
+node_modules/
+apps/*/node_modules/
+packages/*/node_modules/
+
+# Next
+.next/
+apps/*/.next/
+
+# Environment
+.env
+.env.*
