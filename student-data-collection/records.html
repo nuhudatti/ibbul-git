@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Student records · Project ULA</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body class="mesh-bg">
+    <div id="key-gate" class="wrap key-gate">
+      <div class="brand" style="justify-content: center">
+        <div class="brand-mark">ULA</div>
+        <div>
+          <h1>Staff records</h1>
+          <p>Private · admin only</p>
+        </div>
+      </div>
+      <div class="card">
+        <p class="hint" style="text-align: left">Enter the admin key from <code>assets/config.js</code></p>
+        <label for="admin-key-input">Admin key</label>
+        <input id="admin-key-input" type="password" autocomplete="off" />
+        <button type="button" class="btn btn-primary" id="unlock-btn">Unlock records</button>
+      </div>
+      <p class="footer-note"><a href="index.html">← Student form</a></p>
+    </div>
+
+    <div id="records-app" class="wrap-wide hidden">
+      <div class="topbar">
+        <header class="brand" style="margin: 0">
+          <div class="brand-mark">ULA</div>
+          <div>
+            <h1>Collected student records</h1>
+            <p>Export for bulk import into Project ULA admin</p>
+          </div>
+        </header>
+        <a href="index.html" class="btn btn-ghost btn-sm">Student form</a>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <strong id="stat-total">0</strong>
+          <span>Submissions</span>
+        </div>
+        <div class="stat">
+          <strong id="stat-batch">0</strong>
+          <span>Exports (batch count)</span>
+        </div>
+        <div class="stat">
+          <strong id="stat-last" style="font-size: 0.85rem; color: var(--text)">—</strong>
+          <span>Last export</span>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Search matric or name…" />
+        <button type="button" class="btn btn-ghost btn-sm" id="refresh-btn">Refresh</button>
+        <button type="button" class="btn btn-primary btn-sm" id="export-all-csv">Download all (CSV)</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="export-all-json">Backup JSON</button>
+        <label class="btn btn-ghost btn-sm" style="margin: 0; cursor: pointer">
+          Import JSON
+          <input id="import-json" type="file" accept="application/json,.json" hidden />
+        </label>
+      </div>
+
+      <p class="hint">
+        CSV format matches ULA admin bulk import:
+        <code class="mono">matric, first name, last name, program, email</code>.
+        Each download increments the batch counter and timestamps the filename.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Matric</th>
+              <th>Name</th>
+              <th>Program</th>
+              <th>Email</th>
+              <th>Export</th>
+            </tr>
+          </thead>
+          <tbody id="student-rows"></tbody>
+        </table>
+      </div>
+
+      <p class="footer-note" id="records-hint"></p>
+    </div>
+
+    <script src="assets/config.js"></script>
+    <script>
+      document.getElementById("records-hint").textContent =
+        (window.ULA_COLLECT_CONFIG || {}).recordsPageHint || "";
+    </script>
+    <script src="assets/storage.js"></script>
+    <script src="assets/records-admin.js"></script>
+  </body>
+</html>

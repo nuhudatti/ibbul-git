@@ -1,0 +1,374 @@
+﻿{
+    "builders":  [
+                     {
+                         "matric":  "U22/FNS/CSC/1102",
+                         "displayName":  "Amina Yusuf",
+                         "avatar":  "AY",
+                         "program":  "B.Sc Computer Science",
+                         "headline":  "Verified builder Â· Live deployable work",
+                         "verifiedCount":  1,
+                         "totalArtifacts":  1,
+                         "liveDeploys":  1,
+                         "avgScore":  87,
+                         "topProject":  "Personal Portfolio Website",
+                         "topScore":  87,
+                         "lastActive":  "2026-07-17T19:25:29.264Z",
+                         "status":  "verified",
+                         "skills":  [
+                                        "HTML",
+                                        "CSS",
+                                        "Layout",
+                                        "Accessibility"
+                                    ]
+                     },
+                     {
+                         "matric":  "U22/FNS/CSC/1101",
+                         "displayName":  "Nuhu Ibrahim",
+                         "avatar":  "NI",
+                         "program":  "B.Sc Computer Science",
+                         "headline":  "Verified builder Â· Live deployable work",
+                         "verifiedCount":  1,
+                         "totalArtifacts":  1,
+                         "liveDeploys":  1,
+                         "avgScore":  94,
+                         "topProject":  "Interactive Calculator App",
+                         "topScore":  94,
+                         "lastActive":  "2026-07-16T19:25:29.264Z",
+                         "status":  "verified",
+                         "skills":  [
+                                        "JavaScript",
+                                        "DOM",
+                                        "Logic"
+                                    ]
+                     },
+                     {
+                         "matric":  "U22/FNS/CSC/1103",
+                         "displayName":  "Chidi Okafor",
+                         "avatar":  "CO",
+                         "program":  "B.Sc Software Engineering",
+                         "headline":  "Verified builder Â· Live deployable work",
+                         "verifiedCount":  1,
+                         "totalArtifacts":  1,
+                         "liveDeploys":  1,
+                         "avgScore":  92,
+                         "topProject":  "Personal Portfolio Website",
+                         "topScore":  92,
+                         "lastActive":  "2026-07-14T19:25:29.264Z",
+                         "status":  "verified",
+                         "skills":  [
+                                        "HTML",
+                                        "CSS",
+                                        "JavaScript",
+                                        "Responsive Design"
+                                    ]
+                     },
+                     {
+                         "matric":  "U22/FNS/CSC/9999",
+                         "displayName":  "U22/FNS/CSC/9999",
+                         "avatar":  "U2",
+                         "program":  "ULA Scholar",
+                         "headline":  "Verified builder Â· Live deployable work",
+                         "verifiedCount":  0,
+                         "totalArtifacts":  1,
+                         "liveDeploys":  0,
+                         "avgScore":  84,
+                         "topProject":  "Test App",
+                         "topScore":  84,
+                         "lastActive":  "2026-07-19T18:36:52.788Z",
+                         "status":  "building",
+                         "skills":  [
+                                        "HTML"
+                                    ]
+                     },
+                     {
+                         "matric":  "U22/FNS/CSC/1104",
+                         "displayName":  "Fatima Bello",
+                         "avatar":  "FB",
+                         "program":  "B.Sc Information Technology",
+                         "headline":  "Verified builder Â· Live deployable work",
+                         "verifiedCount":  0,
+                         "totalArtifacts":  0,
+                         "liveDeploys":  0,
+                         "avgScore":  null,
+                         "lastActive":  "1970-01-01T00:00:00.000Z",
+                         "status":  "emerging",
+                         "skills":  [
+
+                                    ]
+                     },
+                     {
+                         "matric":  "U22/FNS/CSC/1105",
+                         "displayName":  "Emeka Nwosu",
+                         "avatar":  "EN",
+                         "program":  "B.Sc Computer Science",
+                         "headline":  "Verified builder Â· Live deployable work",
+                         "verifiedCount":  0,
+                         "totalArtifacts":  0,
+                         "liveDeploys":  0,
+                         "avgScore":  null,
+                         "lastActive":  "1970-01-01T00:00:00.000Z",
+                         "status":  "emerging",
+                         "skills":  [
+
+                                    ]
+                     },
+                     {
+                         "matric":  "U22/FNS/CSC/1106",
+                         "displayName":  "Zainab Ahmed",
+                         "avatar":  "ZA",
+                         "program":  "B.Sc Cyber Security",
+                         "headline":  "Verified builder Â· Live deployable work",
+                         "verifiedCount":  0,
+                         "totalArtifacts":  0,
+                         "liveDeploys":  0,
+                         "avgScore":  null,
+                         "lastActive":  "1970-01-01T00:00:00.000Z",
+                         "status":  "emerging",
+                         "skills":  [
+
+                                    ]
+                     }
+                 ],
+    "stats":  {
+                  "totalBuilders":  7,
+                  "verifiedBuilders":  3,
+                  "totalArtifacts":  4,
+                  "verifiedArtifacts":  3,
+                  "liveDeploys":  3,
+                  "networkAvgScore":  89
+              },
+    "feed":  [
+                 {
+                     "id":  "feed-1784489129298-1d9xx",
+                     "type":  "verify",
+                     "studentMatric":  "U22/FNS/CSC/1101",
+                     "studentName":  "Nuhu Ibrahim",
+                     "title":  "Interactive Calculator App",
+                     "message":  "verified Interactive Calculator App",
+                     "timestamp":  "2026-07-19T19:25:29.298Z",
+                     "artifactId":  "art-demo-3",
+                     "score":  94
+                 },
+                 {
+                     "id":  "feed-1784489129269-1rpd1",
+                     "type":  "verify",
+                     "studentMatric":  "U22/FNS/CSC/1102",
+                     "studentName":  "Amina Yusuf",
+                     "title":  "Personal Portfolio Website",
+                     "message":  "verified Personal Portfolio Website",
+                     "timestamp":  "2026-07-19T19:25:29.269Z",
+                     "artifactId":  "art-demo-2",
+                     "score":  87
+                 },
+                 {
+                     "id":  "feed-1784489129265-la2gk",
+                     "type":  "verify",
+                     "studentMatric":  "U22/FNS/CSC/1103",
+                     "studentName":  "Chidi Okafor",
+                     "title":  "Personal Portfolio Website",
+                     "message":  "verified Personal Portfolio Website",
+                     "timestamp":  "2026-07-19T19:25:29.265Z",
+                     "artifactId":  "art-demo-1",
+                     "score":  92
+                 },
+                 {
+                     "type":  "submit",
+                     "studentMatric":  "U22/FNS/CSC/1104",
+                     "studentName":  "Fatima Bello",
+                     "title":  "Data Dashboard",
+                     "message":  "submitted Data Dashboard",
+                     "timestamp":  "2026-07-19T19:20:30.202Z",
+                     "id":  "feed-seed-10-U22/FNS/CSC/1104"
+                 },
+                 {
+                     "type":  "deploy",
+                     "studentMatric":  "U22/FNS/CSC/1104",
+                     "studentName":  "Fatima Bello",
+                     "title":  "Data Dashboard",
+                     "message":  "deployed Data Dashboard",
+                     "timestamp":  "2026-07-19T19:15:30.202Z",
+                     "id":  "feed-seed-9-U22/FNS/CSC/1104"
+                 },
+                 {
+                     "type":  "verify",
+                     "studentMatric":  "U22/FNS/CSC/1102",
+                     "studentName":  "Amina Yusuf",
+                     "title":  "Personal Portfolio Website",
+                     "message":  "lecturer verified Personal Portfolio Website",
+                     "timestamp":  "2026-07-19T19:10:30.202Z",
+                     "artifactId":  "art-demo-2",
+                     "score":  87,
+                     "id":  "feed-seed-8-U22/FNS/CSC/1102"
+                 },
+                 {
+                     "type":  "portfolio",
+                     "studentMatric":  "U22/FNS/CSC/1102",
+                     "studentName":  "Amina Yusuf",
+                     "title":  "Credential QR",
+                     "message":  "activated public verification QR",
+                     "timestamp":  "2026-07-19T19:05:30.202Z",
+                     "id":  "feed-seed-7-U22/FNS/CSC/1102"
+                 },
+                 {
+                     "type":  "submit",
+                     "studentMatric":  "U22/FNS/CSC/1106",
+                     "studentName":  "Zainab Ahmed",
+                     "title":  "Network Scanner UI",
+                     "message":  "submitted Network Scanner UI",
+                     "timestamp":  "2026-07-19T18:55:30.202Z",
+                     "id":  "feed-seed-6-U22/FNS/CSC/1106"
+                 },
+                 {
+                     "type":  "deploy",
+                     "studentMatric":  "U22/FNS/CSC/1101",
+                     "studentName":  "Nuhu Ibrahim",
+                     "title":  "Interactive Calculator App",
+                     "message":  "deployed Interactive Calculator App",
+                     "timestamp":  "2026-07-19T18:45:30.202Z",
+                     "artifactId":  "art-demo-3",
+                     "id":  "feed-seed-5-U22/FNS/CSC/1101"
+                 },
+                 {
+                     "id":  "feed-1784486212788-suaew",
+                     "type":  "submit",
+                     "studentMatric":  "U22/FNS/CSC/9999",
+                     "studentName":  "Test Student",
+                     "title":  "Test App",
+                     "message":  "submitted Test App",
+                     "timestamp":  "2026-07-19T18:36:52.788Z",
+                     "artifactId":  "art-test-1",
+                     "score":  84
+                 },
+                 {
+                     "type":  "verify",
+                     "studentMatric":  "U22/FNS/CSC/1103",
+                     "studentName":  "Chidi Okafor",
+                     "title":  "Personal Portfolio Website",
+                     "message":  "lecturer verified Personal Portfolio Website",
+                     "timestamp":  "2026-07-19T18:35:30.202Z",
+                     "artifactId":  "art-demo-1",
+                     "score":  92,
+                     "id":  "feed-seed-4-U22/FNS/CSC/1103"
+                 },
+                 {
+                     "type":  "grade",
+                     "studentMatric":  "U22/FNS/CSC/1106",
+                     "studentName":  "Zainab Ahmed",
+                     "title":  "Security Audit Lab",
+                     "message":  "received provisional score 88%",
+                     "timestamp":  "2026-07-19T18:25:30.202Z",
+                     "score":  88,
+                     "id":  "feed-seed-3-U22/FNS/CSC/1106"
+                 },
+                 {
+                     "type":  "deploy",
+                     "studentMatric":  "U22/FNS/CSC/1105",
+                     "studentName":  "Emeka Nwosu",
+                     "title":  "REST API Client",
+                     "message":  "deployed live preview to ULA edge",
+                     "timestamp":  "2026-07-19T18:05:30.202Z",
+                     "id":  "feed-seed-2-U22/FNS/CSC/1105"
+                 },
+                 {
+                     "type":  "submit",
+                     "studentMatric":  "U22/FNS/CSC/1105",
+                     "studentName":  "Emeka Nwosu",
+                     "title":  "REST API Client",
+                     "message":  "submitted REST API Client",
+                     "timestamp":  "2026-07-19T17:55:30.202Z",
+                     "id":  "feed-seed-1-U22/FNS/CSC/1105"
+                 },
+                 {
+                     "type":  "portfolio",
+                     "studentMatric":  "U22/FNS/CSC/1104",
+                     "studentName":  "Fatima Bello",
+                     "title":  "ULA public profile",
+                     "message":  "published verified developer identity",
+                     "timestamp":  "2026-07-19T17:25:30.202Z",
+                     "id":  "feed-seed-0-U22/FNS/CSC/1104"
+                 }
+             ],
+    "heroArtifacts":  [
+                          {
+                              "id":  "art-demo-2",
+                              "studentMatric":  "U22/FNS/CSC/1102",
+                              "studentName":  "Amina Yusuf",
+                              "assignmentId":  "asn-1",
+                              "courseId":  "CS101-WebDev",
+                              "courseName":  "Web Development",
+                              "title":  "Personal Portfolio Website",
+                              "score":  87,
+                              "maxScore":  100,
+                              "deployUrl":  "/live/u22-fns-csc-1102/asn-1",
+                              "timestamp":  "2026-07-17T19:25:29.264Z",
+                              "submittedAt":  "2026-07-17T19:25:29.264Z",
+                              "verified":  true,
+                              "verifiedAt":  "2026-07-18T19:25:29.264Z",
+                              "lecturerId":  "LEC001",
+                              "lecturerName":  "Nuhu Muhammad Datti",
+                              "hash":  "a1b2c3d4e5f67890",
+                              "status":  "VERIFIED",
+                              "skills":  [
+                                             "HTML",
+                                             "CSS",
+                                             "Layout",
+                                             "Accessibility"
+                                         ],
+                              "thumbnailGradient":  "from-emerald-500/25 to-cyan-500/25"
+                          },
+                          {
+                              "id":  "art-demo-3",
+                              "studentMatric":  "U22/FNS/CSC/1101",
+                              "studentName":  "Nuhu Ibrahim",
+                              "assignmentId":  "asn-2",
+                              "courseId":  "CS101-WebDev",
+                              "courseName":  "Web Development",
+                              "title":  "Interactive Calculator App",
+                              "score":  94,
+                              "maxScore":  100,
+                              "deployUrl":  "/live/u22-fns-csc-1101/calc-001",
+                              "timestamp":  "2026-07-16T19:25:29.264Z",
+                              "submittedAt":  "2026-07-16T19:25:29.264Z",
+                              "verified":  true,
+                              "verifiedAt":  "2026-07-17T19:25:29.264Z",
+                              "lecturerId":  "LEC001",
+                              "lecturerName":  "Nuhu Muhammad Datti",
+                              "hash":  "f4e8b2c19d0a7e31",
+                              "status":  "VERIFIED",
+                              "skills":  [
+                                             "JavaScript",
+                                             "DOM",
+                                             "Logic"
+                                         ],
+                              "thumbnailGradient":  "from-amber-500/20 to-cyan-500/25"
+                          },
+                          {
+                              "id":  "art-demo-1",
+                              "studentMatric":  "U22/FNS/CSC/1103",
+                              "studentName":  "Chidi Okafor",
+                              "assignmentId":  "asn-1",
+                              "courseId":  "CS101-WebDev",
+                              "courseName":  "Web Development",
+                              "title":  "Personal Portfolio Website",
+                              "score":  92,
+                              "maxScore":  100,
+                              "deployUrl":  "/live/u22-fns-csc-1103/proj-demo-001",
+                              "timestamp":  "2026-07-14T19:25:29.264Z",
+                              "submittedAt":  "2026-07-14T19:25:29.264Z",
+                              "verified":  true,
+                              "verifiedAt":  "2026-07-15T19:25:29.264Z",
+                              "lecturerId":  "LEC001",
+                              "lecturerName":  "Nuhu Muhammad Datti",
+                              "hash":  "9f3a8c1e21b4d7f0",
+                              "status":  "VERIFIED",
+                              "skills":  [
+                                             "HTML",
+                                             "CSS",
+                                             "JavaScript",
+                                             "Responsive Design"
+                                         ],
+                              "thumbnailGradient":  "from-cyan-500/30 to-violet-600/30"
+                          }
+                      ],
+    "updatedAt":  "2026-07-19T19:25:30.213Z"
+}

@@ -1,0 +1,20 @@
+{
+  "name": "project-ula",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project ULA – Unified Learning Architecture",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=web",
+    "dev:web": "npm run dev --workspace=web",
+    "dev:api": "npm run start:dev --workspace=api",
+    "build": "npm run build --workspace=web",
+    "lint": "npm run lint --workspace=web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

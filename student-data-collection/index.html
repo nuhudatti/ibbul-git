@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Student profile intake · Project ULA</title>
+    <meta
+      name="description"
+      content="Official IBBUL Project ULA student profile form. Submit your matric, name, and contact details securely."
+    />
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body class="mesh-bg">
+    <div class="wrap">
+      <header class="brand">
+        <div class="brand-mark" aria-hidden="true">ULA</div>
+        <div>
+          <h1 id="institution-name">Project ULA</h1>
+          <p id="institution-sub">Student profile intake</p>
+        </div>
+      </header>
+
+      <section class="hero">
+        <h2>Confirm your student details</h2>
+        <p class="lead">
+          This is the official intake form for your cohort.
+        </p>
+        <div class="trust-row">
+          <span class="trust-pill">Official intake</span>
+          <span class="trust-pill">Matric verified format</span>
+          
+        </div>
+      </section>
+
+      <form id="student-form" class="card" novalidate>
+        <label class="label-required" for="matric">Matric number</label>
+        <input
+          id="matric"
+          name="matric"
+          type="text"
+          required
+          autocomplete="username"
+          placeholder="U25/FPY/CSC/0001"
+          autocapitalize="characters"
+        />
+        <!-- <p class="hint" id="matric-hint">Format: U22/FNS/CSC/1105</p> -->
+        <button type="button" class="btn btn-ghost btn-sm" id="load-existing" style="margin-bottom: 1rem">
+          Load my saved details
+        </button>
+
+        <div class="grid-2">
+          <div>
+            <label class="label-required" for="firstName">First name</label>
+            <input id="firstName" name="firstName" type="text" required autocomplete="given-name" />
+          </div>
+          <div>
+            <label class="label-required" for="lastName">Last name</label>
+            <input id="lastName" name="lastName" type="text" required autocomplete="family-name" />
+          </div>
+        </div>
+
+        <label for="program">Program</label>
+        <input id="program" name="program" type="text" readonly class="readonly-field" />
+        <p class="hint">Program is fixed for this cohort intake.</p>
+
+        <label for="email">Email (optional)</label>
+        <input id="email" name="email" type="email" autocomplete="email" placeholder="you@student.ula.edu" />
+
+        <button type="submit" class="btn btn-primary" id="submit-btn">Save my details</button>
+        <div id="form-status" class="status" role="status" aria-live="polite"></div>
+      </form>
+
+      <p class="footer-note">Questions? Contact your course administrator.</p>
+    </div>
+
+    <script src="assets/config.js"></script>
+    <script>
+      (function () {
+        const c = window.ULA_COLLECT_CONFIG || {};
+        document.getElementById("institution-name").textContent = c.projectName || "Project ULA";
+        document.getElementById("institution-sub").textContent = c.tagline || c.institutionName || "";
+        document.getElementById("matric-hint").textContent =
+          (c.matricFormatHelp || "") + " · Example: " + (c.matricHint || "U22/FNS/CSC/1105");
+        document.getElementById("matric").placeholder = c.matricHint || "U22/FNS/CSC/1105";
+      })();
+    </script>
+    <script src="assets/storage.js"></script>
+    <script src="assets/student-form.js"></script>
+  </body>
+</html>
