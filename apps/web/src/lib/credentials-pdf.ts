@@ -20,8 +20,8 @@ const PAGE_H = 297;
 const ROW_H = 9.5;
 const TABLE_TOP = 36;
 
-/** Rows per page after compact header */
-const ROWS_PER_PAGE = 24;
+/** Reduce from 24 to 20 to account for browser print margins and ensure single-page printing */
+const ROWS_PER_PAGE = 20;
 
 const COL = {
   matric: MARGIN + 1,

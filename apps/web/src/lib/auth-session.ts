@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { sign, verify } from "jsonwebtoken";
 
 export interface SessionPayload {
   matric: string;
@@ -9,44 +9,47 @@ export interface SessionPayload {
 
 const TTL_MS = 1000 * 60 * 60 * 12; // 12 hours
 const COOKIE_NAME = "ula_session";
-
-/** Survive Next.js dev hot reload */
-const globalStore = globalThis as unknown as {
-  ulaSessions?: Map<string, SessionPayload>;
-};
-
-function getSessionMap() {
-  if (!globalStore.ulaSessions) {
-    globalStore.ulaSessions = new Map<string, SessionPayload>();
-  }
-  return globalStore.ulaSessions;
-}
+const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key-change-in-production";
 
 export function createSession(matric: string, role: SessionPayload["role"]): string {
-  const token = randomBytes(32).toString("hex");
   const now = Date.now();
-  getSessionMap().set(token, {
+  const payload: SessionPayload = {
     matric,
     role,
     createdAt: now,
     expiresAt: now + TTL_MS,
+  };
+  
+  // Sign JWT with expiration
+  const token = sign(payload, JWT_SECRET, {
+    expiresIn: Math.floor(TTL_MS / 1000),
   });
+  
   return token;
 }
 
 export function getSession(token: string | null | undefined): SessionPayload | null {
   if (!token) return null;
-  const s = getSessionMap().get(token);
-  if (!s) return null;
-  if (Date.now() > s.expiresAt) {
-    getSessionMap().delete(token);
+  
+  try {
+    const payload = verify(token, JWT_SECRET) as SessionPayload;
+    
+    // Additional check: ensure expiration time hasn't passed
+    if (Date.now() > payload.expiresAt) {
+      return null;
+    }
+    
+    return payload;
+  } catch {
+    // Invalid token or signature verification failed
     return null;
   }
-  return s;
 }
 
 export function revokeSession(token: string) {
-  getSessionMap().delete(token);
+  // With JWT, we can't revoke tokens server-side without a blacklist
+  // For now, we just let them expire naturally
+  // TODO: Implement token blacklist if needed for forced logout
 }
 
 export function parseBearerToken(req: Request): string | null {

@@ -28,17 +28,22 @@ export async function POST(req: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const result = setStudentAvatar(matric, file.type, buffer);
+    const result = setStudentAvatar(normalizeMatric(matric), file.type, buffer);
     if (!result) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    const base = result.avatarUrl.split("?")[0];
     return NextResponse.json({
-      avatarUrl: `${base}?v=${Date.now()}`,
+      avatarUrl: result.avatarUrl,
+      message: "Avatar uploaded successfully",
     });
-  } catch {
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+  } catch (error) {
+    console.error("[Avatar Upload Error]", error);
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json(
+      { error: `Upload failed: ${errorMsg}` },
+      { status: 500 }
+    );
   }
 }
 

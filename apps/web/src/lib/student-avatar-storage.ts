@@ -6,7 +6,10 @@ function avatarFileKey(matric: string) {
   return matricToSlug(matric);
 }
 
-const AVATAR_DIR = path.join(process.cwd(), "public", "uploads", "avatars");
+// Use /tmp on production (Vercel), public dir on local
+const AVATAR_DIR = process.env.NODE_ENV === "production" 
+  ? path.join("/tmp", "avatars")
+  : path.join(process.cwd(), "public", "uploads", "avatars");
 
 const EXT_BY_MIME: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -36,6 +39,12 @@ export function getAvatarPublicUrl(matric: string): string | undefined {
     const filePath = path.join(AVATAR_DIR, `${key}.${ext}`);
     if (fs.existsSync(filePath)) {
       const useExt = ext === "jpeg" ? "jpg" : ext;
+      // On production, avatars are in /tmp (session-local), so return data URL or temp endpoint
+      if (process.env.NODE_ENV === "production") {
+        // Return placeholder since /tmp is not web-accessible on Vercel
+        // In production, consider using cloud storage (S3, Vercel Blob, etc.)
+        return undefined;
+      }
       return `/uploads/avatars/${key}.${useExt}`;
     }
   }
