@@ -20,6 +20,7 @@ interface IdeState {
   projectId: string;
   projectName: string;
   files: ProjectFile[];
+  folders: string[];
   activeFilePath: string;
   isExplorerOpen: boolean;
   isAiPanelOpen: boolean;
@@ -43,6 +44,12 @@ interface IdeState {
   closeDeployModal: () => void;
 
   setActiveFile: (path: string) => void;
+  createFile: (path: string, content?: string) => boolean;
+  createFolder: (path: string) => boolean;
+  renamePath: (oldPath: string, newPath: string) => boolean;
+  deleteFile: (path: string) => boolean;
+  deleteFolder: (path: string) => boolean;
+  importAsset: (path: string, content: string, language: string) => boolean;
   updateFileContent: (path: string, content: string) => void;
   toggleExplorer: () => void;
   toggleAiPanel: () => void;
@@ -85,10 +92,15 @@ function mapFiles(files: ProjectFile[]) {
   }));
 }
 
+function normalizeWorkspacePath(path: string) {
+  return path.trim().replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+/g, "/");
+}
+
 export const useIdeStore = create<IdeState>((set, get) => ({
   projectId: "proj-demo-001",
   projectName: "My Dream Project",
   files: mapFiles(STARTER_FILES),
+  folders: [],
   activeFilePath: "index.html",
   isExplorerOpen: true,
   isAiPanelOpen: false,
@@ -114,7 +126,90 @@ export const useIdeStore = create<IdeState>((set, get) => ({
   lastSaved: null,
   isDirty: false,
 
-  setActiveFile: (path) => set({ activeFilePath: path }),
+  setActiveFile: (path) => set({ activeFilePath: path, viewMode: "code" }),
+  createFile: (path, content = "") => {
+    const normalized = normalizeWorkspacePath(path);
+    if (!normalized || get().files.some((file) => file.path === normalized)) return false;
+    set((state) => ({
+      files: [...state.files, { path: normalized, content, language: getLanguageFromPath(normalized) }],
+      activeFilePath: normalized,
+      viewMode: "code",
+      isDirty: true,
+    }));
+    return true;
+  },
+  createFolder: (path) => {
+    const normalized = normalizeWorkspacePath(path);
+    if (!normalized || get().folders.includes(normalized) || get().files.some((file) => file.path === normalized)) return false;
+    set((state) => ({ folders: [...state.folders, normalized], isDirty: true }));
+    return true;
+  },
+  renamePath: (oldPath, newPath) => {
+    const nextPath = normalizeWorkspacePath(newPath);
+    if (!nextPath || oldPath === nextPath) return false;
+    const isFolder =
+      get().folders.includes(oldPath) || get().files.some((file) => file.path.startsWith(`${oldPath}/`));
+    const conflicts = isFolder
+      ? get().files.some((file) => file.path === nextPath) || get().folders.some((folder) => folder === nextPath)
+      : get().files.some((file) => file.path === nextPath) || get().folders.includes(nextPath);
+    if (conflicts) return false;
+    set((state) => ({
+      folders: state.folders.map((folder) =>
+        folder === oldPath || folder.startsWith(`${oldPath}/`)
+          ? `${nextPath}${folder.slice(oldPath.length)}`
+          : folder
+      ),
+      files: state.files.map((file) =>
+        file.path === oldPath || file.path.startsWith(`${oldPath}/`)
+          ? { ...file, path: `${nextPath}${file.path.slice(oldPath.length)}`, language: getLanguageFromPath(`${nextPath}${file.path.slice(oldPath.length)}`) }
+          : file
+      ),
+      activeFilePath:
+        state.activeFilePath === oldPath || state.activeFilePath.startsWith(`${oldPath}/`)
+          ? `${nextPath}${state.activeFilePath.slice(oldPath.length)}`
+          : state.activeFilePath,
+      isDirty: true,
+    }));
+    return true;
+  },
+  deleteFile: (path) => {
+    if (!get().files.some((file) => file.path === path)) return false;
+    set((state) => {
+      const files = state.files.filter((file) => file.path !== path);
+      return {
+        files,
+        activeFilePath: state.activeFilePath === path ? (files[0]?.path ?? "") : state.activeFilePath,
+        isDirty: true,
+      };
+    });
+    return true;
+  },
+  deleteFolder: (path) => {
+    if (!get().folders.includes(path) && !get().files.some((file) => file.path.startsWith(`${path}/`))) return false;
+    set((state) => {
+      const files = state.files.filter((file) => !file.path.startsWith(`${path}/`));
+      const folders = state.folders.filter((folder) => folder !== path && !folder.startsWith(`${path}/`));
+      return {
+        files,
+        folders,
+        activeFilePath:
+          state.activeFilePath.startsWith(`${path}/`) ? (files[0]?.path ?? "") : state.activeFilePath,
+        isDirty: true,
+      };
+    });
+    return true;
+  },
+  importAsset: (path, content, language) => {
+    const normalized = normalizeWorkspacePath(path);
+    if (!normalized || get().files.some((file) => file.path === normalized) || get().folders.includes(normalized)) return false;
+    set((state) => ({
+      files: [...state.files, { path: normalized, content, language }],
+      activeFilePath: normalized,
+      viewMode: "code",
+      isDirty: true,
+    }));
+    return true;
+  },
   updateFileContent: (path, content) => {
     if (get().workspaceMode === "submitted") return;
     set((state) => ({
@@ -143,6 +238,7 @@ export const useIdeStore = create<IdeState>((set, get) => ({
       projectId: assignmentId ?? get().projectId,
       projectName: name,
       files: mapFiles(files),
+      folders: [],
       activeFilePath: files[0]?.path ?? "index.html",
       activeAssignmentId: assignmentId ?? null,
       workspaceMode: mode,
@@ -199,6 +295,7 @@ export const useIdeStore = create<IdeState>((set, get) => ({
       activeAssignmentId: null,
       projectName: "My Dream Project",
       files: mapFiles(STARTER_FILES),
+      folders: [],
       activeFilePath: "index.html",
       isDirty: false,
       deployment: defaultDeployment,

@@ -12,8 +12,18 @@ export function buildPreviewHtml(files: ProjectFile[]): string {
 
   const cssFiles = files.filter((f) => f.path.endsWith(".css"));
   const jsFiles = files.filter((f) => f.path.endsWith(".js") || f.path.endsWith(".jsx"));
+  const imageFiles = files.filter((f) => f.language === "image" && f.content.startsWith("data:image/"));
 
   let html = htmlFile.content;
+
+  const replaceAssetReferences = (source: string) => imageFiles.reduce((result, image) => {
+    const escapedPath = image.path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return result
+      .replace(new RegExp(`([\\"'])(?:\\./)?${escapedPath}([\\"'])`, "g"), `$1${image.content}$2`)
+      .replace(new RegExp(`url\\((['"]?)(?:\\./)?${escapedPath}\\1\\)`, "g"), `url($1${image.content}$1)`);
+  }, source);
+
+  html = replaceAssetReferences(html);
 
   // Strip external stylesheet links (we inject inline)
   html = html.replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, "");
@@ -21,7 +31,7 @@ export function buildPreviewHtml(files: ProjectFile[]): string {
   // Strip external script tags (we inject inline)
   html = html.replace(/<script[^>]*src=["'][^"']*["'][^>]*>\s*<\/script>/gi, "");
 
-  const inlineCss = cssFiles.map((f) => f.content).join("\n");
+  const inlineCss = replaceAssetReferences(cssFiles.map((f) => f.content).join("\n"));
   const inlineJs = jsFiles.map((f) => f.content).join("\n");
 
   const styleBlock = inlineCss ? `<style>${inlineCss}</style>` : "";

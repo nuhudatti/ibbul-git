@@ -24,6 +24,20 @@ export function CodeEditor() {
     );
   }
 
+  if (activeFile.language === "image") {
+    return (
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 bg-[#08080c] p-6 text-center">
+        <div className="max-h-[min(70vh,520px)] max-w-full overflow-hidden rounded-xl border border-white/10 bg-black/30 p-2 shadow-2xl">
+          <img src={activeFile.content} alt={activeFilePath} className="max-h-[min(62vh,460px)] max-w-full object-contain" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-zinc-200">{activeFilePath}</p>
+          <p className="mt-1 text-xs text-zinc-500">Imported workspace asset</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 min-h-0 relative">
       {readOnly ? (

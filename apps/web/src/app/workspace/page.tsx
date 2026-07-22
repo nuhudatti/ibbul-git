@@ -66,7 +66,7 @@ export default function WorkspacePage() {
   if (!isAuthenticated || user?.role !== "STUDENT") return null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#050508] overflow-auto">
+    <div className="h-[100dvh] min-h-screen flex flex-col bg-[#050508] overflow-hidden">
       <IdeTopBar />
       <PortfolioIdentityStrip />
       <SubmittedBanner />
@@ -75,12 +75,12 @@ export default function WorkspacePage() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex-1 flex flex-col min-h-0"
+        className="flex-1 flex flex-col min-h-0 overflow-hidden"
       >
         <div className="flex-1 flex flex-col min-h-0 lg:flex-row">
           {viewMode === "code" ? <FileExplorer /> : null}
 
-          <main className="flex flex-col min-w-0 flex-1">
+          <main className="flex flex-col min-w-0 flex-1 min-h-0">
             <ViewModeTabs />
 
             <div className="flex-1 flex flex-col min-h-0 relative">
