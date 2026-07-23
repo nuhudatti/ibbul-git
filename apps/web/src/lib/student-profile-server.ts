@@ -74,7 +74,11 @@ const profiles = getProfilesMap();
 const SALT = "ula-ibbul-v1";
 let lastProvisionedAt: string | undefined;
 
-const PROFILE_DATA_DIR = join(process.cwd(), ".data");
+const PROFILE_DATA_DIR = process.env.DATA_DIR
+  ? join(process.env.DATA_DIR, "ula-data")
+  : process.env.NODE_ENV === "production"
+  ? join(process.cwd(), "tmp", "ula-data")
+  : join(process.cwd(), ".data");
 const PROFILE_DATA_FILE = join(PROFILE_DATA_DIR, "student-profiles.json");
 
 function ensureProfileDataDirectory() {
@@ -90,8 +94,8 @@ function loadProfilesFromDisk() {
     const raw = readFileSync(PROFILE_DATA_FILE, "utf-8");
     const saved: StudentProfileRecord[] = JSON.parse(raw);
     saved.forEach((record) => profiles.set(normalizeMatric(record.matric), record));
-  } catch {
-    /* ignore invalid file */
+  } catch (error) {
+    console.error("Failed to load student profiles from disk:", error);
   }
 }
 
@@ -99,8 +103,8 @@ function persistProfilesToDisk() {
   ensureProfileDataDirectory();
   try {
     writeFileSync(PROFILE_DATA_FILE, JSON.stringify([...profiles.values()], null, 2), "utf-8");
-  } catch {
-    /* ignore write failures */
+  } catch (error) {
+    console.error("Failed to persist student profiles to disk:", error);
   }
 }
 

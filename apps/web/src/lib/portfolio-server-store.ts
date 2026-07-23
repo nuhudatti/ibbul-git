@@ -4,16 +4,20 @@ import type { PortfolioArtifact, PortfolioFeedEvent } from "@/types";
 import { normalizeMatric } from "@/lib/matric";
 import { listStudentProfiles } from "@/lib/student-profile-server";
 
-const DATA_DIR = join(process.cwd(), ".data");
-const ARTIFACTS_FILE = join(DATA_DIR, "portfolio-artifacts.json");
-const FEED_FILE = join(DATA_DIR, "portfolio-feed.json");
+const DATA_ROOT = process.env.DATA_DIR
+  ? join(process.env.DATA_DIR, "ula-data")
+  : process.env.NODE_ENV === "production"
+  ? join(process.cwd(), "tmp", "ula-data")
+  : join(process.cwd(), ".data");
+const ARTIFACTS_FILE = join(DATA_ROOT, "portfolio-artifacts.json");
+const FEED_FILE = join(DATA_ROOT, "portfolio-feed.json");
 
 const artifacts = new Map<string, PortfolioArtifact>();
 const feed: PortfolioFeedEvent[] = [];
 
 function ensureDataDirectory() {
-  if (!existsSync(DATA_DIR)) {
-    mkdirSync(DATA_DIR, { recursive: true });
+  if (!existsSync(DATA_ROOT)) {
+    mkdirSync(DATA_ROOT, { recursive: true });
   }
 }
 
