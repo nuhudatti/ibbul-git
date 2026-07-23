@@ -138,9 +138,9 @@ function splitName(displayName: string) {
 
 
 function toAdminRecord(record: StudentProfileRecord): AdminStudentRecord {
-  const avatarUrl = resolveAvatarUrl(record.matric, record.avatarUrl);
+  const avatarUrl = resolveAvatarUrl(normalizeMatric(record.matric), record.avatarUrl);
   return {
-    matric: record.matric,
+    matric: normalizeMatric(record.matric),
     firstName: record.firstName,
     lastName: record.lastName,
     displayName: `${record.firstName} ${record.lastName}`.trim(),
@@ -160,10 +160,10 @@ function toAdminRecord(record: StudentProfileRecord): AdminStudentRecord {
 /** Ensure every directory student has a profile (fixes missing roster after format migrations) */
 export function syncDirectoryProfiles() {
   Object.entries(STUDENT_DIRECTORY).forEach(([matric, entry]) => {
-    const norm = matric;
+    const norm = normalizeMatric(matric);
     if (profiles.has(norm)) return;
 
-    const demo = DEMO_USERS[matric];
+    const demo = DEMO_USERS[norm] ?? DEMO_USERS[matric];
     const { firstName, lastName } = demo
       ? { firstName: demo.firstName, lastName: demo.lastName }
       : splitName(entry.displayName);

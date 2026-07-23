@@ -149,8 +149,8 @@
     "notifyPortfolio": false,
     "publicProfile": false,
     "createdAt": "2026-07-19T19:12:54.868Z",
-    "updatedAt": "2026-07-19T19:32:14.694Z",
-    "lastLoginAt": "2026-07-19T19:32:14.694Z"
+    "updatedAt": "2026-07-23T20:22:37.307Z",
+    "lastLoginAt": "2026-07-23T20:22:37.307Z"
   },
   {
     "matric": "U22/FNS/CSC/4444",
@@ -191,5 +191,26 @@
     "createdAt": "2026-07-19T19:32:34.877Z",
     "updatedAt": "2026-07-19T19:33:20.165Z",
     "lastLoginAt": "2026-07-19T19:33:04.594Z"
+  },
+  {
+    "matric": "U22/FNS/CSC/9999",
+    "firstName": "Test",
+    "lastName": "Student",
+    "program": "B.Sc Computer Science",
+    "headline": "Verified builder · Live deployable work",
+    "email": "test9999@example.com",
+    "avatarInitials": "TS",
+    "passwordHash": "d281f9ee1630146b4976fb10ecf3824dc4d8c228de30e2d8155d10cd5e55d4fd",
+    "accountRole": "STUDENT",
+    "status": "pending",
+    "mustChangePassword": true,
+    "notifyAssignments": true,
+    "notifyGrades": true,
+    "notifyPortfolio": true,
+    "publicProfile": true,
+    "createdAt": "2026-07-23T20:24:15.524Z",
+    "updatedAt": "2026-07-23T20:26:57.669Z",
+    "lastLoginAt": "2026-07-23T20:25:33.369Z",
+    "avatarUrl": "/uploads/avatars/U22-FNS-CSC-9999.jpg"
   }
 ]
