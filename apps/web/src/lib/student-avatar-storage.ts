@@ -52,10 +52,26 @@ export function getAvatarPublicUrl(matric: string): string | undefined {
 }
 
 export function saveAvatarFile(matric: string, mime: string, buffer: Buffer): string {
-  ensureAvatarDir();
+  // In production serverless environments, the public directory is not writable
+  // and /tmp is not web-accessible. Return a data URL so the avatar can be
+  // rendered directly from the profile record. In development, write to
+  // public/uploads/avatars so the file is served normally.
   const key = avatarFileKey(matric);
   const ext = extForMime(mime);
 
+  if (process.env.NODE_ENV === "production") {
+    // option: still write to /tmp for ephemeral storage, but return a data URL
+    try {
+      ensureAvatarDir();
+      const filePath = path.join(AVATAR_DIR, `${key}.${ext}`);
+      fs.writeFileSync(filePath, buffer);
+    } catch (e) {
+      // ignore write failures in production
+    }
+    return `data:${mime};base64,${buffer.toString("base64")}`;
+  }
+
+  ensureAvatarDir();
   for (const old of ["jpg", "jpeg", "png", "webp"]) {
     const oldPath = path.join(AVATAR_DIR, `${key}.${old}`);
     if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);

@@ -115,7 +115,10 @@ function initials(first: string, last: string) {
 function resolveAvatarUrl(matric: string, recordUrl?: string): string | undefined {
   const disk = getAvatarPublicUrl(matric);
   if (disk) return disk;
+  // If a data URL was stored (production fallback), return it directly.
+  if (recordUrl?.startsWith("data:")) return recordUrl;
   if (recordUrl?.startsWith("/uploads/")) return recordUrl.split("?")[0];
+  if (recordUrl?.startsWith("http://") || recordUrl?.startsWith("https://")) return recordUrl;
   return undefined;
 }
 
@@ -566,6 +569,10 @@ export function setStudentAvatar(matric: string, mime: string, buffer: Buffer) {
   const updated = { ...record, avatarUrl, updatedAt: new Date().toISOString() };
   profiles.set(norm, updated);
   persistProfilesToDisk();
+  // If the saved avatar is a data URL, don't append cache-busting query string.
+  if (typeof avatarUrl === "string" && avatarUrl.startsWith("data:")) {
+    return { avatarUrl };
+  }
   return { avatarUrl: `${avatarUrl}?v=${Date.now()}` };
 }
 

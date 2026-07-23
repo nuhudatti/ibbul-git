@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type { ProjectFile, AiMessage, DeploymentState } from "@/types";
 import { STARTER_FILES } from "@/lib/mock-data";
 import { getLanguageFromPath } from "@/lib/utils";
@@ -96,37 +97,39 @@ function normalizeWorkspacePath(path: string) {
   return path.trim().replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+/g, "/");
 }
 
-export const useIdeStore = create<IdeState>((set, get) => ({
-  projectId: "proj-demo-001",
-  projectName: "My Dream Project",
-  files: mapFiles(STARTER_FILES),
-  folders: [],
-  activeFilePath: "index.html",
-  isExplorerOpen: true,
-  isAiPanelOpen: false,
-  isTerminalOpen: false,
-  viewMode: "code",
-  workspaceMode: "edit",
-  submissionMeta: null,
-  previewKey: 0,
-  previewDevice: "desktop",
-  activeAssignmentId: null,
-  isDeployModalOpen: false,
-  terminalLogs: ["Project ULA ready.", "Press Run to launch your project in full preview."],
-  aiMessages: [
-    {
-      id: "welcome",
-      role: "assistant",
-      content: "Hey! I'm your AI coding mentor. Hit Run when you want to see your project come alive.",
-      timestamp: new Date().toISOString(),
-    },
-  ],
-  isAiThinking: false,
-  deployment: defaultDeployment,
-  lastSaved: null,
-  isDirty: false,
+export const useIdeStore = create<IdeState>()(
+  persist(
+    (set, get) => ({
+      projectId: "proj-demo-001",
+      projectName: "My Dream Project",
+      files: mapFiles(STARTER_FILES),
+      folders: [],
+      activeFilePath: "index.html",
+      isExplorerOpen: true,
+      isAiPanelOpen: false,
+      isTerminalOpen: false,
+      viewMode: "code",
+      workspaceMode: "edit",
+      submissionMeta: null,
+      previewKey: 0,
+      previewDevice: "desktop",
+      activeAssignmentId: null,
+      isDeployModalOpen: false,
+      terminalLogs: ["Project ULA ready.", "Press Run to launch your project in full preview."],
+      aiMessages: [
+        {
+          id: "welcome",
+          role: "assistant",
+          content: "Hey! I'm your AI coding mentor. Hit Run when you want to see your project come alive.",
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      isAiThinking: false,
+      deployment: defaultDeployment,
+      lastSaved: null,
+      isDirty: false,
 
-  setActiveFile: (path) => set({ activeFilePath: path, viewMode: "code" }),
+      setActiveFile: (path) => set({ activeFilePath: path, viewMode: "code" }),
   createFile: (path, content = "") => {
     const normalized = normalizeWorkspacePath(path);
     if (!normalized || get().files.some((file) => file.path === normalized)) return false;
@@ -321,4 +324,7 @@ export const useIdeStore = create<IdeState>((set, get) => ({
   markSaved: () => set({ lastSaved: new Date(), isDirty: false }),
   setDirty: (dirty) => set({ isDirty: dirty }),
   isReadOnly: () => get().workspaceMode === "submitted",
-}));
+    }),
+    { name: "ula-ide" }
+  )
+);
