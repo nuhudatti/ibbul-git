@@ -43,7 +43,12 @@ function starterContent(extension: string) {
   return "# New file\n";
 }
 
-function buildExplorerTree(files: { path: string }[], folders: string[]) {
+interface ExplorerInput {
+  path: string;
+  isFolder?: boolean;
+}
+
+function buildExplorerTree(files: ExplorerInput[], folders: string[]) {
   const nodes: Record<string, ExplorerNode> = {};
   const root: ExplorerNode[] = [];
 
