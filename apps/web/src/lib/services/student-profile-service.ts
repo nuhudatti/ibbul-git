@@ -295,6 +295,56 @@ export async function getResolvedProfileRecord(matric: string) {
   return toResolvedProfile(row);
 }
 
+/**
+ * Ensure a single bootstrap admin exists when the DB has zero admins.
+ * Creates an admin only when `BOOTSTRAP_ADMIN_PASSWORD` env var is provided.
+ * Returns true if an admin was created, false otherwise.
+ */
+export async function ensureBootstrapAdmin(): Promise<boolean> {
+  const count = await prisma.studentProfile.count({ where: { accountRole: "ADMIN" } });
+  if (count > 0) return false;
+
+  const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+  if (!password) {
+    console.warn("BOOTSTRAP_ADMIN_PASSWORD not set; skipping admin bootstrap");
+    return false;
+  }
+
+  const matric = process.env.BOOTSTRAP_ADMIN_MATRIC ?? "ADMIN001";
+  const firstName = process.env.BOOTSTRAP_ADMIN_FIRSTNAME ?? "Admin";
+  const lastName = process.env.BOOTSTRAP_ADMIN_LASTNAME ?? "User";
+  const email = process.env.BOOTSTRAP_ADMIN_EMAIL ?? "admin@ula.edu";
+
+  try {
+    await prisma.studentProfile.create({
+      data: {
+        matric: normalizeMatric(matric),
+        firstName,
+        lastName,
+        program: "ULA Platform",
+        headline: "Administrator",
+        email,
+        avatarInitials: (firstName.charAt(0) + lastName.charAt(0)).toUpperCase(),
+        passwordHash: hashPassword(password),
+        accountRole: "ADMIN",
+        status: "active",
+        mustChangePassword: false,
+        notifyAssignments: false,
+        notifyGrades: false,
+        notifyPortfolio: false,
+        publicProfile: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    console.log(`Bootstrap admin created: ${matric}`);
+    return true;
+  } catch (err) {
+    console.error("Failed to create bootstrap admin:", err);
+    return false;
+  }
+}
+
 export async function authenticateStudent(matric: string, password: string) {
   const norm = normalizeMatric(matric);
   const record = await getProfileRecordByMatric(norm);

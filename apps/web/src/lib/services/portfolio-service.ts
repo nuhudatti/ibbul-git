@@ -1,6 +1,10 @@
 import { normalizeMatric } from "@/lib/matric";
 import { prisma } from "@/lib/services/prisma";
-import { getResolvedProfileRecord } from "@/lib/services/student-profile-service";
+import {
+  getResolvedProfileRecord,
+  createStudentProfile,
+  hashPassword,
+} from "@/lib/services/student-profile-service";
 import type { PortfolioArtifact, PortfolioFeedEvent } from "@/types";
 
 function toPortfolioArtifact(record: {
@@ -264,6 +268,16 @@ export async function seedDemoPortfolio() {
   ];
 
   for (const artifact of demos) {
+    // Do NOT auto-create real student profiles in production.
+    // Only upsert demo artifacts if the referenced StudentProfile already exists.
+    const norm = normalizeMatric(artifact.studentMatric);
+    const existing = await prisma.studentProfile.findUnique({ where: { matric: norm } });
+    if (!existing) {
+      // skip artifacts for missing students to preserve FK integrity
+      // they may be demo records — do not invent production users
+      continue;
+    }
+
     await upsertServerArtifact(artifact);
   }
 
