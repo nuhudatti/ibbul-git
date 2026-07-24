@@ -1,4 +1,6 @@
-export type UserRole = "STUDENT" | "LECTURER" | "ADMIN";
+import type { Role } from "@prisma/client";
+
+export type UserRole = Role;
 
 export interface User {
   id: string;

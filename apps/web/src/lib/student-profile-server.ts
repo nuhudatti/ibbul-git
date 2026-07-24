@@ -1,3 +1,4 @@
+import type { Role } from "@prisma/client";
 import { normalizeMatric, parseMatricParts, isValidStudentMatric } from "@/lib/matric";
 import { STUDENT_DIRECTORY } from "@/lib/student-directory";
 import { generateTempPassword } from "@/lib/temp-password";
@@ -14,7 +15,7 @@ import {
   verifyPassword,
 } from "@/lib/services/student-profile-service";
 
-export type AccountRole = "STUDENT" | "LECTURER" | "ADMIN";
+export type AccountRole = Role;
 
 export interface StudentProfileRecord {
   matric: string;

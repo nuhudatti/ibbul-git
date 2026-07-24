@@ -1,2 +1,1 @@
--- AlterTable
-ALTER TYPE "Role" ADD VALUE 'SUPER_ADMIN';
+-- Removed super-admin role migration; no-op placeholder to keep migration history consistent.
