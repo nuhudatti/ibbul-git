@@ -2,7 +2,7 @@ import { sign, verify } from "jsonwebtoken";
 
 export interface SessionPayload {
   matric: string;
-  role: "STUDENT" | "LECTURER" | "ADMIN";
+  role: "STUDENT" | "LECTURER" | "ADMIN" | "SUPER_ADMIN";
   createdAt: number;
   expiresAt: number;
 }

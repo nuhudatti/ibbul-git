@@ -42,7 +42,7 @@ export function LoginScreen() {
     }
 
     login(data.user, data.sessionToken ?? "");
-    if (data.user.role === "ADMIN") {
+    if (["ADMIN", "SUPER_ADMIN"].includes(data.user.role)) {
       router.push("/admin");
     } else if (data.user.role === "LECTURER") {
       router.push("/dashboard");

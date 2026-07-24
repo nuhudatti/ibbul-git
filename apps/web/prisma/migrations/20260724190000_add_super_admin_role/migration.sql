@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TYPE "Role" ADD VALUE 'SUPER_ADMIN';

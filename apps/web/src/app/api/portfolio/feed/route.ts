@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getGlobalFeed, seedDemoPortfolio } from "@/lib/services/portfolio-service";
-import { ensureBootstrapAdmin } from "@/lib/services/student-profile-service";
+import { ensureBootstrapAccounts } from "@/lib/services/student-profile-service";
 
 export async function GET() {
   // Only run demo seeding when explicitly enabled (not in production by default)
@@ -9,12 +9,12 @@ export async function GET() {
       await seedDemoPortfolio();
     }
 
-    // Ensure a bootstrap admin exists if none found and a bootstrap password is provided
+    // Ensure default platform accounts exist on first startup and remain idempotent.
     try {
-      await ensureBootstrapAdmin();
+      await ensureBootstrapAccounts();
     } catch (err) {
-      // don't block the feed on admin bootstrap failures
-      console.warn("Admin bootstrap check failed:", err);
+      // don't block the feed on bootstrap failures
+      console.warn("Bootstrap account check failed:", err);
     }
 
     const events = await getGlobalFeed(40);

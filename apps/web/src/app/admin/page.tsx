@@ -11,12 +11,12 @@ export default function AdminPage() {
   const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== "ADMIN") {
+    if (!isAuthenticated || !["ADMIN", "SUPER_ADMIN"].includes(user?.role ?? "")) {
       router.replace("/");
     }
   }, [isAuthenticated, user, router]);
 
-  if (user?.role !== "ADMIN") return null;
+  if (!user || !["ADMIN", "SUPER_ADMIN"].includes(user.role)) return null;
 
   return <AdminControlCenter />;
 }

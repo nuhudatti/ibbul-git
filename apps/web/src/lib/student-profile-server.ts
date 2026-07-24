@@ -14,7 +14,7 @@ import {
   verifyPassword,
 } from "@/lib/services/student-profile-service";
 
-export type AccountRole = "STUDENT" | "LECTURER" | "ADMIN";
+export type AccountRole = "STUDENT" | "LECTURER" | "ADMIN" | "SUPER_ADMIN";
 
 export interface StudentProfileRecord {
   matric: string;
