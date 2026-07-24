@@ -398,7 +398,8 @@ async function createBootstrapAccountIfMissing(
 async function reconcileBootstrapAccount(
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
   account: BootstrapAccountConfig,
-  now: Date
+  now: Date,
+  force: boolean
 ) {
   const normalizedMatric = buildBootstrapMatric(account.matric, account.role);
   const avatarInitials = `${account.firstName.charAt(0) ?? "U"}${account.lastName.charAt(0) ?? "L"}`.toUpperCase();
@@ -429,26 +430,29 @@ async function reconcileBootstrapAccount(
     return true;
   }
 
-  await tx.studentProfile.update({
-    where: { matric: normalizedMatric },
-    data: {
-      firstName: account.firstName,
-      lastName: account.lastName,
-      program: account.program,
-      headline: account.headline,
-      email: account.email,
-      avatarInitials,
-      passwordHash: hashPassword(account.password),
-      accountRole: account.role,
-      status: "active",
-      mustChangePassword: account.mustChangePassword,
-      notifyAssignments: account.notifyAssignments,
-      notifyGrades: account.notifyGrades,
-      notifyPortfolio: account.notifyPortfolio,
-      publicProfile: account.publicProfile,
-      updatedAt: now,
-    },
-  });
+  if (force) {
+    await tx.studentProfile.update({
+      where: { matric: normalizedMatric },
+      data: {
+        firstName: account.firstName,
+        lastName: account.lastName,
+        program: account.program,
+        headline: account.headline,
+        email: account.email,
+        avatarInitials,
+        passwordHash: hashPassword(account.password),
+        accountRole: account.role,
+        status: "active",
+        mustChangePassword: account.mustChangePassword,
+        notifyAssignments: account.notifyAssignments,
+        notifyGrades: account.notifyGrades,
+        notifyPortfolio: account.notifyPortfolio,
+        publicProfile: account.publicProfile,
+        updatedAt: now,
+      },
+    });
+    return false;
+  }
 
   return false;
 }
@@ -457,15 +461,22 @@ export async function ensureBootstrapAccounts(): Promise<boolean> {
   try {
     const accounts = getBootstrapConfig();
     const now = new Date();
+    const force = process.env.FORCE_BOOTSTRAP_ACCOUNTS === "true";
 
     await prisma.$transaction(async (tx) => {
       for (const account of accounts) {
-        const created = await reconcileBootstrapAccount(tx, account, now);
+        const created = await reconcileBootstrapAccount(tx, account, now, force);
         if (created) {
           if (account.role === "ADMIN") {
             console.log("✓ Admin created");
           } else {
             console.log("✓ Lecturer created");
+          }
+        } else if (force) {
+          if (account.role === "ADMIN") {
+            console.log("✓ Admin password updated");
+          } else {
+            console.log("✓ Lecturer password updated");
           }
         }
       }
