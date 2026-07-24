@@ -13,7 +13,7 @@ export type StudentProfileCreateInput = {
   program: string;
   email?: string;
   passwordHash: string;
-  accountRole?: "STUDENT" | "LECTURER" | "ADMIN" | "SUPER_ADMIN";
+  accountRole?: "STUDENT" | "LECTURER" | "ADMIN";
   status?: StudentAccountStatus;
   mustChangePassword?: boolean;
   headline?: string;
@@ -296,7 +296,7 @@ export async function getResolvedProfileRecord(matric: string) {
 }
 
 type BootstrapAccountConfig = {
-  role: "SUPER_ADMIN" | "ADMIN" | "LECTURER";
+  role: "ADMIN" | "LECTURER";
   username: string;
   email: string;
   password: string;
@@ -314,22 +314,6 @@ type BootstrapAccountConfig = {
 
 function getBootstrapConfig(): BootstrapAccountConfig[] {
   return [
-    {
-      role: "SUPER_ADMIN",
-      username: process.env.BOOTSTRAP_SUPER_ADMIN_USERNAME ?? "superadmin",
-      email: process.env.BOOTSTRAP_SUPER_ADMIN_EMAIL ?? `${process.env.BOOTSTRAP_SUPER_ADMIN_USERNAME ?? "superadmin"}@ula.edu`,
-      password: process.env.BOOTSTRAP_SUPER_ADMIN_PASSWORD ?? "SuperAdmin123!",
-      firstName: "Super",
-      lastName: "Admin",
-      matric: process.env.BOOTSTRAP_SUPER_ADMIN_MATRIC ?? "SUPERADMIN001",
-      program: "ULA Platform",
-      headline: "Platform super administrator",
-      notifyAssignments: false,
-      notifyGrades: false,
-      notifyPortfolio: false,
-      publicProfile: false,
-      mustChangePassword: false,
-    },
     {
       role: "ADMIN",
       username: process.env.BOOTSTRAP_ADMIN_USERNAME ?? "admin",
@@ -367,61 +351,87 @@ function getBootstrapConfig(): BootstrapAccountConfig[] {
 
 function buildBootstrapMatric(matric: string, role: BootstrapAccountConfig["role"]) {
   const normalized = normalizeMatric(matric);
-  if (role === "SUPER_ADMIN") {
-    return normalized.startsWith("SUPER") ? normalized : normalizeMatric("SUPERADMIN001");
-  }
   if (role === "ADMIN") {
     return normalized.startsWith("ADMIN") ? normalized : normalizeMatric("ADMIN001");
   }
   return normalized.startsWith("LEC") ? normalized : normalizeMatric("LEC001");
 }
 
+async function createBootstrapAccountIfMissing(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  account: BootstrapAccountConfig,
+  now: Date
+) {
+  const normalizedMatric = buildBootstrapMatric(account.matric, account.role);
+  const avatarInitials = `${account.firstName.charAt(0) ?? "U"}${account.lastName.charAt(0) ?? "L"}`.toUpperCase();
+
+  const existing = await tx.studentProfile.findUnique({ where: { matric: normalizedMatric } });
+  if (existing) {
+    return false;
+  }
+
+  await tx.studentProfile.create({
+    data: {
+      matric: normalizedMatric,
+      firstName: account.firstName,
+      lastName: account.lastName,
+      program: account.program,
+      headline: account.headline,
+      email: account.email,
+      avatarInitials,
+      passwordHash: hashPassword(account.password),
+      accountRole: account.role,
+      status: "active",
+      mustChangePassword: account.mustChangePassword,
+      notifyAssignments: account.notifyAssignments,
+      notifyGrades: account.notifyGrades,
+      notifyPortfolio: account.notifyPortfolio,
+      publicProfile: account.publicProfile,
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+
+  return true;
+}
+
 export async function ensureBootstrapAccounts(): Promise<boolean> {
   try {
-    const existingPlatformAdmins = await prisma.studentProfile.findFirst({
-      where: { accountRole: { in: ["SUPER_ADMIN", "ADMIN"] } },
+    const existingAdmin = await prisma.studentProfile.findFirst({
+      where: { accountRole: "ADMIN" },
+      select: { matric: true, accountRole: true },
+    });
+    const existingLecturer = await prisma.studentProfile.findFirst({
+      where: { accountRole: "LECTURER" },
       select: { matric: true, accountRole: true },
     });
 
-    if (existingPlatformAdmins) {
+    if (existingAdmin && existingLecturer) {
       console.log("Bootstrap accounts already exist.");
       return false;
     }
 
-    const requiredAccounts = getBootstrapConfig();
+    const requiredAccounts = getBootstrapConfig().filter((account) => {
+      if (account.role === "ADMIN") return !existingAdmin;
+      return !existingLecturer;
+    });
+
+    if (requiredAccounts.length === 0) {
+      console.log("Bootstrap accounts already exist.");
+      return false;
+    }
+
     const now = new Date();
 
     await prisma.$transaction(async (tx) => {
       for (const account of requiredAccounts) {
-        const normalizedMatric = buildBootstrapMatric(account.matric, account.role);
-        const avatarInitials = `${account.firstName.charAt(0) ?? "U"}${account.lastName.charAt(0) ?? "L"}`.toUpperCase();
-        await tx.studentProfile.create({
-          data: {
-            matric: normalizedMatric,
-            firstName: account.firstName,
-            lastName: account.lastName,
-            program: account.program,
-            headline: account.headline,
-            email: account.email,
-            avatarInitials,
-            passwordHash: hashPassword(account.password),
-            accountRole: account.role,
-            status: "active",
-            mustChangePassword: account.mustChangePassword,
-            notifyAssignments: account.notifyAssignments,
-            notifyGrades: account.notifyGrades,
-            notifyPortfolio: account.notifyPortfolio,
-            publicProfile: account.publicProfile,
-            createdAt: now,
-            updatedAt: now,
-          },
-        });
-        if (account.role === "SUPER_ADMIN") {
-          console.log("✓ Super Admin created");
-        } else if (account.role === "ADMIN") {
-          console.log("✓ Admin created");
-        } else {
-          console.log("✓ Lecturer created");
+        const created = await createBootstrapAccountIfMissing(tx, account, now);
+        if (created) {
+          if (account.role === "ADMIN") {
+            console.log("✓ Admin created");
+          } else {
+            console.log("✓ Lecturer created");
+          }
         }
       }
     });

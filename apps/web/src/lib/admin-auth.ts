@@ -6,7 +6,7 @@ export async function requireAdmin(req: Request) {
   const token = getSessionTokenFromRequest(req);
   const session = getSession(token);
 
-  if (!session || !["ADMIN", "SUPER_ADMIN"].includes(session.role)) {
+  if (!session || session.role !== "ADMIN") {
     return {
       error: NextResponse.json(
         { error: "Admin authentication required. Please sign out and log in again as an administrator." },
@@ -16,7 +16,7 @@ export async function requireAdmin(req: Request) {
   }
 
   const record = await getProfileRecordByMatric(session.matric);
-  if (!record || !["ADMIN", "SUPER_ADMIN"].includes(record.accountRole)) {
+  if (!record || record.accountRole !== "ADMIN") {
     return {
       error: NextResponse.json({ error: "Invalid admin session" }, { status: 401 }),
     };

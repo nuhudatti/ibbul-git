@@ -107,7 +107,6 @@ enum Role {
   STUDENT
   LECTURER
   ADMIN
-  SUPER_ADMIN
 }
 
 enum AccountStatus {
