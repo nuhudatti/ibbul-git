@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
-import {
-  buildCohortRegistry,
-  getCohortFeed,
-  getHeroArtifacts,
-} from "@/lib/cohort-registry";
-import { seedNetworkPulseFeed } from "@/lib/portfolio-server-store";
+import { buildCohortRegistry, getCohortFeed, getHeroArtifacts } from "@/lib/cohort-registry";
 
 export async function GET() {
-  seedNetworkPulseFeed();
-  const { builders, stats } = buildCohortRegistry();
-  const feed = getCohortFeed();
-  const heroArtifacts = getHeroArtifacts(8);
+  const { builders, stats } = await buildCohortRegistry();
+  const feed = await getCohortFeed();
+  const heroArtifacts = await getHeroArtifacts(8);
 
   return NextResponse.json({
     builders,

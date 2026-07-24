@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { removeStudentAvatar, setStudentAvatar } from "@/lib/student-profile-server";
 import { normalizeMatric } from "@/lib/matric";
+import { removeStudentAvatarRecord, updateStudentAvatar } from "@/lib/services/student-profile-service";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const result = setStudentAvatar(normalizeMatric(matric), file.type, buffer);
+    const result = await updateStudentAvatar(normalizeMatric(matric), file.type, buffer);
     if (!result) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
@@ -52,6 +52,6 @@ export async function DELETE(req: NextRequest) {
   if (!matric) {
     return NextResponse.json({ error: "matric required" }, { status: 400 });
   }
-  removeStudentAvatar(matric);
+  await removeStudentAvatarRecord(matric);
   return NextResponse.json({ ok: true });
 }

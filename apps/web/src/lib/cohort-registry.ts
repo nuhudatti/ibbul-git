@@ -1,6 +1,6 @@
 import { normalizeMatric } from "@/lib/matric";
-import { getAllArtifacts, getGlobalFeed, seedDemoPortfolio } from "@/lib/portfolio-server-store";
-import { resolveStudentProfile, listStudentProfiles } from "@/lib/student-profile-server";
+import { getAllArtifacts, getGlobalFeed, seedDemoPortfolio } from "@/lib/services/portfolio-service";
+import { getResolvedProfileRecord, listStudentProfilesForAdmin } from "@/lib/services/student-profile-service";
 import type { PortfolioArtifact } from "@/types";
 
 export type BuilderStatus = "verified" | "building" | "emerging";
@@ -32,14 +32,14 @@ export interface CohortStats {
   networkAvgScore: number | null;
 }
 
-export function buildCohortRegistry(): {
+export async function buildCohortRegistry(): Promise<{
   builders: CohortBuilder[];
   stats: CohortStats;
-} {
-  seedDemoPortfolio();
-  const allArtifacts = getAllArtifacts();
+}> {
+  await seedDemoPortfolio();
+  const allArtifacts = await getAllArtifacts();
 
-  const directoryMatrics = listStudentProfiles().map((s) => normalizeMatric(s.matric));
+  const directoryMatrics = (await listStudentProfilesForAdmin()).map((s) => normalizeMatric(s.matric));
   const artifactMatrics = Array.from(
     new Set(allArtifacts.map((a) => normalizeMatric(a.studentMatric)))
   );
@@ -50,9 +50,9 @@ export function buildCohortRegistry(): {
     }
   });
 
-  const builders: CohortBuilder[] = studentMatrics.map((matric) => {
+  const builders: CohortBuilder[] = await Promise.all(studentMatrics.map(async (matric) => {
     const norm = normalizeMatric(matric);
-    const profile = resolveStudentProfile(norm);
+    const profile = await getResolvedProfileRecord(norm);
     const artifacts = allArtifacts
       .filter((a) => normalizeMatric(a.studentMatric) === norm)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -72,11 +72,11 @@ export function buildCohortRegistry(): {
 
     return {
       matric: norm,
-      displayName: profile.displayName,
-      avatar: profile.avatar,
-      avatarUrl: profile.avatarUrl,
-      program: profile.program,
-      headline: profile.headline,
+      displayName: profile?.displayName ?? norm,
+      avatar: profile?.avatar ?? norm.slice(0, 2),
+      avatarUrl: profile?.avatarUrl,
+      program: profile?.program ?? "ULA Scholar",
+      headline: profile?.headline ?? "Verified builder · Live deployable work",
       verifiedCount: verified.length,
       totalArtifacts: artifacts.length,
       liveDeploys: artifacts.filter((a) => a.deployUrl).length,
@@ -89,7 +89,7 @@ export function buildCohortRegistry(): {
       status,
       skills: [...skillSet].slice(0, 6),
     };
-  });
+  }));
 
   builders.sort((a, b) => {
     if (b.verifiedCount !== a.verifiedCount) return b.verifiedCount - a.verifiedCount;
@@ -114,15 +114,15 @@ export function buildCohortRegistry(): {
   return { builders, stats };
 }
 
-export function getCohortFeed() {
-  seedDemoPortfolio();
-  return getGlobalFeed(40);
+export async function getCohortFeed() {
+  await seedDemoPortfolio();
+  return await getGlobalFeed(40);
 }
 
 /** Verified artifacts for the live interactive hero */
-export function getHeroArtifacts(limit = 8): PortfolioArtifact[] {
-  seedDemoPortfolio();
-  const allArtifacts = getAllArtifacts();
+export async function getHeroArtifacts(limit = 8): Promise<PortfolioArtifact[]> {
+  await seedDemoPortfolio();
+  const allArtifacts = await getAllArtifacts();
   const verified = allArtifacts
     .filter((a) => a.verified)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -132,19 +132,20 @@ export function getHeroArtifacts(limit = 8): PortfolioArtifact[] {
   const artifactMatrics = Array.from(
     new Set(allArtifacts.map((a) => normalizeMatric(a.studentMatric)))
   );
-  const extraMatrics = [...listStudentProfiles().map((s) => normalizeMatric(s.matric)), ...artifactMatrics].filter(
+  const directoryMatrics = (await listStudentProfilesForAdmin()).map((s) => normalizeMatric(s.matric));
+  const extraMatrics = [...directoryMatrics, ...artifactMatrics].filter(
     (m, index, self) => self.indexOf(m) === index &&
       !verified.some((a) => normalizeMatric(a.studentMatric) === m)
   );
 
-  const extras: PortfolioArtifact[] = extraMatrics
+  const extras: PortfolioArtifact[] = await Promise.all(extraMatrics
     .slice(0, limit - verified.length)
-    .map((matric, i) => {
-      const profile = resolveStudentProfile(matric);
+    .map(async (matric, i) => {
+      const profile = await getResolvedProfileRecord(matric);
       return {
         id: `hero-preview-${matric}`,
         studentMatric: matric,
-        studentName: profile.displayName,
+        studentName: profile?.displayName ?? matric,
         assignmentId: "asn-preview",
         courseId: "CS101-WebDev",
         courseName: "Web Development",
@@ -159,7 +160,7 @@ export function getHeroArtifacts(limit = 8): PortfolioArtifact[] {
         skills: ["HTML", "CSS"],
         thumbnailGradient: "from-violet-500/25 to-cyan-500/25",
       };
-    });
+    }));
 
   return [...verified, ...extras].slice(0, limit);
 }

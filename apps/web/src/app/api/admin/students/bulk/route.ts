@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
-import { bulkCreateStudents } from "@/lib/student-profile-server";
+import { generateTempPassword } from "@/lib/temp-password";
+import { normalizeMatric } from "@/lib/matric";
+import { createStudentProfile, hashPassword } from "@/lib/services/student-profile-service";
 
 export async function POST(req: Request) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if ("error" in auth) return auth.error;
 
   try {
@@ -15,8 +17,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Maximum 500 students per import" }, { status: 400 });
     }
 
-    const result = bulkCreateStudents(rows);
-    return NextResponse.json(result);
+    const created: { record: unknown; tempPassword: string }[] = [];
+    const errors: { row: number; matric: string; error: string }[] = [];
+
+    for (const [index, row] of rows.entries()) {
+      try {
+        const tempPassword = generateTempPassword();
+        const record = await createStudentProfile({
+          matric: normalizeMatric(row.matric),
+          firstName: row.firstName,
+          lastName: row.lastName,
+          program: row.program ?? "B.Sc Computer Science",
+          email: row.email,
+          passwordHash: hashPassword(tempPassword),
+          status: "pending",
+          mustChangePassword: true,
+        });
+
+        created.push({ record, tempPassword });
+      } catch (error) {
+        errors.push({
+          row: index + 1,
+          matric: row.matric,
+          error: error instanceof Error ? error.message : "Bulk import failed",
+        });
+      }
+    }
+
+    return NextResponse.json({ created, errors });
   } catch {
     return NextResponse.json({ error: "Bulk import failed" }, { status: 500 });
   }

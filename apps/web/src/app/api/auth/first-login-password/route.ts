@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { completeRequiredPasswordChange } from "@/lib/student-profile-server";
+import { getProfileRecordByMatric, hashPassword, updateStudentProfileRecord, verifyPassword } from "@/lib/services/student-profile-service";
 
 export async function POST(req: Request) {
   try {
@@ -11,10 +11,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Passwords do not match" }, { status: 400 });
     }
 
-    const result = completeRequiredPasswordChange(matric, currentPassword, newPassword);
-    if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
+    const record = await getProfileRecordByMatric(matric);
+    if (!record) {
+      return NextResponse.json({ error: "Account not found" }, { status: 400 });
     }
+    if (!verifyPassword(currentPassword, record.passwordHash)) {
+      return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
+    }
+    if (newPassword.length < 8) {
+      return NextResponse.json({ error: "New password must be at least 8 characters" }, { status: 400 });
+    }
+
+    await updateStudentProfileRecord(matric, {
+      passwordHash: hashPassword(newPassword),
+      mustChangePassword: false,
+      status: record.status === "pending" ? "active" : record.status,
+    });
 
     return NextResponse.json({
       ok: true,

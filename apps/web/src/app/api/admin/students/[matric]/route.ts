@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { apiSegmentToMatric } from "@/lib/matric";
-import { updateStudentStatus } from "@/lib/student-profile-server";
+import { updateStudentStatusRecord } from "@/lib/services/student-profile-service";
 import type { StudentAccountStatus } from "@/types";
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ matric: string }> }
 ) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if ("error" in auth) return auth.error;
 
   try {
@@ -20,7 +20,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
-    const student = updateStudentStatus(matric, status);
+    const student = await updateStudentStatusRecord(matric, status);
     if (!student) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }

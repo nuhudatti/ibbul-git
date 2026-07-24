@@ -34,8 +34,8 @@
 @theme inline {
   --color-background: var(--ula-bg-base);
   --color-foreground: var(--ula-text-primary);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
 }
 
 * {
@@ -49,7 +49,7 @@ html {
 body {
   background: var(--ula-bg-base);
   color: var(--ula-text-primary);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
 }
 
 body.dashboard-page {

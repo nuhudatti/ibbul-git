@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSession, getSessionTokenFromRequest } from "@/lib/auth-session";
-import { getProfileRecord } from "@/lib/student-profile-server";
+import { getProfileRecordByMatric } from "@/lib/services/student-profile-service";
 
-export function requireAdmin(req: Request) {
+export async function requireAdmin(req: Request) {
   const token = getSessionTokenFromRequest(req);
-  let session = getSession(token);
+  const session = getSession(token);
 
   if (!session || session.role !== "ADMIN") {
     return {
@@ -15,7 +15,7 @@ export function requireAdmin(req: Request) {
     };
   }
 
-  const record = getProfileRecord(session.matric);
+  const record = await getProfileRecordByMatric(session.matric);
   if (!record || record.accountRole !== "ADMIN") {
     return {
       error: NextResponse.json({ error: "Invalid admin session" }, { status: 401 }),

@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDeployment, getDeploymentByPath } from "@/lib/deployment-store";
 import { buildPreviewHtml } from "@/lib/build-preview";
-import {
-  getArtifactByDeployUrl,
-  seedDemoPortfolio,
-} from "@/lib/portfolio-server-store";
+import { getArtifactByDeployUrl, seedDemoPortfolio } from "@/lib/services/portfolio-service";
 import {
   PORTFOLIO_STARTER,
   CALCULATOR_STARTER,
@@ -52,7 +49,7 @@ export async function GET(
   context: { params: Promise<{ matric: string; projectId: string }> }
 ) {
   const { matric, projectId } = await context.params;
-  seedDemoPortfolio();
+  await seedDemoPortfolio();
   const deployment = getDeployment(matric, projectId);
 
   if (deployment) {
@@ -79,7 +76,7 @@ export async function GET(
     });
   }
 
-  const artifact = getArtifactByDeployUrl(deployUrl);
+  const artifact = await getArtifactByDeployUrl(deployUrl);
 
   if (artifact) {
     let html = buildFallbackHtml(normalizedMatric, artifact);

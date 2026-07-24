@@ -1,16 +1,22 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
-import { createStudentAccount, listStudentProfiles } from "@/lib/student-profile-server";
+import { generateTempPassword } from "@/lib/temp-password";
+import { normalizeMatric } from "@/lib/matric";
+import {
+  createStudentProfile,
+  hashPassword,
+  listStudentProfilesForAdmin,
+} from "@/lib/services/student-profile-service";
 
 export async function GET(req: Request) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if ("error" in auth) return auth.error;
 
-  return NextResponse.json({ students: listStudentProfiles() });
+  return NextResponse.json({ students: await listStudentProfilesForAdmin() });
 }
 
 export async function POST(req: Request) {
-  const auth = requireAdmin(req);
+  const auth = await requireAdmin(req);
   if ("error" in auth) return auth.error;
 
   try {
@@ -23,21 +29,21 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = createStudentAccount({
-      matric,
+    const tempPassword = generateTempPassword();
+    const student = await createStudentProfile({
+      matric: normalizeMatric(matric),
       firstName,
       lastName,
       program: program ?? "B.Sc Computer Science",
       email,
+      passwordHash: hashPassword(tempPassword),
+      mustChangePassword: true,
+      status: "pending",
     });
 
-    if ("error" in result) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
-    }
-
     return NextResponse.json({
-      student: result.record,
-      tempPassword: result.tempPassword,
+      student,
+      tempPassword,
     });
   } catch {
     return NextResponse.json({ error: "Failed to create student" }, { status: 500 });

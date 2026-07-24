@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { verifyServerArtifact } from "@/lib/portfolio-server-store";
+import { verifyServerArtifact } from "@/lib/services/portfolio-service";
 
 export async function POST(req: Request) {
   try {
     const { artifactId, lecturerId, lecturerName, approved, note } = await req.json();
-    const updated = verifyServerArtifact(
+    const updated = await verifyServerArtifact(
       artifactId,
       lecturerId ?? "LEC001",
       lecturerName ?? "Lecturer",

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getProfileRecord,
-  resolveStudentProfile,
-  updateStudentProfile,
-} from "@/lib/student-profile-server";
 import { normalizeMatric } from "@/lib/matric";
+import {
+  getProfileRecordByMatric,
+  getResolvedProfileRecord,
+  updateStudentProfileRecord,
+} from "@/lib/services/student-profile-service";
 
 export async function GET(req: NextRequest) {
   const matric = req.nextUrl.searchParams.get("matric");
@@ -12,14 +12,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "matric required" }, { status: 400 });
   }
 
-  const profile = resolveStudentProfile(matric);
-  const record = getProfileRecord(matric);
+  const profile = await getResolvedProfileRecord(matric);
+  const record = await getProfileRecordByMatric(matric);
 
   return NextResponse.json({
     settings: {
       ...profile,
-      displayName: profile.displayName,
-      updatedAt: record?.updatedAt,
+      displayName: profile?.displayName ?? matric,
+      updatedAt: record?.updatedAt.toISOString(),
     },
   });
 }
@@ -33,7 +33,7 @@ export async function PATCH(req: Request) {
     }
 
     const norm = normalizeMatric(matric);
-    const updated = updateStudentProfile(norm, {
+    const updated = await updateStudentProfileRecord(norm, {
       headline: body.headline,
       email: body.email,
       notifyAssignments: body.notifyAssignments,
@@ -46,8 +46,8 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
-    const settings = resolveStudentProfile(norm);
-    return NextResponse.json({ settings: { ...settings, updatedAt: updated.updatedAt } });
+    const settings = await getResolvedProfileRecord(norm);
+    return NextResponse.json({ settings: { ...settings, updatedAt: updated.updatedAt.toISOString() } });
   } catch {
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }

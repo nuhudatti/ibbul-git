@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { PortfolioArtifact } from "@/types";
-import { upsertServerArtifact } from "@/lib/portfolio-server-store";
+import { upsertServerArtifact } from "@/lib/services/portfolio-service";
 
 export async function POST(req: Request) {
   try {
@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     if (!artifact?.id || !artifact.studentMatric || !artifact.hash) {
       return NextResponse.json({ error: "Invalid artifact" }, { status: 400 });
     }
-    upsertServerArtifact(artifact);
+    await upsertServerArtifact(artifact);
     return NextResponse.json({ ok: true, id: artifact.id });
   } catch {
     return NextResponse.json({ error: "Failed to save artifact" }, { status: 500 });

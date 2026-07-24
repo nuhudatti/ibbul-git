@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model StudentProfile {
+  id                  String   @id @default(cuid())
+  matric              String   @unique
+  firstName           String
+  lastName            String
+  program             String
+  headline            String   @default("Verified builder · Live deployable work")
+  email               String   @unique
+  avatarInitials      String
+  avatarUrl           String?
+  passwordHash        String
+  accountRole         Role     @default(STUDENT)
+  status              AccountStatus @default(pending)
+  mustChangePassword  Boolean  @default(true)
+  notifyAssignments   Boolean  @default(true)
+  notifyGrades        Boolean  @default(true)
+  notifyPortfolio     Boolean  @default(true)
+  publicProfile       Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  lastLoginAt         DateTime?
+
+  assignments         ProjectSnapshot[]
+  artifacts           PortfolioArtifact[]
+  uploads             CloudinaryAsset[]
+
+  @@index([accountRole])
+  @@index([status])
+  @@index([email])
+}
+
+model ProjectSnapshot {
+  id             String   @id @default(cuid())
+  studentMatric  String
+  assignmentId   String
+  projectName    String
+  files          Json
+  savedAt        DateTime @default(now())
+  submittedAt    DateTime?
+  deployUrl      String?
+  score          Int?
+
+  student        StudentProfile @relation(fields: [studentMatric], references: [matric], onDelete: Cascade)
+
+  @@index([studentMatric])
+  @@index([assignmentId])
+}
+
+model PortfolioArtifact {
+  id              String   @id @default(cuid())
+  studentMatric   String
+  studentName     String
+  assignmentId    String
+  courseId        String
+  courseName      String
+  title           String
+  description     String?
+  score           Int?
+  maxScore        Int
+  deployUrl       String?
+  timestamp       DateTime @default(now())
+  submittedAt     DateTime @default(now())
+  verified        Boolean  @default(false)
+  verifiedAt      DateTime?
+  lecturerId      String?
+  lecturerName    String?
+  lecturerNote    String?
+  hash            String   @unique
+  status          ArtifactStatus @default(PENDING)
+  skills          String[]
+  thumbnailGradient String?
+
+  student         StudentProfile @relation(fields: [studentMatric], references: [matric], onDelete: Cascade)
+
+  @@index([studentMatric])
+  @@index([status])
+  @@index([verified])
+}
+
+model CloudinaryAsset {
+  id            String   @id @default(cuid())
+  publicId      String   @unique
+  secureUrl     String
+  resourceType  String
+  format        String
+  width         Int?
+  height        Int?
+  bytes         Int?
+  createdAt     DateTime @default(now())
+  studentMatric String?
+
+  student       StudentProfile? @relation(fields: [studentMatric], references: [matric], onDelete: SetNull)
+
+  @@index([studentMatric])
+}
+
+enum Role {
+  STUDENT
+  LECTURER
+  ADMIN
+}
+
+enum AccountStatus {
+  active
+  pending
+  suspended
+}
+
+enum ArtifactStatus {
+  PENDING
+  SUBMITTED
+  VERIFIED
+  REJECTED
+}

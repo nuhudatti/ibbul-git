@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authenticateUser } from "@/lib/student-profile-server";
+import { authenticateStudent } from "@/lib/services/student-profile-service";
 import { createSession, sessionCookieHeader } from "@/lib/auth-session";
 
 export async function POST(req: Request) {
@@ -9,7 +9,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Matric and password required" }, { status: 400 });
     }
 
-    const user = authenticateUser(matricNumber, password);
+    const user = await authenticateStudent(matricNumber, password);
     if (!user) {
       return NextResponse.json({ error: "Invalid matric number or password" }, { status: 401 });
     }
