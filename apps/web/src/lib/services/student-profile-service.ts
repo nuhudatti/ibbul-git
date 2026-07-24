@@ -395,37 +395,72 @@ async function createBootstrapAccountIfMissing(
   return true;
 }
 
+async function reconcileBootstrapAccount(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  account: BootstrapAccountConfig,
+  now: Date
+) {
+  const normalizedMatric = buildBootstrapMatric(account.matric, account.role);
+  const avatarInitials = `${account.firstName.charAt(0) ?? "U"}${account.lastName.charAt(0) ?? "L"}`.toUpperCase();
+  const existing = await tx.studentProfile.findUnique({ where: { matric: normalizedMatric } });
+
+  if (!existing) {
+    await tx.studentProfile.create({
+      data: {
+        matric: normalizedMatric,
+        firstName: account.firstName,
+        lastName: account.lastName,
+        program: account.program,
+        headline: account.headline,
+        email: account.email,
+        avatarInitials,
+        passwordHash: hashPassword(account.password),
+        accountRole: account.role,
+        status: "active",
+        mustChangePassword: account.mustChangePassword,
+        notifyAssignments: account.notifyAssignments,
+        notifyGrades: account.notifyGrades,
+        notifyPortfolio: account.notifyPortfolio,
+        publicProfile: account.publicProfile,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    return true;
+  }
+
+  await tx.studentProfile.update({
+    where: { matric: normalizedMatric },
+    data: {
+      firstName: account.firstName,
+      lastName: account.lastName,
+      program: account.program,
+      headline: account.headline,
+      email: account.email,
+      avatarInitials,
+      passwordHash: hashPassword(account.password),
+      accountRole: account.role,
+      status: "active",
+      mustChangePassword: account.mustChangePassword,
+      notifyAssignments: account.notifyAssignments,
+      notifyGrades: account.notifyGrades,
+      notifyPortfolio: account.notifyPortfolio,
+      publicProfile: account.publicProfile,
+      updatedAt: now,
+    },
+  });
+
+  return false;
+}
+
 export async function ensureBootstrapAccounts(): Promise<boolean> {
   try {
-    const existingAdmin = await prisma.studentProfile.findFirst({
-      where: { accountRole: "ADMIN" },
-      select: { matric: true, accountRole: true },
-    });
-    const existingLecturer = await prisma.studentProfile.findFirst({
-      where: { accountRole: "LECTURER" },
-      select: { matric: true, accountRole: true },
-    });
-
-    if (existingAdmin && existingLecturer) {
-      console.log("Bootstrap accounts already exist.");
-      return false;
-    }
-
-    const requiredAccounts = getBootstrapConfig().filter((account) => {
-      if (account.role === "ADMIN") return !existingAdmin;
-      return !existingLecturer;
-    });
-
-    if (requiredAccounts.length === 0) {
-      console.log("Bootstrap accounts already exist.");
-      return false;
-    }
-
+    const accounts = getBootstrapConfig();
     const now = new Date();
 
     await prisma.$transaction(async (tx) => {
-      for (const account of requiredAccounts) {
-        const created = await createBootstrapAccountIfMissing(tx, account, now);
+      for (const account of accounts) {
+        const created = await reconcileBootstrapAccount(tx, account, now);
         if (created) {
           if (account.role === "ADMIN") {
             console.log("✓ Admin created");
@@ -436,6 +471,7 @@ export async function ensureBootstrapAccounts(): Promise<boolean> {
       }
     });
 
+    console.log("Bootstrap accounts already exist.");
     return true;
   } catch (err) {
     console.warn("Bootstrap accounts skipped due to startup issue:", err);
