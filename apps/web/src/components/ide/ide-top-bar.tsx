@@ -7,8 +7,8 @@ import {
   Play,
   Send,
   PanelLeft,
-  PanelRight,
   Terminal,
+  Bot,
   Circle,
   LogOut,
   Lock,
@@ -203,14 +203,17 @@ export function IdeTopBar() {
         <div className="flex flex-wrap items-center gap-1">
           {!isSubmittedView && viewMode === "code" ? (
             <>
-              <Button variant="ghost" size="sm" onClick={toggleExplorer} title="Explorer">
+              <Button variant="secondary" size="sm" onClick={toggleExplorer} className="flex items-center gap-2 min-w-[90px] justify-center">
                 <PanelLeft size={16} />
+                <span className="text-[11px]">Explorer</span>
               </Button>
-              <Button variant="ghost" size="sm" onClick={toggleTerminal} title="Terminal">
+              <Button variant="secondary" size="sm" onClick={toggleTerminal} className="flex items-center gap-2 min-w-[90px] justify-center">
                 <Terminal size={16} />
+                <span className="text-[11px]">Terminal</span>
               </Button>
-              <Button variant="ghost" size="sm" onClick={toggleAiPanel} title="AI Mentor">
-                <PanelRight size={16} />
+              <Button variant="secondary" size="sm" onClick={toggleAiPanel} className="flex items-center gap-2 min-w-[90px] justify-center">
+                <Bot size={16} />
+                <span className="text-[11px]">AI Mentor</span>
               </Button>
             </>
           ) : null}

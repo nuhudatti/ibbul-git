@@ -1,26 +1,16 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
 import { useIdeStore } from "@/store/ide-store";
 import { getLanguageFromPath } from "@/lib/utils";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
 export function CodeEditor() {
-  const [isMobileEditor, setIsMobileEditor] = useState(false);
   const activeFilePath = useIdeStore((s) => s.activeFilePath);
   const files = useIdeStore((s) => s.files);
   const updateFileContent = useIdeStore((s) => s.updateFileContent);
   const workspaceMode = useIdeStore((s) => s.workspaceMode);
-
-  useEffect(() => {
-    const mobileQuery = window.matchMedia("(max-width: 768px), (pointer: coarse)");
-    const update = () => setIsMobileEditor(mobileQuery.matches);
-    update();
-    mobileQuery.addEventListener("change", update);
-    return () => mobileQuery.removeEventListener("change", update);
-  }, []);
 
   const readOnly = workspaceMode === "submitted";
   const activeFile = files.find((f) => f.path === activeFilePath);
@@ -48,26 +38,6 @@ export function CodeEditor() {
     );
   }
 
-  if (isMobileEditor) {
-    return (
-      <div className="flex-1 min-h-0 relative">
-        {readOnly ? (
-          <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/25 text-[10px] text-emerald-300 font-medium">
-            Read-only
-          </div>
-        ) : null}
-        <textarea
-          value={activeFile.content}
-          onChange={(event) => updateFileContent(activeFilePath, event.target.value)}
-          readOnly={readOnly}
-          spellCheck={false}
-          className="h-full w-full resize-none rounded-xl border border-white/10 bg-[#08080c] p-4 text-base leading-6 font-mono text-zinc-100 outline-none transition-all focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/10"
-          style={{ whiteSpace: "pre", overflowWrap: "normal", fontFamily: "var(--font-geist-mono), monospace", fontSize: "16px" }}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="flex-1 min-h-0 relative">
       {readOnly ? (
@@ -86,23 +56,36 @@ export function CodeEditor() {
         options={{
           readOnly,
           fontSize: 14,
-          fontFamily: "var(--font-geist-mono), monospace",
-          minimap: { enabled: false },
+          fontFamily: "JetBrains Mono, Fira Code, Menlo, Monaco, Consolas, 'Courier New', monospace",
           scrollBeyondLastLine: false,
           padding: { top: 16 },
           lineNumbers: "on",
           renderLineHighlight: readOnly ? "none" : "all",
+          renderWhitespace: "boundary",
+          guides: { indentation: true },
           cursorBlinking: readOnly ? "solid" : "smooth",
+          cursorSmoothCaretAnimation: readOnly ? "off" : "on",
           smoothScrolling: true,
           tabSize: 2,
           wordWrap: "on",
           automaticLayout: true,
           domReadOnly: readOnly,
           mouseWheelZoom: false,
-          quickSuggestions: false,
-          largeFileOptimizations: true,
-          folding: false,
-          bracketPairColorization: { enabled: false },
+          quickSuggestions: true,
+          parameterHints: { enabled: true },
+          suggestOnTriggerCharacters: true,
+          acceptSuggestionOnEnter: "on",
+          formatOnPaste: true,
+          formatOnType: true,
+          autoClosingBrackets: "always",
+          autoClosingQuotes: "always",
+          autoSurround: "languageDefined",
+          bracketPairColorization: { enabled: true },
+          dragAndDrop: true,
+          copyWithSyntaxHighlighting: true,
+          largeFileOptimizations: false,
+          folding: true,
+          minimap: { enabled: true, renderCharacters: false, maxColumn: 80 },
         }}
       />
     </div>

@@ -2,7 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Bot, Send, Sparkles } from "lucide-react";
+import { Bot, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useIdeStore } from "@/store/ide-store";
 import { cn } from "@/lib/utils";
@@ -46,13 +46,21 @@ export function AiPanel() {
   if (!isOpen) return null;
 
   return (
-    <aside className="w-full sm:w-80 h-full border-l border-white/6 bg-[#0a0a0f] flex flex-col shrink-0">
-      <div className="h-10 flex items-center gap-2 px-3 border-b border-white/6">
+    <aside className="w-full sm:w-80 h-full min-h-[280px] max-h-[calc(100vh-160px)] border-t border-white/6 sm:border-t-0 sm:border-l bg-[#0a0a0f] flex flex-col shrink-0">
+      <div className="h-12 flex items-center gap-2 px-3 border-b border-white/6">
         <Bot size={16} className="text-cyan-400" />
-        <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-          AI Mentor
-        </span>
-        <Sparkles size={12} className="text-violet-400 ml-auto" />
+        <div>
+          <p className="text-sm font-semibold text-zinc-200">AI Mentor</p>
+          <p className="text-[11px] text-zinc-500">Code help and explanations</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => useIdeStore.getState().toggleAiPanel()}
+          className="ml-auto text-zinc-500 hover:text-zinc-300 transition-colors"
+          aria-label="Close AI mentor"
+        >
+          <X size={18} />
+        </button>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto ula-scrollbar p-3 space-y-3">
