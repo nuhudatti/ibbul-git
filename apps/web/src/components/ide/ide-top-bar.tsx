@@ -200,53 +200,56 @@ export function IdeTopBar() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex flex-col gap-2 w-full sm:flex-row sm:flex-wrap sm:items-center sm:gap-1 sm:w-auto">
           {!isSubmittedView && viewMode === "code" ? (
             <>
-              <Button variant="secondary" size="sm" onClick={toggleExplorer} className="flex items-center gap-2 min-w-[90px] justify-center">
+              <Button variant="secondary" size="md" onClick={toggleExplorer} className="flex-1 min-w-[110px] justify-center">
                 <PanelLeft size={16} />
                 <span className="text-[11px]">Explorer</span>
               </Button>
-              <Button variant="secondary" size="sm" onClick={toggleTerminal} className="flex items-center gap-2 min-w-[90px] justify-center">
+              <Button variant="secondary" size="md" onClick={toggleTerminal} className="flex-1 min-w-[110px] justify-center">
                 <Terminal size={16} />
                 <span className="text-[11px]">Terminal</span>
               </Button>
-              <Button variant="secondary" size="sm" onClick={toggleAiPanel} className="flex items-center gap-2 min-w-[90px] justify-center">
+              <Button variant="secondary" size="md" onClick={toggleAiPanel} className="flex-1 min-w-[110px] justify-center">
                 <Bot size={16} />
                 <span className="text-[11px]">AI Mentor</span>
               </Button>
             </>
           ) : null}
-          <div className="w-px h-6 bg-white/10 mx-1" />
-          {!isSubmittedView ? (
-            <Button variant="secondary" size="sm" onClick={handleSave}>
-              Save
+          <div className="w-full border-t border-white/10 my-2 sm:hidden" />
+          <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start w-full sm:w-auto">
+            {!isSubmittedView ? (
+              <Button variant="secondary" size="md" onClick={handleSave} className="flex-1 min-w-[100px] justify-center sm:flex-none">
+                Save
+              </Button>
+            ) : null}
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleRun}
+              className={cn("flex-1 min-w-[100px] justify-center sm:flex-none", viewMode === "preview" && "shadow-lg shadow-cyan-500/20")}
+            >
+              <Play size={14} />
+              <span>{viewMode === "preview" ? "Refresh" : "Run"}</span>
             </Button>
-          ) : null}
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleRun}
-            className={cn(viewMode === "preview" && "shadow-lg shadow-cyan-500/20")}
-          >
-            <Play size={14} />
-            <span className="hidden sm:inline">{viewMode === "preview" ? "Refresh" : "Run"}</span>
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={openDeployModal}
-            className={cn(isSubmittedView && "shadow-lg shadow-violet-500/15")}
-          >
-            <Rocket size={14} />
-            <span className="hidden sm:inline">{isSubmittedView ? "Redeploy" : "Deploy"}</span>
-          </Button>
-          {!isSubmittedView && !alreadySubmitted && activeAssignmentId ? (
-            <Button variant="success" size="sm" onClick={handleSubmit} isLoading={isSubmitting}>
-              <Send size={14} />
-              <span className="hidden sm:inline">Submit</span>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={openDeployModal}
+              className={cn("flex-1 min-w-[100px] justify-center sm:flex-none", isSubmittedView && "shadow-lg shadow-violet-500/15")}
+            >
+              <Rocket size={14} />
+              <span>{isSubmittedView ? "Redeploy" : "Deploy"}</span>
             </Button>
-          ) : null}
+            {!isSubmittedView && !alreadySubmitted && activeAssignmentId ? (
+              <Button variant="success" size="md" onClick={handleSubmit} isLoading={isSubmitting} className="flex-1 min-w-[100px] justify-center sm:flex-none">
+                <Send size={14} />
+                <span>Submit</span>
+              </Button>
+            ) : null}
+          </div>
+          <p className="text-[11px] text-zinc-500 px-1 sm:hidden">Run for preview, Deploy to publish, Submit when ready.</p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">

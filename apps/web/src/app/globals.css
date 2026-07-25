@@ -119,8 +119,13 @@ body.dashboard-page {
   background: transparent !important;
 }
 
-.monaco-editor {
-  touch-action: manipulation;
+.monaco-editor,
+.monaco-editor textarea,
+.monaco-editor .view-lines,
+.monaco-editor .monaco-scrollable-element {
+  touch-action: auto;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 textarea {

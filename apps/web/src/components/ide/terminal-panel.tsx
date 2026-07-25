@@ -18,6 +18,7 @@ export function TerminalPanel() {
           exit={{ height: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-x-0 bottom-0 z-50 sm:relative sm:inset-auto sm:h-[180px] border-t border-white/6 bg-[#08080c] overflow-hidden shrink-0"
+          style={{ touchAction: "auto" }}
         >
           <div className="h-10 flex items-center justify-between px-3 border-b border-white/6">
             <div className="flex items-center gap-2 text-sm text-zinc-200">
