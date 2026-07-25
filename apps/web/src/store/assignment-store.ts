@@ -45,6 +45,7 @@ interface AssignmentState {
   markEnrollmentGraded: (assignmentId: string, matric: string, score?: number) => void;
   getEnrollmentsForAssignment: (assignmentId: string) => StudentEnrollment[];
   pushActivity: (event: Omit<ActivityEvent, "id" | "timestamp">) => void;
+  reopenAssignment: (assignmentId: string) => void;
   setFilterRisk: (filter: "all" | "watch" | "critical") => void;
   setActiveClassId: (id: string) => void;
 }
@@ -286,6 +287,13 @@ export const useAssignmentStore = create<AssignmentState>()(
           ),
         }));
       },
+          reopenAssignment: (assignmentId) => {
+            set((s) => ({
+              assignments: s.assignments.map((a) =>
+                a.id === assignmentId ? { ...a, status: "PUBLISHED" as const } : a
+              ),
+            }));
+          },
 
       deleteAssignment: (assignmentId) => {
         set((s) => ({
@@ -318,6 +326,23 @@ export const useAssignmentStore = create<AssignmentState>()(
             activityFeed: [newEvent, ...s.activityFeed].slice(0, 28),
           };
         });
+        // Attempt to resolve a real student display name from server
+        (async () => {
+          try {
+            const norm = normalizeMatric(newEvent.matric);
+            const res = await fetch(`/api/portfolio/${encodeURIComponent(norm)}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const display = data?.profile?.displayName;
+            if (display) {
+              set((s) => ({
+                activityFeed: s.activityFeed.map((e) => (e.id === newEvent.id ? { ...e, student: display } : e)),
+              }));
+            }
+          } catch (e) {
+            // ignore network errors
+          }
+        })();
       },
 
       setFilterRisk: (filter) => set({ filterRisk: filter }),

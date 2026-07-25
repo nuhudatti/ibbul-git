@@ -89,29 +89,22 @@ export const BLANK_STARTER: ProjectFile[] = [
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main>
-    <h1>Welcome to your assignment</h1>
-    <p>Start editing this file in the IDE.</p>
-  </main>
-  <script src="script.js"></script>
+  <!-- Paste your full HTML/CSS/JS here. This project starts empty for students. -->
 </body>
 </html>`,
     language: "html",
   },
   {
     path: "styles.css",
-    content: `* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: system-ui, sans-serif; background: #0b1220; color: #f4f4f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
-main { max-width: 680px; width: 100%; text-align: center; }
-h1 { font-size: 2rem; margin-bottom: 1rem; color: #7dd3fc; }
-p { color: #cbd5e1; line-height: 1.8; }`,
+    content: `/* Empty starter stylesheet — paste your styles here */`,
     language: "css",
   },
   {
     path: "script.js",
-    content: `const message = document.createElement('p');
-message.textContent = 'Edit this script to make your assignment interactive.';
-document.body.appendChild(message);
+    content: `// Empty starter script — paste your JS here
+document.addEventListener('DOMContentLoaded', () => {
+  // Your code
+});
 `,
     language: "javascript",
   },
