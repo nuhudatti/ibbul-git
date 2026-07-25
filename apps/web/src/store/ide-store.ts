@@ -30,7 +30,7 @@ interface IdeState {
   aiMessages: AiMessage[];
   isAiThinking: boolean;
   deployment: DeploymentState;
-  lastSaved: Date | null;
+  lastSaved: Date | string | null;
   isDirty: boolean;
 
   viewMode: WorkspaceView;
@@ -325,6 +325,19 @@ export const useIdeStore = create<IdeState>()(
   setDirty: (dirty) => set({ isDirty: dirty }),
   isReadOnly: () => get().workspaceMode === "submitted",
     }),
-    { name: "ula-ide" }
+    {
+      name: "ula-ide",
+      merge: (persistedState, currentState) => {
+        const p: any = persistedState as any;
+        if (p && p.lastSaved && typeof p.lastSaved === "string") {
+          return {
+            ...currentState,
+            ...p,
+            lastSaved: new Date(p.lastSaved),
+          } as IdeState;
+        }
+        return { ...currentState, ...(persistedState as Partial<IdeState>) } as IdeState;
+      },
+    }
   )
 );

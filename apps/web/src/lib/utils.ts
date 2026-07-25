@@ -17,9 +17,12 @@ export function generateProjectUrl(projectId: string, matricNumber?: string): st
   return getLiveProjectPath(projectId, matricNumber);
 }
 
-export function formatRelativeTime(date: Date): string {
+export function formatRelativeTime(date: Date | string | number | null | undefined): string {
+  if (!date) return "just now";
+  const parsed = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "just now";
   const now = new Date();
-  const diff = now.getTime() - date.getTime();
+  const diff = now.getTime() - parsed.getTime();
   const minutes = Math.floor(diff / 60000);
   if (minutes < 1) return "just now";
   if (minutes < 60) return `${minutes}m ago`;
