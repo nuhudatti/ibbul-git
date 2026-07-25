@@ -66,11 +66,13 @@ export const useAssignmentStore = create<AssignmentState>()(
       getStudentAssignments: (matric) => {
         const norm = normalizeMatric(matric);
         const { assignments, enrollments } = get();
-        return assignments
+        const safeAssignments = Array.isArray(assignments) ? assignments : [];
+        const safeEnrollments = Array.isArray(enrollments) ? enrollments : [];
+        return safeAssignments
           .filter((a) => a.status === "PUBLISHED")
           .map((a) => ({
             ...a,
-            enrollment: enrollments.find(
+            enrollment: safeEnrollments.find(
               (e) => e.assignmentId === a.id && normalizeMatric(e.studentMatric) === norm
             ) ?? null,
           }));

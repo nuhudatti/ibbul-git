@@ -427,8 +427,20 @@ async function reconcileBootstrapAccount(
         updatedAt: now,
       },
     });
+    console.info("[Bootstrap] created account", {
+      matric: normalizedMatric,
+      email: account.email,
+      role: account.role,
+    });
     return true;
   }
+
+  console.info("[Bootstrap] existing account found", {
+    matric: normalizedMatric,
+    email: existing.email,
+    role: existing.accountRole,
+    force,
+  });
 
   if (force) {
     await tx.studentProfile.update({
@@ -451,9 +463,19 @@ async function reconcileBootstrapAccount(
         updatedAt: now,
       },
     });
+    console.info("[Bootstrap] updated account password", {
+      matric: normalizedMatric,
+      email: account.email,
+      role: account.role,
+    });
     return false;
   }
 
+  console.info("[Bootstrap] skipping existing account update", {
+    matric: normalizedMatric,
+    email: existing.email,
+    role: existing.accountRole,
+  });
   return false;
 }
 

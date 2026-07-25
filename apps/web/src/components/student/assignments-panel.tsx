@@ -74,13 +74,21 @@ export function AssignmentsPanel() {
   if (!user) return null;
 
   const matric = normalizeMatric(user.matricNumber);
+  if (!matric) {
+    console.error("[Workspace] invalid student matric", user);
+    return null;
+  }
 
   useEffect(() => {
+    if (!matric) {
+      console.error("[Workspace] assignments panel missing student matric", { user });
+      return;
+    }
     if (typeof window === "undefined") return;
     const key = `ula-projects-hint-${matric}`;
     if (localStorage.getItem(key)) return;
     localStorage.setItem(key, "1");
-  }, [matric]);
+  }, [matric, user]);
 
   const assignments = getStudentAssignments(matric);
   const activeList = assignments.filter(

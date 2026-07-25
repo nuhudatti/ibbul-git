@@ -15,6 +15,7 @@ import {
 import { useIdeStore } from "@/store/ide-store";
 import { useAuthStore } from "@/store/auth-store";
 import { buildPreviewHtml } from "@/lib/build-preview";
+import { matricToSlug } from "@/lib/matric";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PreviewDevice } from "@/store/ide-store";
@@ -42,9 +43,10 @@ export function PreviewStage() {
 
   const srcDoc = useMemo(() => buildPreviewHtml(files), [files, previewKey]);
   const liveDeployUrl = deployment.url ?? submissionMeta?.deployUrl;
+  const safeMatric = user?.matricNumber ? matricToSlug(user.matricNumber) : "student";
   const previewUrl =
     liveDeployUrl ??
-    `https://${(user?.matricNumber ?? "student").toLowerCase()}.preview.ula.edu/${projectId}`;
+    `https://${safeMatric.toLowerCase()}.preview.ula.edu/${projectId}`;
   const isLiveHosted = Boolean(liveDeployUrl);
 
   const handleRefresh = () => {

@@ -27,9 +27,17 @@ export function PortfolioIdentityStrip() {
 
   useEffect(() => {
     if (!matric) return;
-    fetch(`/api/student/settings?matric=${encodeURIComponent(matric)}`)
-      .then((r) => r.json())
-      .then((d) => {
+
+    const loadSettings = async () => {
+      try {
+        console.info("[Workspace] fetching student settings", { matric });
+        const res = await fetch(`/api/student/settings?matric=${encodeURIComponent(matric)}`);
+        console.info("[Workspace] student settings response", {
+          matric,
+          status: res.status,
+          ok: res.ok,
+        });
+        const d = await res.json();
         const url = d.settings?.avatarUrl as string | undefined;
         if (!url) return;
         const base = url.split("?")[0];
@@ -37,8 +45,12 @@ export function PortfolioIdentityStrip() {
         if (current !== base) {
           updateUser({ avatarUrl: `${base}?v=${Date.now()}` });
         }
-      })
-      .catch(() => undefined);
+      } catch (error) {
+        console.error("[Workspace] failed to fetch student settings", { matric, error });
+      }
+    };
+
+    loadSettings();
   }, [matric, updateUser]);
 
   if (!user || user.role !== "STUDENT") return null;
@@ -51,6 +63,10 @@ export function PortfolioIdentityStrip() {
 
   const verified = artifacts.filter((a) => a.verified).length;
   const latest = artifacts[0];
+
+  if (latest && typeof latest.hash !== "string") {
+    console.warn("[Workspace] invalid portfolio artifact hash", latest);
+  }
 
   return (
     <motion.div
@@ -85,7 +101,7 @@ export function PortfolioIdentityStrip() {
               ) : null}
             </p>
           </div>
-          {latest ? (
+          {latest && typeof latest.hash === "string" ? (
             <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-mono text-violet-400/80 px-2 py-0.5 rounded-md bg-violet-500/10 border border-violet-400/15">
               <Fingerprint size={10} />
               ULA-{latest.hash.slice(0, 4).toUpperCase()}
