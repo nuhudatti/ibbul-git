@@ -8,6 +8,13 @@ export const metadata: Metadata = {
     "The AI-powered development operating system for learning, coding, grading, and deployment.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{

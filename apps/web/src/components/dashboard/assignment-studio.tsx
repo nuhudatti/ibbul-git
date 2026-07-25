@@ -102,7 +102,7 @@ export function AssignmentStudio() {
                 <Send size={14} />
                 Publish to students
               </Button>
-            ) : (
+            ) : selected.status === "PUBLISHED" ? (
               <div className="flex gap-2">
                 <Button size="sm" className="flex-1" onClick={() => closeAssignment(selected.id)}>
                   <XCircle size={14} />
@@ -123,7 +123,28 @@ export function AssignmentStudio() {
                   Delete
                 </Button>
               </div>
-            )}
+            ) : selected.status === "CLOSED" ? (
+              <div className="flex gap-2 flex-col sm:flex-row">
+                <Button size="sm" className="flex-1" onClick={() => useAssignmentStore.getState().reopenAssignment(selected.id)}>
+                  <Send size={14} />
+                  Reopen assignment
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => {
+                    if (confirm('Delete this closed assignment and its enrollments? This cannot be undone.')) {
+                      deleteAssignment(selected.id);
+                      setSelectedId(null);
+                    }
+                  }}
+                >
+                  <Trash2 size={14} />
+                  Delete
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
