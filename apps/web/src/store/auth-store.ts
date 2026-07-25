@@ -30,6 +30,12 @@ export const useAuthStore = create<AuthState>()(
           () => undefined
         );
         useIdeStore.getState().resetWorkspaceSession();
+        // Also clear session cookie client-side as a fallback
+        try {
+          document.cookie = `ula_session=; Path=/; Expires=${new Date(0).toUTCString()}; SameSite=None; Secure`;
+        } catch (e) {
+          /* ignore */
+        }
         set({ user: null, sessionToken: null, isAuthenticated: false });
       },
       updateUser: (patch) =>

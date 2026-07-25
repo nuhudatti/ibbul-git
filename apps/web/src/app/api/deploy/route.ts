@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { saveDeployment } from "@/lib/deployment-store";
 import { matricToSlug } from "@/lib/matric";
+import { prisma } from "@/lib/services/prisma";
 import type { ProjectFile } from "@/types";
 
 export async function POST(request: Request) {
@@ -24,6 +25,40 @@ export async function POST(request: Request) {
   const record = saveDeployment(matricSlug, normalizedProjectId, projectName ?? "Project", files);
   const origin = new URL(request.url).origin;
   const url = `${origin}/live/${matricSlug}/${normalizedProjectId}`;
+
+  // Persist project snapshot to the database so /live/... is backed by Prisma
+  try {
+    const studentMatric = matricSlug.toUpperCase();
+    const assignmentId = normalizedProjectId; // use projectId as assignmentId for snapshot mapping
+    const existing = await prisma.projectSnapshot.findFirst({
+      where: { studentMatric, assignmentId },
+    });
+
+    if (existing) {
+      await prisma.projectSnapshot.update({
+        where: { id: existing.id },
+        data: {
+          projectName: projectName ?? existing.projectName,
+          files: files as any,
+          savedAt: new Date(),
+          deployUrl: url,
+        },
+      });
+    } else {
+      await prisma.projectSnapshot.create({
+        data: {
+          studentMatric,
+          assignmentId,
+          projectName: projectName ?? "Project",
+          files: files as any,
+          savedAt: new Date(),
+          deployUrl: url,
+        },
+      });
+    }
+  } catch (e) {
+    console.warn("Failed to persist snapshot on deploy:", e);
+  }
 
   return NextResponse.json({
     id: `dep-${Date.now()}`,
