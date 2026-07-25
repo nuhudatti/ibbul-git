@@ -200,27 +200,27 @@ export function IdeTopBar() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 w-full sm:flex-row sm:flex-wrap sm:items-center sm:gap-1 sm:w-auto">
+        <div className="flex flex-col gap-2 w-full">
           {!isSubmittedView && viewMode === "code" ? (
-            <>
-              <Button variant="secondary" size="md" onClick={toggleExplorer} className="flex-1 min-w-[110px] justify-center">
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-1">
+              <Button variant="secondary" size="md" onClick={toggleExplorer} className="w-full sm:w-auto justify-center">
                 <PanelLeft size={16} />
                 <span className="text-[11px]">Explorer</span>
               </Button>
-              <Button variant="secondary" size="md" onClick={toggleTerminal} className="flex-1 min-w-[110px] justify-center">
+              <Button variant="secondary" size="md" onClick={toggleTerminal} className="w-full sm:w-auto justify-center">
                 <Terminal size={16} />
                 <span className="text-[11px]">Terminal</span>
               </Button>
-              <Button variant="secondary" size="md" onClick={toggleAiPanel} className="flex-1 min-w-[110px] justify-center">
+              <Button variant="secondary" size="md" onClick={toggleAiPanel} className="w-full sm:w-auto justify-center">
                 <Bot size={16} />
                 <span className="text-[11px]">AI Mentor</span>
               </Button>
-            </>
+            </div>
           ) : null}
-          <div className="w-full border-t border-white/10 my-2 sm:hidden" />
-          <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start w-full sm:w-auto">
+
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
             {!isSubmittedView ? (
-              <Button variant="secondary" size="md" onClick={handleSave} className="flex-1 min-w-[100px] justify-center sm:flex-none">
+              <Button variant="secondary" size="md" onClick={handleSave} className="w-full sm:w-auto justify-center">
                 Save
               </Button>
             ) : null}
@@ -228,7 +228,7 @@ export function IdeTopBar() {
               variant="primary"
               size="md"
               onClick={handleRun}
-              className={cn("flex-1 min-w-[100px] justify-center sm:flex-none", viewMode === "preview" && "shadow-lg shadow-cyan-500/20")}
+              className={cn("w-full sm:w-auto justify-center", viewMode === "preview" && "shadow-lg shadow-cyan-500/20")}
             >
               <Play size={14} />
               <span>{viewMode === "preview" ? "Refresh" : "Run"}</span>
@@ -237,18 +237,19 @@ export function IdeTopBar() {
               variant="primary"
               size="md"
               onClick={openDeployModal}
-              className={cn("flex-1 min-w-[100px] justify-center sm:flex-none", isSubmittedView && "shadow-lg shadow-violet-500/15")}
+              className={cn("w-full sm:w-auto justify-center", isSubmittedView && "shadow-lg shadow-violet-500/15")}
             >
               <Rocket size={14} />
               <span>{isSubmittedView ? "Redeploy" : "Deploy"}</span>
             </Button>
             {!isSubmittedView && !alreadySubmitted && activeAssignmentId ? (
-              <Button variant="success" size="md" onClick={handleSubmit} isLoading={isSubmitting} className="flex-1 min-w-[100px] justify-center sm:flex-none">
+              <Button variant="success" size="md" onClick={handleSubmit} isLoading={isSubmitting} className="w-full sm:w-auto justify-center">
                 <Send size={14} />
                 <span>Submit</span>
               </Button>
             ) : null}
           </div>
+
           <p className="text-[11px] text-zinc-500 px-1 sm:hidden">Run for preview, Deploy to publish, Submit when ready.</p>
         </div>
 

@@ -120,12 +120,20 @@ body.dashboard-page {
 }
 
 .monaco-editor,
+.monaco-editor *,
 .monaco-editor textarea,
 .monaco-editor .view-lines,
-.monaco-editor .monaco-scrollable-element {
-  touch-action: auto;
-  -webkit-user-select: text;
-  user-select: text;
+.monaco-editor .view-line,
+.monaco-editor .monaco-scrollable-element,
+.monaco-editor .content-widget {
+  touch-action: auto !important;
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.monaco-editor .view-lines {
+  -webkit-user-drag: element !important;
 }
 
 textarea {
