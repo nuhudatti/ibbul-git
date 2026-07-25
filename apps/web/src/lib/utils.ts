@@ -46,3 +46,14 @@ export function getLanguageFromPath(path: string): string {
   };
   return map[ext ?? ""] ?? "plaintext";
 }
+
+export function resolveDeployUrl(deployUrl?: string | null, baseUrl?: string): string | null {
+  if (!deployUrl) return null;
+  const raw = deployUrl.trim();
+  if (!raw) return null;
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  const host = baseUrl || (typeof window !== "undefined" ? window.location.origin : "");
+  if (!host) return raw; // fallback
+  // Ensure single slash join
+  return `${host.replace(/\/+$/g, "")}/${raw.replace(/^\/+/, "")}`;
+}

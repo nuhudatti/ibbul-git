@@ -15,7 +15,7 @@ import type { PortfolioArtifact } from "@/types";
 import { formatProofHash } from "@/lib/portfolio-hash";
 import { CopyLinkButton } from "@/components/ui/copy-link-button";
 import { profilePath } from "@/lib/matric";
-import { cn } from "@/lib/utils";
+import { cn, resolveDeployUrl } from "@/lib/utils";
 
 interface ArtifactCardProps {
   artifact: PortfolioArtifact;
@@ -32,11 +32,7 @@ export function ArtifactCard({
 }: ArtifactCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const proof = formatProofHash(artifact.hash);
-  const liveUrl = artifact.deployUrl?.startsWith("http")
-    ? artifact.deployUrl
-    : artifact.deployUrl
-      ? `${baseUrl}${artifact.deployUrl}`
-      : null;
+  const liveUrl = resolveDeployUrl(artifact.deployUrl ?? null, baseUrl ?? undefined);
 
   const shareUrl =
     typeof window !== "undefined"

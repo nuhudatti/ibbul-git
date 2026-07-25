@@ -15,7 +15,7 @@ import { usePortfolioStore } from "@/store/portfolio-store";
 import { buildSubmissionRows } from "@/lib/lecturer-data";
 import { profilePath } from "@/lib/matric";
 import { formatProofHash } from "@/lib/portfolio-hash";
-import { cn } from "@/lib/utils";
+import { cn, resolveDeployUrl } from "@/lib/utils";
 
 type InboxFilter = "all" | "pending" | "verified";
 
@@ -172,7 +172,7 @@ export function SubmissionInbox() {
                       <div className="flex flex-wrap gap-2 mt-3">
                         {enrollment.deployUrl ? (
                           <a
-                            href={enrollment.deployUrl}
+                            href={resolveDeployUrl(enrollment.deployUrl, typeof window !== "undefined" ? window.location.origin : undefined) ?? enrollment.deployUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-[11px] text-cyan-400 px-2 py-1 rounded-lg bg-cyan-400/10 border border-cyan-400/20"

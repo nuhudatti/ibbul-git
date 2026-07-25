@@ -68,6 +68,11 @@ export function CodeEditor() {
           wordWrap: "on",
           automaticLayout: true,
           domReadOnly: readOnly,
+          // Large-file optimizations
+          largeFileOptimizations: true,
+          folding: false,
+          bracketPairColorization: { enabled: false },
+          quickSuggestions: false,
         }}
       />
     </div>
