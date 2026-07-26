@@ -10,12 +10,10 @@ import {
   Terminal,
   Bot,
   Circle,
-  LogOut,
   Lock,
   CheckCircle2,
   Settings,
 } from "lucide-react";
-import { UserAvatar } from "@/components/ui/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { useIdeStore } from "@/store/ide-store";
@@ -35,11 +33,12 @@ export function IdeTopBar() {
   const files = useIdeStore((s) => s.files);
   const isDirty = useIdeStore((s) => s.isDirty);
   const lastSaved = useIdeStore((s) => s.lastSaved);
+  const saveStatus = useIdeStore((s) => s.saveStatus);
+  const saveError = useIdeStore((s) => s.saveError);
   const viewMode = useIdeStore((s) => s.viewMode);
   const workspaceMode = useIdeStore((s) => s.workspaceMode);
   const activeAssignmentId = useIdeStore((s) => s.activeAssignmentId);
   const projectId = useIdeStore((s) => s.projectId);
-  const markSaved = useIdeStore((s) => s.markSaved);
   const toggleExplorer = useIdeStore((s) => s.toggleExplorer);
   const toggleAiPanel = useIdeStore((s) => s.toggleAiPanel);
   const toggleTerminal = useIdeStore((s) => s.toggleTerminal);
@@ -66,15 +65,6 @@ export function IdeTopBar() {
   const alreadySubmitted =
     assignment?.enrollment?.status === "SUBMITTED" ||
     assignment?.enrollment?.status === "GRADED";
-
-  const handleSave = () => {
-    if (isSubmittedView) return;
-    markSaved();
-    if (user && activeAssignmentId) {
-      saveSnapshot(user.matricNumber, activeAssignmentId, projectName, files);
-    }
-    addTerminalLog("Project saved successfully.");
-  };
 
   const handleRun = () => {
     if (viewMode === "preview") {
@@ -172,7 +162,7 @@ export function IdeTopBar() {
               {projectName}
             </span>
             <div className="flex flex-wrap items-center gap-2 mt-1 text-xs">
-              {isSubmittedView ? (
+                  {isSubmittedView ? (
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/25 flex items-center gap-1 shrink-0">
                   <Lock size={10} /> Submitted · View only
                 </span>
@@ -187,8 +177,25 @@ export function IdeTopBar() {
                     size={6}
                     className={cn("fill-current shrink-0", isDirty ? "text-amber-400" : "text-emerald-400")}
                   />
-                  <span className="text-xs text-zinc-600 hidden sm:inline">
-                    {lastSaved ? `Saved ${formatRelativeTime(lastSaved)}` : "Unsaved"}
+                  <span
+                    className={cn(
+                      "text-xs",
+                      saveStatus === "failed" ? "text-rose-300" : "text-zinc-600"
+                    )}
+                  >
+                    {saveStatus === "saving"
+                      ? "Saving..."
+                      : saveStatus === "failed"
+                      ? saveError
+                        ? `Save failed: ${saveError}`
+                        : "Save failed"
+                      : isDirty
+                      ? lastSaved
+                        ? `Last saved ${formatRelativeTime(lastSaved)}`
+                        : "Unsaved changes"
+                      : lastSaved
+                      ? `Last saved ${formatRelativeTime(lastSaved)}`
+                      : "Saved just now"}
                   </span>
                 </>
               ) : (
@@ -202,28 +209,40 @@ export function IdeTopBar() {
 
         <div className="flex flex-col gap-2 w-full">
           {!isSubmittedView && viewMode === "code" ? (
-            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-1">
-              <Button variant="secondary" size="md" onClick={toggleExplorer} className="w-full sm:w-auto justify-center">
+            <div className="hidden sm:grid w-full grid-cols-3 gap-2">
+              <Button variant="secondary" size="md" onClick={toggleExplorer} className="w-full justify-center">
                 <PanelLeft size={16} />
                 <span className="text-[11px]">Explorer</span>
               </Button>
-              <Button variant="secondary" size="md" onClick={toggleTerminal} className="w-full sm:w-auto justify-center">
+              <Button variant="secondary" size="md" onClick={toggleTerminal} className="w-full justify-center">
                 <Terminal size={16} />
                 <span className="text-[11px]">Terminal</span>
               </Button>
-              <Button variant="secondary" size="md" onClick={toggleAiPanel} className="w-full sm:w-auto justify-center">
+              <Button variant="secondary" size="md" onClick={toggleAiPanel} className="w-full justify-center">
                 <Bot size={16} />
                 <span className="text-[11px]">AI Mentor</span>
               </Button>
             </div>
           ) : null}
 
-          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
-            {!isSubmittedView ? (
-              <Button variant="secondary" size="md" onClick={handleSave} className="w-full sm:w-auto justify-center">
-                Save
+          {!isSubmittedView && viewMode === "code" ? (
+            <div className="flex sm:hidden items-center justify-between gap-2 overflow-x-auto px-1">
+              <Button variant="secondary" size="sm" onClick={toggleExplorer} className="flex-1 min-w-[0] justify-center">
+                <PanelLeft size={14} />
+                <span className="text-[10px]">Explorer</span>
               </Button>
-            ) : null}
+              <Button variant="secondary" size="sm" onClick={toggleTerminal} className="flex-1 min-w-[0] justify-center">
+                <Terminal size={14} />
+                <span className="text-[10px]">Terminal</span>
+              </Button>
+              <Button variant="secondary" size="sm" onClick={toggleAiPanel} className="flex-1 min-w-[0] justify-center">
+                <Bot size={14} />
+                <span className="text-[10px]">AI</span>
+              </Button>
+            </div>
+          ) : null}
+
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
             <Button
               variant="primary"
               size="md"
@@ -257,18 +276,11 @@ export function IdeTopBar() {
           {user ? (
             <Link
               href="/workspace/settings"
-              className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-white/5 transition-colors"
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-cyan-300 hover:bg-white/5 transition-colors"
               title="Settings"
             >
-              <UserAvatar
-                name={`${user.firstName} ${user.lastName}`}
-                initials={`${user.firstName[0] ?? ""}${user.lastName[0] ?? ""}`}
-                avatarUrl={user.avatarUrl}
-                size="sm"
-              />
-              <span className="hidden sm:inline text-sm text-zinc-400">
-                {user.firstName}
-              </span>
+              <Settings size={14} />
+              <span className="hidden sm:inline">Settings</span>
             </Link>
           ) : null}
         </div>
@@ -277,6 +289,30 @@ export function IdeTopBar() {
       {workspaceMode !== "submitted" ? (
         <LiveDeployStrip onRedeploy={openDeployModal} />
       ) : null}
+
+      <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 px-3 py-2 rounded-2xl border border-white/10 bg-black/90 text-sm text-zinc-100 shadow-2xl shadow-black/40 backdrop-blur-md sm:hidden">
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              "font-medium",
+              saveStatus === "saving"
+                ? "text-cyan-300"
+                : saveStatus === "failed"
+                ? "text-rose-300"
+                : "text-emerald-300"
+            )}
+          >
+            {saveStatus === "saving"
+              ? "Saving…"
+              : saveStatus === "failed"
+              ? saveError || "Save failed"
+              : "Saved"}
+          </span>
+          <span className="text-xs text-zinc-400">
+            {saveStatus === "saved" && lastSaved ? formatRelativeTime(lastSaved) : ""}
+          </span>
+        </div>
+      </div>
 
       <DeployModal open={isDeployModalOpen} onClose={closeDeployModal} />
       {user ? (

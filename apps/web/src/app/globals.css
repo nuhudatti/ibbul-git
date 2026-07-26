@@ -125,10 +125,13 @@ body.dashboard-page {
 .monaco-editor .view-lines,
 .monaco-editor .view-line,
 .monaco-editor .monaco-scrollable-element,
-.monaco-editor .content-widget {
+.monaco-editor .content-widget,
+.monaco-editor .overflow-guard,
+.monaco-editor .view-overlays {
   touch-action: auto !important;
   -webkit-user-select: text !important;
   user-select: text !important;
+  -webkit-touch-callout: default !important;
   -webkit-tap-highlight-color: transparent !important;
 }
 

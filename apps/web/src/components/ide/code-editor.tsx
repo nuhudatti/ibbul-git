@@ -1,6 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { useIdeStore } from "@/store/ide-store";
 import { getLanguageFromPath } from "@/lib/utils";
 
@@ -11,6 +13,8 @@ export function CodeEditor() {
   const files = useIdeStore((s) => s.files);
   const updateFileContent = useIdeStore((s) => s.updateFileContent);
   const workspaceMode = useIdeStore((s) => s.workspaceMode);
+  const editorRef = useRef<any>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const readOnly = workspaceMode === "submitted";
   const activeFile = files.find((f) => f.path === activeFilePath);
@@ -38,6 +42,64 @@ export function CodeEditor() {
     );
   }
 
+  const handleSelectAll = () => {
+    const editor = editorRef.current;
+    const model = editor?.getModel?.();
+    if (!editor || !model) return;
+    const fullRange = model.getFullModelRange();
+    editor.setSelection(fullRange);
+    editor.focus();
+  };
+
+  const handleCopy = async () => {
+    const editor = editorRef.current;
+    const model = editor?.getModel?.();
+    if (!model) return;
+    const selection = editor.getSelection?.();
+    const text = selection && !selection.isEmpty()
+      ? model.getValueInRange(selection)
+      : model.getValue();
+
+    if (!text) return;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setActionMessage("Copied to clipboard");
+    } catch {
+      setActionMessage("Copy failed — use native selection");
+    }
+  };
+
+  const handlePaste = async () => {
+    if (!navigator.clipboard?.readText) return;
+    const editor = editorRef.current;
+    const model = editor?.getModel?.();
+    if (!editor || !model) return;
+
+    try {
+      const pasteText = await navigator.clipboard.readText();
+      if (!pasteText) return;
+      const selection = editor.getSelection?.();
+      editor.executeEdits("paste", [
+        {
+          range: selection ?? model.getFullModelRange(),
+          text: pasteText,
+          forceMoveMarkers: true,
+        },
+      ]);
+      editor.focus();
+      setActionMessage("Pasted clipboard text");
+    } catch {
+      setActionMessage("Paste not available");
+    }
+  };
+
+  useEffect(() => {
+    if (!actionMessage) return;
+    const timeout = window.setTimeout(() => setActionMessage(null), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [actionMessage]);
+
   return (
     <div className="flex-1 min-h-0 relative">
       {readOnly ? (
@@ -50,6 +112,9 @@ export function CodeEditor() {
         language={language}
         theme="vs-dark"
         value={activeFile.content}
+        onMount={(editor) => {
+          editorRef.current = editor;
+        }}
         onChange={(value) => {
           if (!readOnly) updateFileContent(activeFilePath, value ?? "");
         }}
@@ -91,6 +156,36 @@ export function CodeEditor() {
           minimap: { enabled: true, renderCharacters: false, maxColumn: 80 },
         }}
       />
+
+      <div className="mt-3 hidden flex-col gap-2 rounded-3xl border border-white/10 bg-[#08080c] p-3 sm:flex">
+        <div className="flex items-center justify-between gap-2">
+          <Button variant="secondary" size="sm" onClick={handleSelectAll} className="flex-1 justify-center">
+            Select all
+          </Button>
+          <Button variant="secondary" size="sm" onClick={handleCopy} className="flex-1 justify-center">
+            Copy
+          </Button>
+          <Button variant="secondary" size="sm" onClick={handlePaste} className="flex-1 justify-center">
+            Paste
+          </Button>
+        </div>
+        {actionMessage ? <p className="text-xs text-zinc-400">{actionMessage}</p> : null}
+      </div>
+
+      <div className="mt-3 flex sm:hidden flex-col gap-2 rounded-3xl border border-white/10 bg-[#08080c] p-3">
+        <div className="grid w-full grid-cols-3 gap-2">
+          <Button variant="secondary" size="sm" onClick={handleSelectAll} className="justify-center">
+            All
+          </Button>
+          <Button variant="secondary" size="sm" onClick={handleCopy} className="justify-center">
+            Copy
+          </Button>
+          <Button variant="secondary" size="sm" onClick={handlePaste} className="justify-center">
+            Paste
+          </Button>
+        </div>
+        {actionMessage ? <p className="text-xs text-zinc-400">{actionMessage}</p> : null}
+      </div>
     </div>
   );
 }
