@@ -113,7 +113,7 @@ export function PublicProfile({ matric }: PublicProfileProps) {
       {/* Screen experience */}
       <div className="ula-screen-only min-h-screen ula-mesh-bg ula-grid-pattern">
         <header className="sticky top-0 z-30 border-b border-white/6 bg-[#050508]/80 backdrop-blur-xl">
-          <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="max-w-5xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2 py-3">
             <Link
               href="/"
               className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-white transition-colors"

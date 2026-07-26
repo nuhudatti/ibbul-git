@@ -58,11 +58,11 @@ export function ArtifactCard({
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
-        className="w-full text-left p-5 flex gap-4"
+        className="w-full text-left p-5 flex flex-col sm:flex-row gap-4 items-start"
       >
         <div
           className={cn(
-            "shrink-0 w-20 h-20 rounded-xl bg-gradient-to-br border border-white/10 flex items-center justify-center",
+            "flex-shrink-0 w-20 h-20 rounded-xl bg-gradient-to-br border border-white/10 flex items-center justify-center",
             artifact.thumbnailGradient ?? "from-cyan-500/20 to-violet-500/20"
           )}
         >
@@ -74,9 +74,9 @@ export function ArtifactCard({
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium truncate">
                 {artifact.courseName}
               </p>
               <h3 className="text-base font-semibold text-white mt-0.5 truncate">
@@ -106,7 +106,7 @@ export function ArtifactCard({
                 Awaiting verification
               </span>
             )}
-            <span className="text-[10px] text-zinc-600 font-mono">{proof}</span>
+            <span className="text-[10px] text-zinc-600 font-mono break-all">{proof}</span>
           </div>
         </div>
 

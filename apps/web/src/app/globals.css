@@ -125,18 +125,29 @@ body.dashboard-page {
 .monaco-editor .view-lines,
 .monaco-editor .view-line,
 .monaco-editor .monaco-scrollable-element,
+.monaco-editor .lines-content,
 .monaco-editor .content-widget,
 .monaco-editor .overflow-guard,
-.monaco-editor .view-overlays {
+.monaco-editor .view-overlays,
+.monaco-editor .inputarea {
   touch-action: auto !important;
   -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
   user-select: text !important;
   -webkit-touch-callout: default !important;
   -webkit-tap-highlight-color: transparent !important;
+  -webkit-overflow-scrolling: touch !important;
+  cursor: text !important;
 }
 
-.monaco-editor .view-lines {
-  -webkit-user-drag: element !important;
+.monaco-editor .view-lines,
+.monaco-editor .view-line,
+.monaco-editor .monaco-scrollable-element,
+.monaco-editor .lines-content {
+  -webkit-user-drag: auto !important;
+  touch-action: auto !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 textarea {

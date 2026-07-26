@@ -44,16 +44,28 @@ export function CodeEditor() {
 
   const handleSelectAll = () => {
     const editor = editorRef.current;
-    const model = editor?.getModel?.();
-    if (!editor || !model) return;
-    const fullRange = model.getFullModelRange();
-    editor.setSelection(fullRange);
+    if (!editor) return;
+    if (editor.trigger) {
+      editor.trigger("keyboard", "editor.action.selectAll", null);
+    } else {
+      const model = editor.getModel?.();
+      if (!model) return;
+      const fullRange = model.getFullModelRange();
+      editor.setSelection(fullRange);
+    }
     editor.focus();
   };
 
   const handleCopy = async () => {
     const editor = editorRef.current;
-    const model = editor?.getModel?.();
+    if (!editor) return;
+    if (editor.trigger) {
+      editor.trigger("keyboard", "editor.action.clipboardCopyAction", null);
+      setActionMessage("Copied to clipboard");
+      return;
+    }
+
+    const model = editor.getModel?.();
     if (!model) return;
     const selection = editor.getSelection?.();
     const text = selection && !selection.isEmpty()
@@ -71,9 +83,21 @@ export function CodeEditor() {
   };
 
   const handlePaste = async () => {
-    if (!navigator.clipboard?.readText) return;
     const editor = editorRef.current;
-    const model = editor?.getModel?.();
+    if (!editor) return;
+    if (editor.trigger) {
+      editor.trigger("keyboard", "editor.action.clipboardPasteAction", null);
+      setActionMessage("Pasted clipboard text");
+      editor.focus();
+      return;
+    }
+
+    if (!navigator.clipboard?.readText) {
+      setActionMessage("Paste not available");
+      return;
+    }
+
+    const model = editor.getModel?.();
     if (!editor || !model) return;
 
     try {

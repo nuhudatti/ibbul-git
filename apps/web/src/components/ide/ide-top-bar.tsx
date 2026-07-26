@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Rocket,
@@ -57,6 +57,8 @@ export function IdeTopBar() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sealedToast, setSealedToast] = useState<{ hash: string } | null>(null);
+  const [showSaveToast, setShowSaveToast] = useState(false);
+  const initialToast = useRef(true);
 
   const isSubmittedView = workspaceMode === "submitted";
   const assignment = user && activeAssignmentId
@@ -65,6 +67,19 @@ export function IdeTopBar() {
   const alreadySubmitted =
     assignment?.enrollment?.status === "SUBMITTED" ||
     assignment?.enrollment?.status === "GRADED";
+
+  useEffect(() => {
+    if (initialToast.current) {
+      initialToast.current = false;
+      return;
+    }
+
+    if (saveStatus === "saved" || saveStatus === "failed") {
+      setShowSaveToast(true);
+      const timeout = window.setTimeout(() => setShowSaveToast(false), 2600);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [saveStatus]);
 
   const handleRun = () => {
     if (viewMode === "preview") {
@@ -158,7 +173,7 @@ export function IdeTopBar() {
         <div className="flex flex-1 flex-wrap items-center gap-3 min-w-0">
           <Logo size="sm" showText={false} />
           <div className="min-w-0">
-            <span className="text-sm font-medium text-zinc-200 truncate max-w-[220px] block">
+            <span className="text-sm font-medium text-zinc-200 truncate max-w-55 block">
               {projectName}
             </span>
             <div className="flex flex-wrap items-center gap-2 mt-1 text-xs">
@@ -177,26 +192,32 @@ export function IdeTopBar() {
                     size={6}
                     className={cn("fill-current shrink-0", isDirty ? "text-amber-400" : "text-emerald-400")}
                   />
-                  <span
-                    className={cn(
-                      "text-xs",
-                      saveStatus === "failed" ? "text-rose-300" : "text-zinc-600"
-                    )}
-                  >
-                    {saveStatus === "saving"
-                      ? "Saving..."
-                      : saveStatus === "failed"
-                      ? saveError
-                        ? `Save failed: ${saveError}`
-                        : "Save failed"
-                      : isDirty
-                      ? lastSaved
+                  {(() => {
+                    const statusText =
+                      saveStatus === "saving"
+                        ? "Saving..."
+                        : saveStatus === "failed"
+                        ? saveError
+                          ? `Save failed: ${saveError}`
+                          : "Save failed"
+                        : isDirty
+                        ? lastSaved
+                          ? `Last saved ${formatRelativeTime(lastSaved)}`
+                          : "Unsaved changes"
+                        : lastSaved
                         ? `Last saved ${formatRelativeTime(lastSaved)}`
-                        : "Unsaved changes"
-                      : lastSaved
-                      ? `Last saved ${formatRelativeTime(lastSaved)}`
-                      : "Saved just now"}
-                  </span>
+                        : "";
+                    return statusText ? (
+                      <span
+                        className={cn(
+                          "text-xs",
+                          saveStatus === "failed" ? "text-rose-300" : "text-zinc-600"
+                        )}
+                      >
+                        {statusText}
+                      </span>
+                    ) : null;
+                  })()}
                 </>
               ) : (
                 <span className="text-xs text-emerald-500/80 hidden sm:inline-flex items-center gap-1">
@@ -227,15 +248,15 @@ export function IdeTopBar() {
 
           {!isSubmittedView && viewMode === "code" ? (
             <div className="flex sm:hidden items-center justify-between gap-2 overflow-x-auto px-1">
-              <Button variant="secondary" size="sm" onClick={toggleExplorer} className="flex-1 min-w-[0] justify-center">
+              <Button variant="secondary" size="sm" onClick={toggleExplorer} className="flex-1 min-w-0 justify-center">
                 <PanelLeft size={14} />
                 <span className="text-[10px]">Explorer</span>
               </Button>
-              <Button variant="secondary" size="sm" onClick={toggleTerminal} className="flex-1 min-w-[0] justify-center">
+              <Button variant="secondary" size="sm" onClick={toggleTerminal} className="flex-1 min-w-0 justify-center">
                 <Terminal size={14} />
                 <span className="text-[10px]">Terminal</span>
               </Button>
-              <Button variant="secondary" size="sm" onClick={toggleAiPanel} className="flex-1 min-w-[0] justify-center">
+              <Button variant="secondary" size="sm" onClick={toggleAiPanel} className="flex-1 min-w-0 justify-center">
                 <Bot size={14} />
                 <span className="text-[10px]">AI</span>
               </Button>
@@ -290,29 +311,31 @@ export function IdeTopBar() {
         <LiveDeployStrip onRedeploy={openDeployModal} />
       ) : null}
 
-      <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 px-3 py-2 rounded-2xl border border-white/10 bg-black/90 text-sm text-zinc-100 shadow-2xl shadow-black/40 backdrop-blur-md sm:hidden">
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "font-medium",
-              saveStatus === "saving"
-                ? "text-cyan-300"
+      {showSaveToast ? (
+        <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 px-3 py-2 rounded-2xl border border-white/10 bg-black/90 text-sm text-zinc-100 shadow-2xl shadow-black/40 backdrop-blur-md sm:hidden">
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "font-medium",
+                saveStatus === "saving"
+                  ? "text-cyan-300"
+                  : saveStatus === "failed"
+                  ? "text-rose-300"
+                  : "text-emerald-300"
+              )}
+            >
+              {saveStatus === "saving"
+                ? "Saving…"
                 : saveStatus === "failed"
-                ? "text-rose-300"
-                : "text-emerald-300"
-            )}
-          >
-            {saveStatus === "saving"
-              ? "Saving…"
-              : saveStatus === "failed"
-              ? saveError || "Save failed"
-              : "Saved"}
-          </span>
-          <span className="text-xs text-zinc-400">
-            {saveStatus === "saved" && lastSaved ? formatRelativeTime(lastSaved) : ""}
-          </span>
+                ? saveError || "Save failed"
+                : "Saved"}
+            </span>
+            <span className="text-xs text-zinc-400">
+              {saveStatus === "saved" && lastSaved ? formatRelativeTime(lastSaved) : ""}
+            </span>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <DeployModal open={isDeployModalOpen} onClose={closeDeployModal} />
       {user ? (
