@@ -119,35 +119,32 @@ body.dashboard-page {
   background: transparent !important;
 }
 
-.monaco-editor,
-.monaco-editor *,
+.monaco-editor {
+  touch-action: pan-y pinch-zoom !important;
+  -webkit-touch-callout: default !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-overflow-scrolling: touch !important;
+  user-select: none !important;
+}
+
 .monaco-editor textarea,
 .monaco-editor .view-lines,
 .monaco-editor .view-line,
 .monaco-editor .monaco-scrollable-element,
-.monaco-editor .lines-content,
-.monaco-editor .content-widget,
-.monaco-editor .overflow-guard,
-.monaco-editor .view-overlays,
-.monaco-editor .inputarea {
-  touch-action: auto !important;
+.monaco-editor .lines-content {
+  touch-action: pan-y pinch-zoom !important;
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
   -ms-user-select: text !important;
   user-select: text !important;
-  -webkit-touch-callout: default !important;
-  -webkit-tap-highlight-color: transparent !important;
-  -webkit-overflow-scrolling: touch !important;
-  cursor: text !important;
 }
 
-.monaco-editor .view-lines,
-.monaco-editor .view-line,
-.monaco-editor .monaco-scrollable-element,
-.monaco-editor .lines-content {
-  -webkit-user-drag: auto !important;
-  touch-action: auto !important;
-  -webkit-overflow-scrolling: touch !important;
+.monaco-editor .line-numbers,
+.monaco-editor .glyph-margin,
+.monaco-editor .view-overlays,
+.monaco-editor .content-widget,
+.monaco-editor .overflow-guard {
+  user-select: none !important;
 }
 
 textarea {
