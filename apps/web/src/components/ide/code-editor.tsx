@@ -7,6 +7,10 @@ import { useIdeStore } from "@/store/ide-store";
 import { getLanguageFromPath } from "@/lib/utils";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
+const CodeMirrorEditor = dynamic(
+  () => import("./code-editor-codemirror").then((mod) => mod.CodeMirrorEditor),
+  { ssr: false }
+);
 
 export function CodeEditor() {
   const activeFilePath = useIdeStore((s) => s.activeFilePath);
@@ -15,6 +19,15 @@ export function CodeEditor() {
   const workspaceMode = useIdeStore((s) => s.workspaceMode);
   const editorRef = useRef<any>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [useCodeMirror, setUseCodeMirror] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      window.matchMedia("(max-width: 1024px), (pointer: coarse)").matches ||
+      navigator.maxTouchPoints > 0 ||
+      "ontouchstart" in window
+    );
+  });
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const readOnly = workspaceMode === "submitted";
   const activeFile = files.find((f) => f.path === activeFilePath);
@@ -47,13 +60,15 @@ export function CodeEditor() {
     if (!editor) return;
     if (editor.trigger) {
       editor.trigger("keyboard", "editor.action.selectAll", null);
+    } else if (editor.selectAll) {
+      editor.selectAll();
     } else {
       const model = editor.getModel?.();
       if (!model) return;
       const fullRange = model.getFullModelRange();
       editor.setSelection(fullRange);
     }
-    editor.focus();
+    editor.focus?.();
   };
 
   const handleCopy = async () => {
@@ -65,12 +80,14 @@ export function CodeEditor() {
       return;
     }
 
-    const model = editor.getModel?.();
-    if (!model) return;
     const selection = editor.getSelection?.();
-    const text = selection && !selection.isEmpty()
-      ? model.getValueInRange(selection)
-      : model.getValue();
+    let text = "";
+
+    if (selection) {
+      text = selection.isEmpty ? editor.getValue?.() ?? "" : selection.text;
+    } else if (editor.getValue) {
+      text = editor.getValue();
+    }
 
     if (!text) return;
 
@@ -88,7 +105,7 @@ export function CodeEditor() {
     if (editor.trigger) {
       editor.trigger("keyboard", "editor.action.clipboardPasteAction", null);
       setActionMessage("Pasted clipboard text");
-      editor.focus();
+      editor.focus?.();
       return;
     }
 
@@ -97,26 +114,57 @@ export function CodeEditor() {
       return;
     }
 
-    const model = editor.getModel?.();
-    if (!editor || !model) return;
-
     try {
       const pasteText = await navigator.clipboard.readText();
       if (!pasteText) return;
-      const selection = editor.getSelection?.();
-      editor.executeEdits("paste", [
-        {
-          range: selection ?? model.getFullModelRange(),
-          text: pasteText,
-          forceMoveMarkers: true,
-        },
-      ]);
-      editor.focus();
+
+      if (editor.paste) {
+        await editor.paste(pasteText);
+      } else {
+        const model = editor.getModel?.();
+        if (!model) return;
+        const selection = editor.getSelection?.();
+        editor.executeEdits("paste", [
+          {
+            range: selection ?? model.getFullModelRange(),
+            text: pasteText,
+            forceMoveMarkers: true,
+          },
+        ]);
+      }
+
+      editor.focus?.();
       setActionMessage("Pasted clipboard text");
     } catch {
       setActionMessage("Paste not available");
     }
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mediaQuery = window.matchMedia("(max-width: 1024px), (pointer: coarse)");
+    const colorQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    const updateDevice = () => {
+      setUseCodeMirror(
+        mediaQuery.matches || navigator.maxTouchPoints > 0 || "ontouchstart" in window
+      );
+    };
+
+    const updateTheme = () => {
+      setIsDarkMode(colorQuery.matches);
+    };
+
+    updateDevice();
+    updateTheme();
+    mediaQuery.addEventListener("change", updateDevice);
+    colorQuery.addEventListener("change", updateTheme);
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateDevice);
+      colorQuery.removeEventListener("change", updateTheme);
+    };
+  }, []);
 
   useEffect(() => {
     if (!actionMessage) return;
@@ -131,59 +179,69 @@ export function CodeEditor() {
           Read-only
         </div>
       ) : null}
-      <MonacoEditor
-        height="100%"
-        language={language}
-        theme="vs-dark"
-        value={activeFile.content}
-        onMount={(editor) => {
-          editorRef.current = editor;
-        }}
-        onChange={(value) => {
-          if (!readOnly) updateFileContent(activeFilePath, value ?? "");
-        }}
-        options={{
-          readOnly,
-          fontSize: 14,
-          fontFamily: "JetBrains Mono, Fira Code, Menlo, Monaco, Consolas, 'Courier New', monospace",
-          scrollBeyondLastLine: false,
-          padding: { top: 16 },
-          lineNumbers: "on",
-          renderLineHighlight: readOnly ? "none" : "all",
-          renderWhitespace: "boundary",
-          guides: { indentation: true },
-          cursorStyle: "line",
-          cursorWidth: 2,
-          cursorBlinking: readOnly ? "solid" : "smooth",
-          cursorSmoothCaretAnimation: false,
-          selectionClipboard: true,
-          emptySelectionClipboard: true,
-          smoothScrolling: true,
-          tabSize: 2,
-          wordWrap: "on",
-          automaticLayout: true,
-          domReadOnly: readOnly,
-          mouseWheelZoom: false,
-          quickSuggestions: true,
-          parameterHints: { enabled: true },
-          suggestOnTriggerCharacters: true,
-          acceptSuggestionOnEnter: "on",
-          formatOnPaste: true,
-          formatOnType: true,
-          autoClosingBrackets: "always",
-          autoClosingQuotes: "always",
-          autoSurround: "languageDefined",
-          bracketPairColorization: { enabled: true },
-          contextmenu: true,
-          accessibilitySupport: "on",
-          fixedOverflowWidgets: true,
-          dragAndDrop: true,
-          copyWithSyntaxHighlighting: true,
-          largeFileOptimizations: false,
-          folding: true,
-          minimap: { enabled: true, renderCharacters: false, maxColumn: 80 },
-        }}
-      />
+      {useCodeMirror ? (
+        <CodeMirrorEditor
+          value={activeFile.content}
+          language={language}
+          readOnly={readOnly}
+          onMount={(editor) => {
+            editorRef.current = editor;
+          }}
+          onChange={(value) => {
+            if (!readOnly) updateFileContent(activeFilePath, value ?? "");
+          }}
+        />
+      ) : (
+        <MonacoEditor
+          height="100%"
+          language={language}
+          theme={isDarkMode ? "vs-dark" : "light"}
+          value={activeFile.content}
+          onMount={(editor) => {
+            editorRef.current = editor;
+          }}
+          onChange={(value) => {
+            if (!readOnly) updateFileContent(activeFilePath, value ?? "");
+          }}
+          options={{
+            readOnly,
+            fontSize: 14,
+            fontFamily: "JetBrains Mono, Fira Code, Menlo, Monaco, Consolas, 'Courier New', monospace",
+            scrollBeyondLastLine: false,
+            padding: { top: 16 },
+            lineNumbers: "on",
+            renderLineHighlight: readOnly ? "none" : "all",
+            renderWhitespace: "boundary",
+            guides: { indentation: true },
+            cursorStyle: "line",
+            cursorWidth: 2,
+            cursorBlinking: readOnly ? "solid" : "smooth",
+            selectionClipboard: true,
+            emptySelectionClipboard: true,
+            smoothScrolling: true,
+            tabSize: 2,
+            wordWrap: "on",
+            automaticLayout: true,
+            mouseWheelZoom: false,
+            quickSuggestions: true,
+            parameterHints: { enabled: true },
+            suggestOnTriggerCharacters: true,
+            acceptSuggestionOnEnter: "on",
+            formatOnPaste: true,
+            formatOnType: true,
+            autoClosingBrackets: "always",
+            autoClosingQuotes: "always",
+            autoSurround: "languageDefined",
+            bracketPairColorization: { enabled: true },
+            contextmenu: true,
+            accessibilitySupport: "on",
+            fixedOverflowWidgets: true,
+            dragAndDrop: true,
+            folding: true,
+            minimap: { enabled: true, renderCharacters: false, maxColumn: 80 },
+          }}
+        />
+      )}
 
       <div className="mt-3 hidden flex-col gap-2 rounded-3xl border border-white/10 bg-[#08080c] p-3 sm:flex">
         <div className="flex items-center justify-between gap-2">

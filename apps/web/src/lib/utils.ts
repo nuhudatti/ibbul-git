@@ -57,3 +57,13 @@ export function resolveDeployUrl(deployUrl?: string | null, baseUrl?: string): s
   // Ensure single slash join
   return `${host.replace(/\/+$/g, "")}/${raw.replace(/^\/+/, "")}`;
 }
+
+export function resolveAvatarUrl(avatarUrl?: string | null): string | undefined {
+  if (!avatarUrl) return undefined;
+  const trimmed = avatarUrl.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:") || trimmed.startsWith("/")) {
+    return trimmed.split("?")[0];
+  }
+  return trimmed.split("?")[0];
+}

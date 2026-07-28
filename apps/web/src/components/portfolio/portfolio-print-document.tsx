@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { PortfolioArtifact, StudentPortfolioProfile } from "@/types";
+import { resolveAvatarUrl } from "@/lib/utils";
 import { formatProofHash } from "@/lib/portfolio-hash";
 import {
   buildVerifyUrl,
@@ -147,14 +148,29 @@ export function PortfolioPrintDocument({
               {/* ── Recipient (centered diploma block) ── */}
               <section className="ula-print-zone ula-print-zone-recipient">
                 <p className="ula-print-presents">This credential is proudly presented to</p>
-                {profile.avatarUrl ? (
-                  <img
-                    src={`${origin}${profile.avatarUrl.split("?")[0]}${profile.updatedAt ? `?v=${encodeURIComponent(profile.updatedAt)}` : ""}`}
-                    alt={profile.displayName}
-                    className="ula-print-photo"
-                    crossOrigin="anonymous"
-                  />
-                ) : null}
+                {(() => {
+                  const resolvedAvatarUrl = resolveAvatarUrl(profile.avatarUrl);
+                  if (resolvedAvatarUrl) {
+                    return (
+                      <img
+                        src={`${resolvedAvatarUrl}${profile.updatedAt ? `?v=${encodeURIComponent(profile.updatedAt)}` : ""}`}
+                        alt={profile.displayName}
+                        className="ula-print-photo"
+                        crossOrigin="anonymous"
+                      />
+                    );
+                  }
+
+                  return (
+                    <div
+                      className="ula-print-photo flex items-center justify-center text-white"
+                      style={{ backgroundColor: "#0f172a" }}
+                      aria-hidden="true"
+                    >
+                      {profile.avatar}
+                    </div>
+                  );
+                })()}
                 <h2 className="ula-print-name">{profile.displayName}</h2>
                 <p className="ula-print-matric">{profile.matric}</p>
                 <p className="ula-print-program">

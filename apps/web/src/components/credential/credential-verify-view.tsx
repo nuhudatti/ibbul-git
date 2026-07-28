@@ -14,6 +14,7 @@ import {
   ShieldAlert,
   ShieldCheck,
 } from "lucide-react";
+import { resolveAvatarUrl } from "@/lib/utils";
 import type { PortfolioArtifact, StudentPortfolioProfile } from "@/types";
 import type { CredentialSignatory } from "@/lib/credential";
 import { formatProofHash } from "@/lib/portfolio-hash";
@@ -75,6 +76,8 @@ export function CredentialVerifyView({ token }: CredentialVerifyViewProps) {
 
   const valid = data.valid;
 
+  const resolvedAvatarUrl = resolveAvatarUrl(data.profile?.avatarUrl);
+
   return (
     <div className="min-h-screen ula-mesh-bg ula-grid-pattern">
       <header className="border-b border-white/6 bg-[#050508]/80 backdrop-blur-xl">
@@ -103,8 +106,16 @@ export function CredentialVerifyView({ token }: CredentialVerifyViewProps) {
           }`}
         >
           <div className="flex items-start gap-4">
-            {valid ? (
-              <ShieldCheck className="text-emerald-400 shrink-0" size={44} />
+            {valid && resolvedAvatarUrl ? (
+              <img
+                src={resolvedAvatarUrl}
+                alt={data.profile?.displayName ?? "Verified student"}
+                className="h-14 w-14 rounded-full object-cover border border-emerald-400/20"
+              />
+            ) : valid ? (
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-200 border border-emerald-400/20">
+                {data.profile?.avatar}
+              </div>
             ) : (
               <ShieldAlert className="text-amber-400 shrink-0" size={44} />
             )}

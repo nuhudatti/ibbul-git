@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { resolveAvatarUrl } from "@/lib/utils";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -57,12 +58,13 @@ export function PublicProfile({ matric }: PublicProfileProps) {
       : `https://ula.edu${profilePath(norm)}`;
 
   const runPrint = async () => {
-    if (profile?.avatarUrl) {
+    const resolvedAvatarUrl = resolveAvatarUrl(profile?.avatarUrl);
+    if (resolvedAvatarUrl) {
       await new Promise<void>((resolve) => {
         const img = new Image();
         img.onload = () => resolve();
         img.onerror = () => resolve();
-        img.src = `${origin}${profile.avatarUrl!.split("?")[0]}${profile.updatedAt ? `?v=${profile.updatedAt}` : ""}`;
+        img.src = `${resolvedAvatarUrl}${profile?.updatedAt ? `?v=${profile.updatedAt}` : ""}`;
       });
     }
     document.title = `${profile?.displayName ?? norm} — ULA Verified Portfolio`;
