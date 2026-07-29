@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { matricToSlug, normalizeMatric } from "@/lib/matric";
 import { prisma } from "@/lib/services/prisma";
 import type { ProjectFile } from "@/types";
@@ -55,7 +56,7 @@ export async function createDeployment(
   const normalizedProjectId = projectId.toLowerCase().trim();
   const deployUrl = getDeploymentPath(studentMatric, normalizedProjectId);
 
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.projectDeployment.updateMany({
       where: {
         studentMatric: canonicalMatric,
@@ -70,7 +71,7 @@ export async function createDeployment(
         studentMatric: canonicalMatric,
         assignmentId: normalizedProjectId,
         projectName,
-        files: files as any,
+        files: JSON.parse(JSON.stringify(files)),
         deployUrl,
         isLatest: true,
       },
