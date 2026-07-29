@@ -202,6 +202,7 @@ export const useIdeStore = create<IdeState>()(
     return true;
   },
   deleteFile: (path) => {
+    if (get().workspaceMode === "submitted") return false;
     if (!get().files.some((file) => file.path === path)) return false;
     set((state) => {
       const files = state.files.filter((file) => file.path !== path);
@@ -214,6 +215,7 @@ export const useIdeStore = create<IdeState>()(
     return true;
   },
   deleteFolder: (path) => {
+    if (get().workspaceMode === "submitted") return false;
     if (!get().folders.includes(path) && !get().files.some((file) => file.path.startsWith(`${path}/`))) return false;
     set((state) => {
       const files = state.files.filter((file) => !file.path.startsWith(`${path}/`));
@@ -229,6 +231,7 @@ export const useIdeStore = create<IdeState>()(
     return true;
   },
   importAsset: (path, content, language) => {
+    if (get().workspaceMode === "submitted") return false;
     const normalized = normalizeWorkspacePath(path);
     if (!normalized || get().files.some((file) => file.path === normalized) || get().folders.includes(normalized)) return false;
     set((state) => ({

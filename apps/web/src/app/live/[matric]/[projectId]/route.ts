@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getDeployment, getDeploymentByPath } from "@/lib/deployment-store";
+import { getDeploymentByPath } from "@/lib/services/deployment-service";
 import { buildPreviewHtml } from "@/lib/build-preview";
 import { getArtifactByDeployUrl, seedDemoPortfolio } from "@/lib/services/portfolio-service";
-import { prisma } from "@/lib/services/prisma";
+import { matricToSlug } from "@/lib/matric";
 import {
   PORTFOLIO_STARTER,
   CALCULATOR_STARTER,
@@ -51,24 +51,13 @@ export async function GET(
 ) {
   const { matric, projectId } = await context.params;
   await seedDemoPortfolio();
-  const deployment = getDeployment(matric, projectId);
-
-  if (deployment) {
-    return new NextResponse(deployment.html, {
-      status: 200,
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-cache",
-      },
-    });
-  }
-
   const normalizedMatric = matric.toLowerCase().trim();
   const deployUrl = `/live/${normalizedMatric}/${projectId.toLowerCase().trim()}`;
-  const deploymentByPath = getDeploymentByPath(deployUrl);
+  const deployment = (await getDeploymentByPath(deployUrl)) as { files: any[] } | null;
 
-  if (deploymentByPath) {
-    return new NextResponse(deploymentByPath.html, {
+  if (deployment) {
+    const html = buildPreviewHtml(deployment.files);
+    return new NextResponse(html, {
       status: 200,
       headers: {
         "Content-Type": "text/html; charset=utf-8",
@@ -80,29 +69,8 @@ export async function GET(
   const artifact = await getArtifactByDeployUrl(deployUrl);
 
   if (artifact) {
-    // Try to locate a saved ProjectSnapshot for this student+assignment so
-    // we can render the real deployed project even when in-memory deployments
-    // are not available (serverless / stateless environments).
-    try {
-      const snap = await prisma.projectSnapshot.findFirst({
-        where: { studentMatric: artifact.studentMatric, assignmentId: artifact.assignmentId },
-        orderBy: { savedAt: "desc" },
-      });
-
-      if (snap && (snap.files as any[])?.length) {
-        const files = snap.files as any[];
-        const html = buildPreviewHtml(files as any);
-        return new NextResponse(html, {
-          status: 200,
-          headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" },
-        });
-      }
-    } catch (e) {
-      // ignore DB errors and fall back to preview placeholder
-    }
-
-    // Fallback: render a friendly placeholder preview using starter templates
     let html = buildFallbackHtml(normalizedMatric, artifact);
+
     if (artifact.assignmentId === "asn-2") {
       html = buildPreviewHtml(CALCULATOR_STARTER);
     } else if (artifact.assignmentId === "asn-1") {

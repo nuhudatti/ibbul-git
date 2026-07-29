@@ -144,6 +144,7 @@ export function DeployModal({ open, onClose }: DeployModalProps) {
   };
 
   const handleRedeploy = () => {
+    if (workspaceMode === "submitted") return;
     ranRef.current = true;
     runDeploy();
   };

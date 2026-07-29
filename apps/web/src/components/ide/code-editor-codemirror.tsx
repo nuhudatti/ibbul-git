@@ -17,6 +17,7 @@ import { bracketMatching } from "@codemirror/matchbrackets";
 import { closeBrackets } from "@codemirror/closebrackets";
 import { indentOnInput, indentUnit } from "@codemirror/language";
 import { foldGutter, foldKeymap } from "@codemirror/fold";
+import { HighlightStyle, tags } from "@codemirror/highlight";
 import { oneDark } from "@codemirror/theme-one-dark";
 
 interface CodeMirrorEditorProps {
@@ -48,9 +49,99 @@ function getLanguageExtension(language: string, filePath?: string) {
   }
 }
 
+const lightEditorTheme = HighlightStyle.define([
+  { tag: tags.keyword, color: "#0000ff" },
+  { tag: [tags.name, tags.deleted, tags.propertyName, tags.macroName], color: "#001080" },
+  { tag: [tags.function(tags.propertyName), tags.labelName], color: "#795e26" },
+  { tag: [tags.color, tags.constant(tags.name), tags.standard(tags.name)], color: "#001080" },
+  { tag: [tags.definition(tags.name), tags.separator], color: "#001080" },
+  { tag: [tags.typeName, tags.className], color: "#267f99" },
+  { tag: [tags.string, tags.special(tags.string)], color: "#a31515" },
+  { tag: [tags.number, tags.changed, tags.annotation, tags.modifier], color: "#098658" },
+  { tag: [tags.comment, tags.docComment], color: "#008000", fontStyle: "italic" },
+  { tag: tags.invalid, color: "#ff0000", textDecoration: "underline" },
+  { tag: [tags.operator, tags.punctuation], color: "#000000" },
+  { tag: [tags.variableName, tags.namespace], color: "#001080" },
+  { tag: [tags.meta, tags.processingInstruction], color: "#0451a5" },
+  { tag: [tags.link, tags.escape], color: "#0451a5" },
+]);
+
+const darkEditorTheme = HighlightStyle.define([
+  { tag: tags.keyword, color: "#569cd6" },
+  { tag: [tags.name, tags.deleted, tags.propertyName, tags.macroName], color: "#9cdcfe" },
+  { tag: [tags.function(tags.propertyName), tags.labelName], color: "#dcdcaa" },
+  { tag: [tags.color, tags.constant(tags.name), tags.standard(tags.name)], color: "#4ec9b0" },
+  { tag: [tags.definition(tags.name), tags.separator], color: "#d4d4d4" },
+  { tag: [tags.typeName, tags.className], color: "#4ec9b0" },
+  { tag: [tags.string, tags.special(tags.string)], color: "#ce9178" },
+  { tag: [tags.number, tags.changed, tags.annotation, tags.modifier], color: "#b5cea8" },
+  { tag: [tags.comment, tags.docComment], color: "#6a9955", fontStyle: "italic" },
+  { tag: tags.invalid, color: "#f44747", textDecoration: "underline" },
+  { tag: [tags.operator, tags.punctuation], color: "#d4d4d4" },
+  { tag: [tags.variableName, tags.namespace], color: "#9cdcfe" },
+  { tag: [tags.meta, tags.processingInstruction], color: "#9cdcfe" },
+  { tag: [tags.link, tags.escape], color: "#4fc1ff" },
+]);
+
 function getThemeExtension(darkMode: boolean) {
   if (darkMode) {
-    return [oneDark];
+    return [
+      EditorView.theme(
+        {
+          "&": {
+            height: "100%",
+            backgroundColor: "#1e1e1e",
+            color: "#d4d4d4",
+          },
+          ".cm-scroller": {
+            fontFamily: "JetBrains Mono, Fira Code, Menlo, Monaco, Consolas, 'Courier New', monospace",
+            fontSize: "14px",
+            minHeight: "100%",
+            padding: "16px 0 0 16px",
+            outline: "none",
+            touchAction: "manipulation",
+            WebkitOverflowScrolling: "touch",
+          },
+          ".cm-content": {
+            caretColor: "#aeafad",
+          },
+          ".cm-gutters": {
+            backgroundColor: "#252526",
+            color: "#858585",
+            borderRight: "1px solid #333333",
+          },
+          ".cm-activeLine": {
+            backgroundColor: "rgba(255,255,255,0.06)",
+          },
+          ".cm-activeLineGutter": {
+            backgroundColor: "rgba(255,255,255,0.06)",
+          },
+          ".cm-foldPlaceholder": {
+            backgroundColor: "rgba(128, 128, 128, 0.14)",
+            border: "1px solid rgba(128, 128, 128, 0.25)",
+            borderRadius: "3px",
+            padding: "0 4px",
+          },
+          ".cm-matchingBracket, .cm-nonmatchingBracket": {
+            backgroundColor: "rgba(255, 255, 255, 0.08)",
+            outline: "1px solid rgba(255, 255, 255, 0.15)",
+          },
+          ".cm-selectionBackground, .cm-focused .cm-selectionBackground": {
+            backgroundColor: "rgba(95, 148, 255, 0.3)",
+          },
+          ".cm-tooltip": {
+            backgroundColor: "#252526",
+            color: "#d4d4d4",
+            border: "1px solid #454545",
+          },
+          ".cm-tooltip .cm-tooltip-arrow:before": {
+            borderTopColor: "#252526",
+          },
+        },
+        { dark: true }
+      ),
+      darkEditorTheme,
+    ];
   }
 
   return [
@@ -58,8 +149,8 @@ function getThemeExtension(darkMode: boolean) {
       {
         "&": {
           height: "100%",
-          backgroundColor: "#f8fafc",
-          color: "#111827",
+          backgroundColor: "#fffffe",
+          color: "#24292f",
         },
         ".cm-scroller": {
           fontFamily: "JetBrains Mono, Fira Code, Menlo, Monaco, Consolas, 'Courier New', monospace",
@@ -71,28 +162,44 @@ function getThemeExtension(darkMode: boolean) {
           WebkitOverflowScrolling: "touch",
         },
         ".cm-content": {
-          caretColor: "#0f172a",
+          caretColor: "#24292f",
         },
         ".cm-gutters": {
-          backgroundColor: "#f8fafc",
+          backgroundColor: "#f3f3f3",
           color: "#6b7280",
-          borderRight: "1px solid #e5e7eb",
+          borderRight: "1px solid #e1e4e8",
         },
         ".cm-activeLine": {
-          backgroundColor: "rgba(14, 165, 233, 0.08)",
+          backgroundColor: "rgba(195, 224, 255, 0.4)",
         },
         ".cm-activeLineGutter": {
-          backgroundColor: "rgba(14, 165, 233, 0.08)",
+          backgroundColor: "rgba(195, 224, 255, 0.4)",
         },
         ".cm-foldPlaceholder": {
-          backgroundColor: "rgba(15, 23, 42, 0.04)",
-          border: "1px solid #e5e7eb",
+          backgroundColor: "rgba(27, 31, 35, 0.05)",
+          border: "1px solid rgba(27, 31, 35, 0.08)",
           borderRadius: "3px",
           padding: "0 4px",
+        },
+        ".cm-matchingBracket, .cm-nonmatchingBracket": {
+          backgroundColor: "rgba(181, 211, 255, 0.5)",
+          outline: "1px solid rgba(56, 139, 253, 0.4)",
+        },
+        ".cm-selectionBackground, .cm-focused .cm-selectionBackground": {
+          backgroundColor: "rgba(181, 211, 255, 0.5)",
+        },
+        ".cm-tooltip": {
+          backgroundColor: "#ffffff",
+          color: "#24292f",
+          border: "1px solid #d1d5da",
+        },
+        ".cm-tooltip .cm-tooltip-arrow:before": {
+          borderTopColor: "#ffffff",
         },
       },
       { dark: false }
     ),
+    lightEditorTheme,
   ];
 }
 
@@ -150,8 +257,8 @@ export function CodeMirrorEditor({ value, language, readOnly, onChange, onMount 
             height: "100%",
             fontFamily: "JetBrains Mono, Fira Code, Menlo, Monaco, Consolas, 'Courier New', monospace",
             fontSize: "14px",
-            backgroundColor: darkMode ? "#0b1220" : "#f8fafc",
-            color: darkMode ? "#e2e8f0" : "#111827",
+            backgroundColor: darkMode ? "#1e1e1e" : "#fffffe",
+            color: darkMode ? "#d4d4d4" : "#24292f",
           },
           ".cm-scroller": {
             minHeight: "100%",
@@ -160,24 +267,39 @@ export function CodeMirrorEditor({ value, language, readOnly, onChange, onMount 
             WebkitOverflowScrolling: "touch",
           },
           ".cm-content": {
-            caretColor: darkMode ? "#7c9eff" : "#0f172a",
+            caretColor: darkMode ? "#aeafad" : "#24292f",
           },
           ".cm-gutters": {
-            backgroundColor: darkMode ? "#05070d" : "#f8fafc",
-            color: darkMode ? "#6b7280" : "#6b7280",
-            borderRight: darkMode ? "1px solid #1f2937" : "1px solid #e5e7eb",
+            backgroundColor: darkMode ? "#252526" : "#f3f3f3",
+            color: darkMode ? "#858585" : "#6b7280",
+            borderRight: darkMode ? "1px solid #333333" : "1px solid #e1e4e8",
           },
           ".cm-activeLine": {
-            backgroundColor: darkMode ? "rgba(255,255,255,.05)" : "rgba(14, 165, 233, 0.08)",
+            backgroundColor: darkMode ? "rgba(255,255,255,0.06)" : "rgba(195, 224, 255, 0.4)",
           },
           ".cm-activeLineGutter": {
-            backgroundColor: darkMode ? "rgba(255,255,255,.05)" : "rgba(14, 165, 233, 0.08)",
+            backgroundColor: darkMode ? "rgba(255,255,255,0.06)" : "rgba(195, 224, 255, 0.4)",
           },
           ".cm-foldPlaceholder": {
-            backgroundColor: darkMode ? "rgba(255,255,255,0.04)" : "rgba(15, 23, 42, 0.04)",
-            border: darkMode ? "1px solid rgba(148, 163, 184, 0.25)" : "1px solid #e5e7eb",
+            backgroundColor: darkMode ? "rgba(128, 128, 128, 0.14)" : "rgba(27, 31, 35, 0.05)",
+            border: darkMode ? "1px solid rgba(128, 128, 128, 0.25)" : "1px solid rgba(27, 31, 35, 0.08)",
             borderRadius: "3px",
             padding: "0 4px",
+          },
+          ".cm-matchingBracket, .cm-nonmatchingBracket": {
+            backgroundColor: darkMode ? "rgba(255, 255, 255, 0.08)" : "rgba(181, 211, 255, 0.5)",
+            outline: darkMode ? "1px solid rgba(255, 255, 255, 0.15)" : "1px solid rgba(56, 139, 253, 0.4)",
+          },
+          ".cm-selectionBackground, .cm-focused .cm-selectionBackground": {
+            backgroundColor: darkMode ? "rgba(95, 148, 255, 0.3)" : "rgba(181, 211, 255, 0.5)",
+          },
+          ".cm-tooltip": {
+            backgroundColor: darkMode ? "#252526" : "#ffffff",
+            color: darkMode ? "#d4d4d4" : "#24292f",
+            border: darkMode ? "1px solid #454545" : "1px solid #d1d5da",
+          },
+          ".cm-tooltip .cm-tooltip-arrow:before": {
+            borderTopColor: darkMode ? "#252526" : "#ffffff",
           },
         },
         { dark: darkMode }

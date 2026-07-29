@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { saveDeployment } from "@/lib/deployment-store";
-import { matricToSlug } from "@/lib/matric";
+import { createDeployment } from "@/lib/services/deployment-service";
+import { matricToSlug, normalizeMatric } from "@/lib/matric";
 import { prisma } from "@/lib/services/prisma";
 import type { ProjectFile } from "@/types";
 
@@ -21,17 +21,18 @@ export async function POST(request: Request) {
   }
 
   const matricSlug = matricToSlug(matricNumber);
+  const canonicalMatric = normalizeMatric(matricNumber);
   const normalizedProjectId = projectId.toLowerCase().trim();
-  const record = saveDeployment(matricSlug, normalizedProjectId, projectName ?? "Project", files);
+  const record = await createDeployment(matricSlug, normalizedProjectId, projectName ?? "Project", files);
   const origin = new URL(request.url).origin;
-  const url = `${origin}/live/${matricSlug}/${normalizedProjectId}`;
+  const url = `${origin}${record.deployUrl}`;
 
-  // Persist project snapshot to the database so /live/... is backed by Prisma
   try {
-    const studentMatric = matricSlug.toUpperCase();
+    const studentMatric = canonicalMatric;
     const assignmentId = normalizedProjectId; // use projectId as assignmentId for snapshot mapping
     const existing = await prisma.projectSnapshot.findFirst({
       where: { studentMatric, assignmentId },
+      orderBy: { savedAt: "desc" },
     });
 
     if (existing) {

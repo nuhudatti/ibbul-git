@@ -69,13 +69,7 @@ export const usePortfolioStore = create<PortfolioState>()(
           timestamp,
         });
 
-        const existingKey = Object.values(get().artifacts).find(
-          (a) =>
-            normalizeMatric(a.studentMatric) === matric &&
-            a.assignmentId === input.assignmentId
-        )?.id;
-
-        const id = existingKey ?? `art-${matric}-${input.assignmentId}-${Date.now()}`;
+        const id = `art-${matric}-${input.assignmentId}-${Date.now()}`;
         const artifact: PortfolioArtifact = {
           id,
           studentMatric: matric,
@@ -153,13 +147,15 @@ export const usePortfolioStore = create<PortfolioState>()(
           studentMatric: a.studentMatric,
           studentName: a.studentName,
           title: a.title,
-          message: approved ? "lecturer verified artifact" : "artifact needs revision",
+          message: approved ? "lecturer verified artifact" : "lecturer requested corrections",
           artifactId,
           score: a.score ?? undefined,
         });
         get().syncToServer(updated);
         if (approved) {
           useAssignmentStore.getState().markEnrollmentGraded(a.assignmentId, a.studentMatric);
+        } else {
+          useAssignmentStore.getState().reopenEnrollment(a.assignmentId, a.studentMatric);
         }
         fetch("/api/portfolio/verify", {
           method: "POST",

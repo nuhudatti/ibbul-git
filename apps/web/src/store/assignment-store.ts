@@ -46,6 +46,7 @@ interface AssignmentState {
   getEnrollmentsForAssignment: (assignmentId: string) => StudentEnrollment[];
   pushActivity: (event: Omit<ActivityEvent, "id" | "timestamp">) => void;
   reopenAssignment: (assignmentId: string) => void;
+  reopenEnrollment: (assignmentId: string, matric: string) => void;
   setFilterRisk: (filter: "all" | "watch" | "critical") => void;
   setActiveClassId: (id: string) => void;
 }
@@ -294,6 +295,23 @@ export const useAssignmentStore = create<AssignmentState>()(
               ),
             }));
           },
+
+      reopenEnrollment: (assignmentId, matric) => {
+        const norm = normalizeMatric(matric);
+        set((s) => ({
+          enrollments: s.enrollments.map((e) =>
+            e.assignmentId === assignmentId && normalizeMatric(e.studentMatric) === norm
+              ? {
+                  ...e,
+                  studentMatric: norm,
+                  status: "IN_PROGRESS" as const,
+                  submittedAt: undefined,
+                  score: undefined,
+                }
+              : e
+          ),
+        }));
+      },
 
       deleteAssignment: (assignmentId) => {
         set((s) => ({

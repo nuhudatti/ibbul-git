@@ -32,6 +32,7 @@ model StudentProfile {
   assignments         ProjectSnapshot[]
   artifacts           PortfolioArtifact[]
   uploads             CloudinaryAsset[]
+  deployments         ProjectDeployment[]
 
   @@index([accountRole])
   @@index([status])
@@ -53,6 +54,38 @@ model ProjectSnapshot {
 
   @@index([studentMatric])
   @@index([assignmentId])
+}
+
+model ProjectDeployment {
+  id            String   @id @default(cuid())
+  studentMatric String
+  assignmentId  String
+  projectName   String
+  files         Json
+  deployUrl     String
+  deployedAt    DateTime @default(now())
+  isLatest      Boolean  @default(true)
+  approved      Boolean  @default(false)
+  approvedAt    DateTime?
+  reviewerId    String?
+  reviewerName  String?
+  reviewerNote  String?
+  status        DeploymentStatus @default(DEPLOYED)
+
+  student       StudentProfile @relation(fields: [studentMatric], references: [matric], onDelete: Cascade)
+
+  @@index([studentMatric])
+  @@index([assignmentId])
+  @@index([deployUrl])
+  @@index([isLatest])
+}
+
+enum DeploymentStatus {
+  BUILDING
+  DEPLOYED
+  SUBMITTED
+  APPROVED
+  REJECTED
 }
 
 model PortfolioArtifact {
