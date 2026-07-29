@@ -8,7 +8,7 @@ import {
   formatProofHash,
   generatePortfolioHash,
 } from "@/lib/portfolio-hash";
-import { normalizeMatric } from "@/lib/matric";
+import { matricToSlug, normalizeMatric } from "@/lib/matric";
 import { resolveStudent } from "@/lib/student-directory";
 import { useAssignmentStore } from "@/store/assignment-store";
 
@@ -41,12 +41,16 @@ interface PortfolioState {
     lecturerName: string,
     approved: boolean,
     note?: string
-  ) => void;
+  ) => Promise<void>;
 
   getStudentArtifacts: (matric: string) => PortfolioArtifact[];
   getPendingVerification: () => PortfolioArtifact[];
   getFeed: () => PortfolioFeedEvent[];
   pushFeed: (event: Omit<PortfolioFeedEvent, "id" | "timestamp">) => void;
+  mergeArtifacts: (artifacts: PortfolioArtifact[]) => void;
+  loadStudentArtifacts: (matric: string) => Promise<void>;
+  loadAllArtifacts: () => Promise<void>;
+  reset: () => void;
   syncToServer: (artifact: PortfolioArtifact) => Promise<void>;
 }
 
@@ -55,6 +59,45 @@ export const usePortfolioStore = create<PortfolioState>()(
     (set, get) => ({
       artifacts: {},
       feed: [],
+
+      mergeArtifacts: (artifacts) => {
+        if (!Array.isArray(artifacts) || artifacts.length === 0) return;
+        set((s) => ({
+          artifacts: {
+            ...s.artifacts,
+            ...Object.fromEntries(artifacts.map((artifact) => [artifact.id, artifact])),
+          },
+        }));
+      },
+
+      reset: () => set({ artifacts: {}, feed: [] }),
+
+      loadStudentArtifacts: async (matric) => {
+        try {
+          const slug = matricToSlug(normalizeMatric(matric));
+          const res = await fetch(`/api/portfolio/${slug}`);
+          if (!res.ok) return;
+          const data = (await res.json()) as { artifacts?: PortfolioArtifact[] };
+          if (Array.isArray(data.artifacts) && data.artifacts.length > 0) {
+            get().mergeArtifacts(data.artifacts);
+          }
+        } catch {
+          // Ignore network errors and keep offline cache
+        }
+      },
+
+      loadAllArtifacts: async () => {
+        try {
+          const res = await fetch("/api/portfolio/all");
+          if (!res.ok) return;
+          const data = (await res.json()) as { artifacts?: PortfolioArtifact[] };
+          if (Array.isArray(data.artifacts) && data.artifacts.length > 0) {
+            get().mergeArtifacts(data.artifacts);
+          }
+        } catch {
+          // Ignore network errors and keep offline cache
+        }
+      },
 
       createFromSubmission: async (input) => {
         const matric = normalizeMatric(input.studentMatric);
@@ -127,7 +170,7 @@ export const usePortfolioStore = create<PortfolioState>()(
         get().syncToServer(updated);
       },
 
-      verifyArtifact: (artifactId, lecturerId, lecturerName, approved, note) => {
+      verifyArtifact: async (artifactId, lecturerId, lecturerName, approved, note) => {
         const a = get().artifacts[artifactId];
         if (!a) return;
         const updated: PortfolioArtifact = {
@@ -151,23 +194,33 @@ export const usePortfolioStore = create<PortfolioState>()(
           artifactId,
           score: a.score ?? undefined,
         });
-        get().syncToServer(updated);
         if (approved) {
           useAssignmentStore.getState().markEnrollmentGraded(a.assignmentId, a.studentMatric);
         } else {
           useAssignmentStore.getState().reopenEnrollment(a.assignmentId, a.studentMatric);
         }
-        fetch("/api/portfolio/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            artifactId,
-            lecturerId,
-            lecturerName,
-            approved,
-            note,
-          }),
-        }).catch(() => {});
+
+        try {
+          const res = await fetch("/api/portfolio/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              artifactId,
+              lecturerId,
+              lecturerName,
+              approved,
+              note,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.artifact) {
+              get().mergeArtifacts([data.artifact]);
+            }
+          }
+        } catch {
+          // Ignore verification network failure—local state retains the change.
+        }
       },
 
       getStudentArtifacts: (matric) => {
