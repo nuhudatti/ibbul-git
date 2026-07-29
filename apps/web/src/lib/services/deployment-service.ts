@@ -1,7 +1,43 @@
 import { matricToSlug, normalizeMatric } from "@/lib/matric";
 import { prisma } from "@/lib/services/prisma";
-import type { ProjectDeployment } from "@prisma/client";
 import type { ProjectFile } from "@/types";
+
+interface ProjectDeployment {
+  id: string;
+  studentMatric: string;
+  assignmentId: string;
+  projectName: string;
+  files: unknown;
+  deployUrl: string;
+  deployedAt: Date;
+  isLatest: boolean;
+  approved: boolean;
+  approvedAt: Date | null;
+  reviewerId: string | null;
+  reviewerName: string | null;
+  reviewerNote: string | null;
+  status: string;
+}
+
+function toDeploymentRecord(record: any): ProjectDeployment | null {
+  if (!record) return null;
+  return {
+    id: record.id,
+    studentMatric: record.studentMatric,
+    assignmentId: record.assignmentId,
+    projectName: record.projectName,
+    files: record.files,
+    deployUrl: record.deployUrl,
+    deployedAt: record.deployedAt,
+    isLatest: record.isLatest,
+    approved: record.approved,
+    approvedAt: record.approvedAt,
+    reviewerId: record.reviewerId,
+    reviewerName: record.reviewerName,
+    reviewerNote: record.reviewerNote,
+    status: record.status,
+  };
+}
 
 export function getDeploymentPath(matric: string, projectId: string) {
   const normalizedMatric = matricToSlug(matric).toLowerCase();
@@ -62,10 +98,11 @@ export async function getLatestDeployment(
 
 export async function getDeploymentByPath(path: string): Promise<ProjectDeployment | null> {
   const normalized = path.trim().replace(/\\/g, "/").replace(/\/+/g, "/").replace(/\/+$/, "").toLowerCase();
-  return prisma.projectDeployment.findFirst({
+  const record = await prisma.projectDeployment.findFirst({
     where: { deployUrl: normalized },
     orderBy: { deployedAt: "desc" },
   });
+  return toDeploymentRecord(record);
 }
 
 export async function getLatestVerifiedDeployment(

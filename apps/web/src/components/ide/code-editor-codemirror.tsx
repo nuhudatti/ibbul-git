@@ -2,10 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EditorState } from "@codemirror/state";
-import { EditorView, highlightActiveLine, keymap } from "@codemirror/view";
-import { defaultKeymap } from "@codemirror/commands";
-import { historyKeymap } from "@codemirror/history";
-import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { EditorView, highlightActiveLine } from "@codemirror/view";
+import { highlightSelectionMatches } from "@codemirror/search";
 import { lineNumbers, highlightActiveLineGutter } from "@codemirror/gutter";
 import { javascript } from "@codemirror/lang-javascript";
 import { html } from "@codemirror/lang-html";
@@ -16,9 +14,8 @@ import { python } from "@codemirror/lang-python";
 import { bracketMatching } from "@codemirror/matchbrackets";
 import { closeBrackets } from "@codemirror/closebrackets";
 import { indentOnInput, indentUnit } from "@codemirror/language";
-import { foldGutter, foldKeymap } from "@codemirror/fold";
+import { foldGutter } from "@codemirror/fold";
 import { HighlightStyle, tags } from "@codemirror/highlight";
-import { oneDark } from "@codemirror/theme-one-dark";
 
 interface CodeMirrorEditorProps {
   value: string;
@@ -240,12 +237,6 @@ export function CodeMirrorEditor({ value, language, readOnly, onChange, onMount 
       closeBrackets(),
       indentOnInput(),
       foldGutter({ openText: "▾", closedText: "▸" }),
-      keymap.of([
-        ...defaultKeymap,
-        ...historyKeymap,
-        ...searchKeymap,
-        ...foldKeymap,
-      ]),
       EditorState.tabSize.of(2),
       indentUnit.of("  "),
       EditorState.readOnly.of(readOnly),
