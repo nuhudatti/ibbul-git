@@ -70,7 +70,7 @@ model ProjectDeployment {
   approvedAt    DateTime?
   reviewerId    String?
   reviewerName  String?
-  reviewerNote  String?
+  reviewNote    String?
   status        DeploymentStatus @default(DEPLOYED)
 
   student       StudentProfile @relation(fields: [studentMatric], references: [matric], onDelete: Cascade)

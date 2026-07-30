@@ -279,7 +279,11 @@ export const useAssignmentStore = create<AssignmentState>()(
           const d = await res.json();
           if (d.assignment) {
             const assignment = d.assignment;
-            const enrollments = Array.isArray(d.enrollments) ? d.enrollments : [];
+            const enrollments = Array.isArray(d.enrollments)
+              ? d.enrollments
+              : Array.isArray(assignment.enrollments)
+                ? assignment.enrollments
+                : [];
             set((s) => ({
               assignments: s.assignments.map((a) => (a.id === assignment.id ? assignment : a)),
               enrollments: [

@@ -16,7 +16,7 @@ interface ProjectDeployment {
   approvedAt: Date | null;
   reviewerId: string | null;
   reviewerName: string | null;
-  reviewerNote: string | null;
+  reviewNote: string | null;
   status: string;
 }
 
@@ -35,7 +35,7 @@ function toDeploymentRecord(record: any): ProjectDeployment | null {
     approvedAt: record.approvedAt,
     reviewerId: record.reviewerId,
     reviewerName: record.reviewerName,
-    reviewerNote: record.reviewerNote,
+    reviewNote: record.reviewNote,
     status: record.status,
   };
 }

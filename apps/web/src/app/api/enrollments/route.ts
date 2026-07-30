@@ -6,10 +6,15 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { assignmentId, studentMatric, action, score, deployUrl, status } = body;
+
+    if (!assignmentId || !studentMatric) {
+      return NextResponse.json({ error: "assignmentId and studentMatric are required" }, { status: 400 });
+    }
+
     const norm = normalizeMatric(studentMatric);
     const id = `${assignmentId}-${norm}`;
-    // upsert enrollment
     const data: any = {};
+
     if (action === "start") {
       data.status = "IN_PROGRESS";
       data.startedAt = new Date();
@@ -25,6 +30,8 @@ export async function POST(req: Request) {
       if (score != null) data.score = score;
     } else if (status) {
       data.status = status;
+    } else {
+      return NextResponse.json({ error: "Invalid enrollment action or status" }, { status: 400 });
     }
 
     const up = await prisma.enrollment.upsert({
@@ -44,6 +51,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ enrollment: up });
   } catch (e) {
+    console.error("Enrollment API error:", e);
     return NextResponse.json({ error: "Failed to upsert enrollment" }, { status: 500 });
   }
 }

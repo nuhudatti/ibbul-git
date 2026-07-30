@@ -46,7 +46,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       include: { enrollments: true },
     });
 
-    return NextResponse.json({ assignment: updated });
+    return NextResponse.json({ assignment: updated, enrollments: updated.enrollments });
   } catch (error) {
     console.error("[Publish Assignment Error]", { assignmentId: id, error });
     return NextResponse.json({ error: "Failed to publish assignment" }, { status: 500 });
