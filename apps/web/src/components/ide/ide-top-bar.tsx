@@ -81,13 +81,37 @@ export function IdeTopBar() {
     }
   }, [saveStatus]);
 
-  const handleRun = () => {
+  const handleRun = async () => {
     if (viewMode === "preview") {
       refreshPreview();
       addTerminalLog("Preview refreshed.");
-    } else {
-      openPreview();
-      addTerminalLog("Launching full preview…");
+      return;
+    }
+
+    openPreview();
+    addTerminalLog("Launching full preview…");
+
+    if (!user || !activeAssignmentId) return;
+
+    try {
+      const res = await fetch("/api/project-snapshots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matricNumber: user.matricNumber,
+          assignmentId: activeAssignmentId,
+          projectName,
+          files,
+        }),
+      });
+
+      if (res.ok) {
+        addTerminalLog("Preview snapshot persisted to the database.");
+      } else {
+        addTerminalLog("Preview could not be saved to the database.");
+      }
+    } catch (error) {
+      addTerminalLog("Preview save failed — continuing with local runtime.");
     }
   };
 

@@ -106,13 +106,40 @@ export function AssignmentsPanel() {
     (a) => !a.enrollment || a.enrollment.status === "NOT_STARTED"
   ).length;
 
-  const handleStart = (
+  const loadServerSnapshot = async (assignmentId: string) => {
+    try {
+      const res = await fetch(
+        `/api/project-snapshots?matricNumber=${encodeURIComponent(matric)}&assignmentId=${encodeURIComponent(
+          assignmentId
+        )}`
+      );
+      if (!res.ok) return undefined;
+      const data = await res.json();
+      return data?.snapshot;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const handleStart = async (
     assignmentId: string,
     title: string,
     starterFiles?: (typeof assignments)[0]["starterFiles"]
   ) => {
     startAssignment(assignmentId, matric);
-    const snapshot = getSnapshot(matric, assignmentId);
+    let snapshot = getSnapshot(matric, assignmentId);
+
+    if (!snapshot?.files?.length) {
+      const serverSnapshot = await loadServerSnapshot(assignmentId);
+      if (serverSnapshot?.files?.length) {
+        snapshot = saveSnapshot(matric, assignmentId, serverSnapshot.projectName, serverSnapshot.files, {
+          submitted: serverSnapshot.submittedAt != null,
+          deployUrl: serverSnapshot.deployUrl ?? undefined,
+          score: serverSnapshot.score ?? undefined,
+        });
+      }
+    }
+
     const files = snapshot?.files?.length ? snapshot.files : starterFiles?.length ? starterFiles : BLANK_STARTER;
     if (files?.length) {
       loadProject(title, files, assignmentId, {
@@ -123,13 +150,24 @@ export function AssignmentsPanel() {
     setOpen(false);
   };
 
-  const handleViewSubmitted = (
+  const handleViewSubmitted = async (
     assignmentId: string,
     title: string,
     starterFiles?: (typeof assignments)[0]["starterFiles"],
     enrollment?: (typeof assignments)[0]["enrollment"]
   ) => {
     let snapshot = getSnapshot(matric, assignmentId);
+    if (!snapshot?.files?.length) {
+      const serverSnapshot = await loadServerSnapshot(assignmentId);
+      if (serverSnapshot?.files?.length) {
+        snapshot = saveSnapshot(matric, assignmentId, serverSnapshot.projectName, serverSnapshot.files, {
+          submitted: serverSnapshot.submittedAt != null,
+          deployUrl: serverSnapshot.deployUrl ?? undefined,
+          score: serverSnapshot.score ?? undefined,
+        });
+      }
+    }
+
     const deployUrl = snapshot?.deployUrl ?? enrollment?.deployUrl;
     const score = snapshot?.score ?? enrollment?.score;
     const submittedAt =
