@@ -8,11 +8,8 @@ export async function POST(req: Request) {
     if (!matricNumber?.trim() || !password) {
       return NextResponse.json({ error: "Matric and password required" }, { status: 400 });
     }
-
-    console.info("[Login] attempt", { matricNumber });
     const user = await authenticateStudent(matricNumber, password);
     if (!user) {
-      console.warn("[Login] failed", { matricNumber });
       return NextResponse.json({ error: "Invalid matric number or password" }, { status: 401 });
     }
 

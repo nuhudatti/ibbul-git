@@ -31,6 +31,8 @@ interface IdeState {
   isAiThinking: boolean;
   deployment: DeploymentState;
   lastSaved: Date | null;
+  saveStatus: "idle" | "saving" | "saved" | "failed";
+  saveError: string | null;
   isDirty: boolean;
 
   viewMode: WorkspaceView;
@@ -127,6 +129,8 @@ export const useIdeStore = create<IdeState>()(
       isAiThinking: false,
       deployment: defaultDeployment,
       lastSaved: null,
+      saveStatus: "idle",
+      saveError: null,
       isDirty: false,
 
       setActiveFile: (path) => set({ activeFilePath: path, viewMode: "code" }),
@@ -321,8 +325,8 @@ export const useIdeStore = create<IdeState>()(
   setDeployment: (deployment) =>
     set((s) => ({ deployment: { ...s.deployment, ...deployment } })),
   resetDeployment: () => set({ deployment: defaultDeployment }),
-  markSaved: () => set({ lastSaved: new Date(), isDirty: false }),
-  setDirty: (dirty) => set({ isDirty: dirty }),
+  markSaved: () => set({ lastSaved: new Date(), isDirty: false, saveStatus: "saved", saveError: null }),
+  setDirty: (dirty) => set({ isDirty: dirty, saveStatus: dirty ? "saving" : "saved" }),
   isReadOnly: () => get().workspaceMode === "submitted",
     }),
     { name: "ula-ide" }
