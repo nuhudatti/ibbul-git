@@ -25,8 +25,11 @@ export function buildPreviewHtml(files: ProjectFile[]): string {
 
   html = replaceAssetReferences(html);
 
-  // Keep existing <link rel=stylesheet> and external <script src=> tags so
-  // CDN resources and external libs continue to load in the preview.
+  // Strip external stylesheet links (we inject inline)
+  html = html.replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, "");
+
+  // Strip external script tags (we inject inline)
+  html = html.replace(/<script[^>]*src=["'][^"']*["'][^>]*>\s*<\/script>/gi, "");
 
   const inlineCss = replaceAssetReferences(cssFiles.map((f) => f.content).join("\n"));
   const inlineJs = jsFiles.map((f) => f.content).join("\n");

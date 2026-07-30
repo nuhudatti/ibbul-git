@@ -44,7 +44,7 @@ interface AssignmentState {
     maxScore: number;
     difficulty: Assignment["difficulty"];
     starterFiles?: ProjectFile[];
-  }) => Promise<string>;
+  }) => Promise<string | undefined>;
   markEnrollmentGraded: (assignmentId: string, matric: string, score?: number) => Promise<void>;
   getEnrollmentsForAssignment: (assignmentId: string) => StudentEnrollment[];
   pushActivity: (event: Omit<ActivityEvent, "id" | "timestamp">) => void;
@@ -82,7 +82,8 @@ export const useAssignmentStore = create<AssignmentState>()(
           const res = await fetch("/api/assignments");
           if (!res.ok) return;
           const data = await res.json();
-          const assignments = Array.isArray(data.assignments) ? data.assignments : [];
+          if (!data || !Array.isArray(data.assignments)) return;
+          const assignments = data.assignments;
           const enrollments = assignments.flatMap((a: any) => (Array.isArray(a.enrollments) ? a.enrollments : []));
           get().mergeAssignments(assignments, enrollments);
         } catch (e) {
@@ -277,10 +278,16 @@ export const useAssignmentStore = create<AssignmentState>()(
           if (!res.ok) return;
           const d = await res.json();
           if (d.assignment) {
-            // merge assignment and its enrollments
             const assignment = d.assignment;
             const enrollments = Array.isArray(d.enrollments) ? d.enrollments : [];
-            set((s) => ({ assignments: s.assignments.map((a) => (a.id === assignment.id ? assignment : a)), enrollments }));
+            set((s) => ({
+              assignments: s.assignments.map((a) => (a.id === assignment.id ? assignment : a)),
+              enrollments: [
+                ...s.enrollments.filter((e) => e.assignmentId !== assignment.id),
+                ...enrollments,
+              ],
+            }));
+            await get().loadAssignments();
           }
         } catch (e) {
           // ignore
@@ -303,63 +310,29 @@ export const useAssignmentStore = create<AssignmentState>()(
               starterFiles: input.starterFiles,
             }),
           });
-          if (res.ok) {
-            const data = await res.json();
-            const assignment = data.assignment as Assignment;
-            if (assignment) {
-              set((s) => ({ assignments: [assignment, ...s.assignments] }));
-            }
-            const starter = input.starterFiles && input.starterFiles.length ? input.starterFiles : BLANK_STARTER;
-            for (const matric of roster) {
-              try {
-                useProjectStore.getState().saveSnapshot(
-                  matric,
-                  assignment.id,
-                  assignment.title,
-                  starter
-                );
-              } catch (e) {
-                // swallow snapshot errors — non-fatal for assignment creation
-              }
-            }
-            return assignment.id;
-          }
-        } catch (e) {
-          // fallback to local optimistic state
-        }
+          if (!res.ok) return undefined;
+          const data = await res.json();
+          const assignment = data.assignment as Assignment | undefined;
+          if (!assignment) return undefined;
 
-        const id = `asn-${Date.now()}`;
-        const assignment: Assignment = {
-          id,
-          title: input.title,
-          description: input.description,
-          instructions: input.instructions,
-          deadline: input.deadline,
-          status: "DRAFT",
-          maxScore: input.maxScore,
-          difficulty: input.difficulty,
-          engagement: "medium",
-          enrolled: roster.length,
-          submitted: 0,
-          starterFiles: input.starterFiles,
-        };
-        set((s) => ({
-          assignments: [assignment, ...s.assignments],
-        }));
-        const starter = input.starterFiles && input.starterFiles.length ? input.starterFiles : BLANK_STARTER;
-        for (const matric of roster) {
-          try {
-            useProjectStore.getState().saveSnapshot(
-              matric,
-              id,
-              assignment.title,
-              starter
-            );
-          } catch (e) {
-            // swallow snapshot errors — non-fatal for assignment creation
+          set((s) => ({ assignments: [assignment, ...s.assignments] }));
+          const starter = input.starterFiles && input.starterFiles.length ? input.starterFiles : BLANK_STARTER;
+          for (const matric of roster) {
+            try {
+              useProjectStore.getState().saveSnapshot(
+                matric,
+                assignment.id,
+                assignment.title,
+                starter
+              );
+            } catch (e) {
+              // swallow snapshot errors — non-fatal for assignment creation
+            }
           }
+          return assignment.id;
+        } catch (e) {
+          return undefined;
         }
-        return id;
       },
 
       markEnrollmentGraded: async (assignmentId, matric, score) => {

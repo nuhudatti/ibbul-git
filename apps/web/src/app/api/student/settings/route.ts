@@ -9,21 +9,17 @@ import {
 export async function GET(req: NextRequest) {
   const matric = req.nextUrl.searchParams.get("matric");
   if (!matric) {
-    console.warn("[Workspace] GET /api/student/settings missing matric");
     return NextResponse.json({ error: "matric required" }, { status: 400 });
   }
 
   const profile = await getResolvedProfileRecord(matric);
   const record = await getProfileRecordByMatric(matric);
-  if (!profile) {
-    console.warn("[Workspace] student settings not found", { matric });
-  }
 
   return NextResponse.json({
     settings: {
       ...profile,
       displayName: profile?.displayName ?? matric,
-      updatedAt: record?.updatedAt?.toISOString(),
+      updatedAt: record?.updatedAt.toISOString(),
     },
   });
 }

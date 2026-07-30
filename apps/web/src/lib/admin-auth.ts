@@ -9,7 +9,7 @@ export async function requireAdmin(req: Request) {
   if (!session || session.role !== "ADMIN") {
     return {
       error: NextResponse.json(
-        { error: "Admin authentication required. Please sign out and log in again as an administrator." },
+        { error: "Admin authentication required. Please sign out and log in again as ADMIN001." },
         { status: 401 }
       ),
     };

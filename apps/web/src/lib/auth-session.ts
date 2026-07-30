@@ -1,9 +1,8 @@
-import { Role } from "@prisma/client";
 import { sign, verify } from "jsonwebtoken";
 
 export interface SessionPayload {
   matric: string;
-  role: Role;
+  role: "STUDENT" | "LECTURER" | "ADMIN";
   createdAt: number;
   expiresAt: number;
 }
@@ -12,7 +11,7 @@ const TTL_MS = 1000 * 60 * 60 * 12; // 12 hours
 const COOKIE_NAME = "ula_session";
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key-change-in-production";
 
-export function createSession(matric: string, role: Role): string {
+export function createSession(matric: string, role: SessionPayload["role"]): string {
   const now = Date.now();
   const payload: SessionPayload = {
     matric,

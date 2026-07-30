@@ -50,19 +50,6 @@ body {
   background: var(--ula-bg-base);
   color: var(--ula-text-primary);
   font-family: var(--font-sans), system-ui, sans-serif;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: rgba(255, 255, 255, 0.08);
-}
-
-html {
-  touch-action: manipulation;
-}
-
-input,
-textarea,
-button,
-select {
-  font-size: 16px;
 }
 
 body.dashboard-page {
@@ -117,38 +104,6 @@ body.dashboard-page {
 /* Monaco editor overrides */
 .monaco-editor .margin {
   background: transparent !important;
-}
-
-.monaco-editor {
-  touch-action: pan-y pinch-zoom !important;
-  -webkit-touch-callout: default !important;
-  -webkit-tap-highlight-color: transparent !important;
-  -webkit-overflow-scrolling: touch !important;
-  user-select: none !important;
-}
-
-.monaco-editor textarea,
-.monaco-editor .view-lines,
-.monaco-editor .view-line,
-.monaco-editor .monaco-scrollable-element,
-.monaco-editor .lines-content {
-  touch-action: pan-y pinch-zoom !important;
-  -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
-  user-select: text !important;
-}
-
-.monaco-editor .line-numbers,
-.monaco-editor .glyph-margin,
-.monaco-editor .view-overlays,
-.monaco-editor .content-widget,
-.monaco-editor .overflow-guard {
-  user-select: none !important;
-}
-
-textarea {
-  font-size: 16px !important;
 }
 
 /* Selection */

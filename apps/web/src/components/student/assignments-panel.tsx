@@ -90,6 +90,11 @@ export function AssignmentsPanel() {
     localStorage.setItem(key, "1");
   }, [matric, user]);
 
+  useEffect(() => {
+    if (!matric) return;
+    useAssignmentStore.getState().loadStudentAssignments(matric);
+  }, [matric]);
+
   const assignments = getStudentAssignments(matric);
   const activeList = assignments.filter(
     (a) => !a.enrollment || ["NOT_STARTED", "IN_PROGRESS"].includes(a.enrollment.status)

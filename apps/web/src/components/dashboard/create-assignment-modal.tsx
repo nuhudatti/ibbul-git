@@ -51,6 +51,10 @@ export function CreateAssignmentModal({ open, onClose }: CreateAssignmentModalPr
       difficulty,
       starterFiles: BLANK_STARTER,
     });
+    if (!id) {
+      alert("Failed to create assignment. Please try again.");
+      return;
+    }
     if (publishNow) await publishAssignment(id);
     reset();
     onClose();
