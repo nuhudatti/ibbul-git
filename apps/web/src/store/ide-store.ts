@@ -30,10 +30,7 @@ interface IdeState {
   aiMessages: AiMessage[];
   isAiThinking: boolean;
   deployment: DeploymentState;
-  lastSaved: Date | string | null;
-  lastSavedHash: string | null;
-  saveStatus: "idle" | "saving" | "saved" | "failed";
-  saveError: string | null;
+  lastSaved: Date | null;
   isDirty: boolean;
 
   viewMode: WorkspaceView;
@@ -78,17 +75,6 @@ interface IdeState {
   setAiThinking: (thinking: boolean) => void;
   setDeployment: (deployment: Partial<DeploymentState>) => void;
   resetDeployment: () => void;
-  setSaveStatus: (status: "idle" | "saving" | "saved" | "failed", error?: string | null) => void;
-  setLastSavedHash: (hash: string | null) => void;
-  restoreWorkspace: (snapshot: {
-    projectName: string;
-    files: ProjectFile[];
-    folders: string[];
-    activeFilePath: string;
-    viewMode: WorkspaceView;
-    previewDevice: PreviewDevice;
-    assignmentId: string | null;
-  }) => void;
   markSaved: () => void;
   setDirty: (dirty: boolean) => void;
   isReadOnly: () => boolean;
@@ -106,16 +92,7 @@ function mapFiles(files: ProjectFile[]) {
     language: f.language ?? getLanguageFromPath(f.path),
   }));
 }
-export function getWorkspaceSnapshotHash(
-  projectName: string,
-  files: ProjectFile[],
-  assignmentId: string | null
-) {
-  const normalizedFiles = [...files]
-    .sort((a, b) => a.path.localeCompare(b.path))
-    .map((file) => ({ path: file.path, content: file.content }));
-  return JSON.stringify({ projectName, assignmentId, files: normalizedFiles });
-}
+
 function normalizeWorkspacePath(path: string) {
   return path.trim().replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+/g, "/");
 }
@@ -150,9 +127,6 @@ export const useIdeStore = create<IdeState>()(
       isAiThinking: false,
       deployment: defaultDeployment,
       lastSaved: null,
-      lastSavedHash: null,
-      saveStatus: "saved",
-      saveError: null,
       isDirty: false,
 
       setActiveFile: (path) => set({ activeFilePath: path, viewMode: "code" }),
@@ -202,7 +176,6 @@ export const useIdeStore = create<IdeState>()(
     return true;
   },
   deleteFile: (path) => {
-    if (get().workspaceMode === "submitted") return false;
     if (!get().files.some((file) => file.path === path)) return false;
     set((state) => {
       const files = state.files.filter((file) => file.path !== path);
@@ -215,7 +188,6 @@ export const useIdeStore = create<IdeState>()(
     return true;
   },
   deleteFolder: (path) => {
-    if (get().workspaceMode === "submitted") return false;
     if (!get().folders.includes(path) && !get().files.some((file) => file.path.startsWith(`${path}/`))) return false;
     set((state) => {
       const files = state.files.filter((file) => !file.path.startsWith(`${path}/`));
@@ -231,7 +203,6 @@ export const useIdeStore = create<IdeState>()(
     return true;
   },
   importAsset: (path, content, language) => {
-    if (get().workspaceMode === "submitted") return false;
     const normalized = normalizeWorkspacePath(path);
     if (!normalized || get().files.some((file) => file.path === normalized) || get().folders.includes(normalized)) return false;
     set((state) => ({
@@ -266,18 +237,16 @@ export const useIdeStore = create<IdeState>()(
   loadProject: (name, files, assignmentId, opts) => {
     const mode = opts?.mode ?? "edit";
     const deployUrl = opts?.submission?.deployUrl;
-    const normalizedFiles = mapFiles(files);
     set({
       projectId: assignmentId ?? get().projectId,
       projectName: name,
-      files: normalizedFiles,
+      files: mapFiles(files),
       folders: [],
       activeFilePath: files[0]?.path ?? "index.html",
       activeAssignmentId: assignmentId ?? null,
       workspaceMode: mode,
       submissionMeta: opts?.submission ?? null,
       isDirty: false,
-      lastSavedHash: getWorkspaceSnapshotHash(name, normalizedFiles, assignmentId ?? null),
       previewKey: Date.now(),
       viewMode: mode === "submitted" ? "preview" : "code",
       isTerminalOpen: false,
@@ -332,7 +301,6 @@ export const useIdeStore = create<IdeState>()(
       folders: [],
       activeFilePath: "index.html",
       isDirty: false,
-      lastSavedHash: null,
       deployment: defaultDeployment,
       previewKey: Date.now(),
       isDeployModalOpen: false,
@@ -353,48 +321,10 @@ export const useIdeStore = create<IdeState>()(
   setDeployment: (deployment) =>
     set((s) => ({ deployment: { ...s.deployment, ...deployment } })),
   resetDeployment: () => set({ deployment: defaultDeployment }),
-  setSaveStatus: (status, error = null) => set({ saveStatus: status, saveError: error }),
-  setLastSavedHash: (hash) => set({ lastSavedHash: hash }),
-  restoreWorkspace: (snapshot) =>
-    set((state) => ({
-      projectName: snapshot.projectName,
-      files: mapFiles(snapshot.files),
-      folders: snapshot.folders,
-      activeFilePath: snapshot.activeFilePath,
-      viewMode: snapshot.viewMode,
-      previewDevice: snapshot.previewDevice,
-      activeAssignmentId: snapshot.assignmentId,
-      workspaceMode: "edit",
-      submissionMeta: null,
-      isDirty: true,
-      saveStatus: "idle",
-      saveError: null,
-      lastSavedHash: state.lastSavedHash,
-    })),
-  markSaved: () =>
-    set((state) => ({
-      lastSaved: new Date(),
-      lastSavedHash: getWorkspaceSnapshotHash(state.projectName, state.files, state.activeAssignmentId),
-      isDirty: false,
-      saveStatus: "saved",
-      saveError: null,
-    })),
+  markSaved: () => set({ lastSaved: new Date(), isDirty: false }),
   setDirty: (dirty) => set({ isDirty: dirty }),
   isReadOnly: () => get().workspaceMode === "submitted",
     }),
-    {
-      name: "ula-ide",
-      merge: (persistedState, currentState) => {
-        const p: any = persistedState as any;
-        if (p && p.lastSaved && typeof p.lastSaved === "string") {
-          return {
-            ...currentState,
-            ...p,
-            lastSaved: new Date(p.lastSaved),
-          } as IdeState;
-        }
-        return { ...currentState, ...(persistedState as Partial<IdeState>) } as IdeState;
-      },
-    }
+    { name: "ula-ide" }
   )
 );

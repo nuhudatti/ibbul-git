@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { MissionControl } from "@/components/dashboard/mission-control";
 import { useAuthStore } from "@/store/auth-store";
 import { usePortfolioStore } from "@/store/portfolio-store";
+import { useAssignmentStore } from "@/store/assignment-store";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user?.role !== "LECTURER") return;
     usePortfolioStore.getState().loadAllArtifacts();
+    useAssignmentStore.getState().loadAssignments();
   }, [user?.role]);
 
   if (!isAuthenticated || user?.role !== "LECTURER") return null;

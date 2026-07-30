@@ -40,9 +40,9 @@ export function CreateAssignmentModal({ open, onClose }: CreateAssignmentModalPr
     setPublishNow(true);
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!title.trim() || !deadline) return;
-    const id = createAssignment({
+    const id = await createAssignment({
       title: title.trim(),
       description: description.trim() || "Complete this assignment in the ULA workspace.",
       instructions: instructions.trim() || "Build and submit via the student IDE.",
@@ -51,7 +51,7 @@ export function CreateAssignmentModal({ open, onClose }: CreateAssignmentModalPr
       difficulty,
       starterFiles: BLANK_STARTER,
     });
-    if (publishNow) publishAssignment(id);
+    if (publishNow) await publishAssignment(id);
     reset();
     onClose();
   };

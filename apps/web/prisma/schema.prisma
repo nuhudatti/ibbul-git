@@ -33,6 +33,7 @@ model StudentProfile {
   artifacts           PortfolioArtifact[]
   uploads             CloudinaryAsset[]
   deployments         ProjectDeployment[]
+  enrollments         Enrollment[]
 
   @@index([accountRole])
   @@index([status])
@@ -153,4 +154,55 @@ enum ArtifactStatus {
   SUBMITTED
   VERIFIED
   REJECTED
+}
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum EnrollmentStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  GRADED
+}
+
+model Assignment {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  instructions String?
+  deadline     DateTime?
+  status       AssignmentStatus @default(DRAFT)
+  maxScore     Int
+  difficulty   String
+  engagement   String?
+  enrolled     Int     @default(0)
+  submitted    Int     @default(0)
+  starterFiles Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  enrollments  Enrollment[]
+
+  @@index([status])
+}
+
+model Enrollment {
+  id            String   @id @default(cuid())
+  assignmentId  String
+  studentMatric String
+  status        EnrollmentStatus @default(NOT_STARTED)
+  startedAt     DateTime?
+  submittedAt   DateTime?
+  score         Int?
+  deployUrl     String?
+
+  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student       StudentProfile @relation(fields: [studentMatric], references: [matric], onDelete: Cascade)
+
+  @@index([assignmentId])
+  @@index([studentMatric])
 }

@@ -34,7 +34,9 @@ export function AssignmentStreamCard({ assignment: a, index, onPublish }: Assign
       className={cn(
         "relative p-4 rounded-2xl ula-glass overflow-hidden cursor-pointer",
         "border transition-all duration-300",
-        a.status === "PUBLISHED" ? HEAT_GLOW[a.engagement] : "border-white/6 opacity-60"
+        a.status === "PUBLISHED"
+          ? HEAT_GLOW[(a.engagement ?? "medium") as EngagementHeat]
+          : "border-white/6 opacity-60"
       )}
     >
       {/* Wave progress background */}
@@ -78,7 +80,7 @@ export function AssignmentStreamCard({ assignment: a, index, onPublish }: Assign
             a.engagement === "low" && "text-red-400 bg-red-400/10"
           )}
         >
-          {HEAT_LABEL[a.engagement]}
+          {HEAT_LABEL[(a.engagement ?? "medium") as EngagementHeat]}
         </span>
       </div>
 

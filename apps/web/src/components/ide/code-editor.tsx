@@ -1,33 +1,16 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { useIdeStore } from "@/store/ide-store";
 import { getLanguageFromPath } from "@/lib/utils";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
-const CodeMirrorEditor = dynamic(
-  () => import("./code-editor-codemirror").then((mod) => mod.CodeMirrorEditor),
-  { ssr: false }
-);
 
 export function CodeEditor() {
   const activeFilePath = useIdeStore((s) => s.activeFilePath);
   const files = useIdeStore((s) => s.files);
   const updateFileContent = useIdeStore((s) => s.updateFileContent);
   const workspaceMode = useIdeStore((s) => s.workspaceMode);
-  const editorRef = useRef<any>(null);
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [useCodeMirror, setUseCodeMirror] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return (
-      window.matchMedia("(max-width: 1024px), (pointer: coarse)").matches ||
-      navigator.maxTouchPoints > 0 ||
-      "ontouchstart" in window
-    );
-  });
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const readOnly = workspaceMode === "submitted";
   const activeFile = files.find((f) => f.path === activeFilePath);
@@ -55,123 +38,6 @@ export function CodeEditor() {
     );
   }
 
-  const handleSelectAll = () => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    if (editor.trigger) {
-      editor.trigger("keyboard", "editor.action.selectAll", null);
-    } else if (editor.selectAll) {
-      editor.selectAll();
-    } else {
-      const model = editor.getModel?.();
-      if (!model) return;
-      const fullRange = model.getFullModelRange();
-      editor.setSelection(fullRange);
-    }
-    editor.focus?.();
-  };
-
-  const handleCopy = async () => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    if (editor.trigger) {
-      editor.trigger("keyboard", "editor.action.clipboardCopyAction", null);
-      setActionMessage("Copied to clipboard");
-      return;
-    }
-
-    const selection = editor.getSelection?.();
-    let text = "";
-
-    if (selection) {
-      text = selection.isEmpty ? editor.getValue?.() ?? "" : selection.text;
-    } else if (editor.getValue) {
-      text = editor.getValue();
-    }
-
-    if (!text) return;
-
-    try {
-      await navigator.clipboard.writeText(text);
-      setActionMessage("Copied to clipboard");
-    } catch {
-      setActionMessage("Copy failed — use native selection");
-    }
-  };
-
-  const handlePaste = async () => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    if (editor.trigger) {
-      editor.trigger("keyboard", "editor.action.clipboardPasteAction", null);
-      setActionMessage("Pasted clipboard text");
-      editor.focus?.();
-      return;
-    }
-
-    if (!navigator.clipboard?.readText) {
-      setActionMessage("Paste not available");
-      return;
-    }
-
-    try {
-      const pasteText = await navigator.clipboard.readText();
-      if (!pasteText) return;
-
-      if (editor.paste) {
-        await editor.paste(pasteText);
-      } else {
-        const model = editor.getModel?.();
-        if (!model) return;
-        const selection = editor.getSelection?.();
-        editor.executeEdits("paste", [
-          {
-            range: selection ?? model.getFullModelRange(),
-            text: pasteText,
-            forceMoveMarkers: true,
-          },
-        ]);
-      }
-
-      editor.focus?.();
-      setActionMessage("Pasted clipboard text");
-    } catch {
-      setActionMessage("Paste not available");
-    }
-  };
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mediaQuery = window.matchMedia("(max-width: 1024px), (pointer: coarse)");
-    const colorQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
-    const updateDevice = () => {
-      setUseCodeMirror(
-        mediaQuery.matches || navigator.maxTouchPoints > 0 || "ontouchstart" in window
-      );
-    };
-
-    const updateTheme = () => {
-      setIsDarkMode(colorQuery.matches);
-    };
-
-    updateDevice();
-    updateTheme();
-    mediaQuery.addEventListener("change", updateDevice);
-    colorQuery.addEventListener("change", updateTheme);
-
-    return () => {
-      mediaQuery.removeEventListener("change", updateDevice);
-      colorQuery.removeEventListener("change", updateTheme);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!actionMessage) return;
-    const timeout = window.setTimeout(() => setActionMessage(null), 2000);
-    return () => window.clearTimeout(timeout);
-  }, [actionMessage]);
-
   return (
     <div className="flex-1 min-h-0 relative">
       {readOnly ? (
@@ -179,99 +45,31 @@ export function CodeEditor() {
           Read-only
         </div>
       ) : null}
-      {useCodeMirror ? (
-        <CodeMirrorEditor
-          value={activeFile.content}
-          language={language}
-          readOnly={readOnly}
-          onMount={(editor) => {
-            editorRef.current = editor;
-          }}
-          onChange={(value) => {
-            if (!readOnly) updateFileContent(activeFilePath, value ?? "");
-          }}
-        />
-      ) : (
-        <MonacoEditor
-          height="100%"
-          language={language}
-          theme={isDarkMode ? "vs-dark" : "light"}
-          value={activeFile.content}
-          onMount={(editor) => {
-            editorRef.current = editor;
-          }}
-          onChange={(value) => {
-            if (!readOnly) updateFileContent(activeFilePath, value ?? "");
-          }}
-          options={{
-            readOnly,
-            fontSize: 14,
-            fontFamily: "JetBrains Mono, Fira Code, Menlo, Monaco, Consolas, 'Courier New', monospace",
-            scrollBeyondLastLine: false,
-            padding: { top: 16 },
-            lineNumbers: "on",
-            renderLineHighlight: readOnly ? "none" : "all",
-            renderWhitespace: "boundary",
-            guides: { indentation: true },
-            cursorStyle: "line",
-            cursorWidth: 2,
-            cursorBlinking: readOnly ? "solid" : "smooth",
-            selectionClipboard: true,
-            emptySelectionClipboard: true,
-            smoothScrolling: true,
-            tabSize: 2,
-            wordWrap: "on",
-            automaticLayout: true,
-            mouseWheelZoom: false,
-            quickSuggestions: true,
-            parameterHints: { enabled: true },
-            suggestOnTriggerCharacters: true,
-            acceptSuggestionOnEnter: "on",
-            formatOnPaste: true,
-            formatOnType: true,
-            autoClosingBrackets: "always",
-            autoClosingQuotes: "always",
-            autoSurround: "languageDefined",
-            bracketPairColorization: { enabled: true },
-            contextmenu: true,
-            accessibilitySupport: "on",
-            fixedOverflowWidgets: true,
-            dragAndDrop: true,
-            folding: true,
-            minimap: { enabled: true, renderCharacters: false, maxColumn: 80 },
-          }}
-        />
-      )}
-
-      <div className="mt-3 hidden flex-col gap-2 rounded-3xl border border-white/10 bg-[#08080c] p-3 sm:flex">
-        <div className="flex items-center justify-between gap-2">
-          <Button variant="secondary" size="sm" onClick={handleSelectAll} className="flex-1 justify-center">
-            Select all
-          </Button>
-          <Button variant="secondary" size="sm" onClick={handleCopy} className="flex-1 justify-center">
-            Copy
-          </Button>
-          <Button variant="secondary" size="sm" onClick={handlePaste} className="flex-1 justify-center">
-            Paste
-          </Button>
-        </div>
-        {actionMessage ? <p className="text-xs text-zinc-400">{actionMessage}</p> : null}
-      </div>
-
-      <div className="mt-3 flex sm:hidden flex-col gap-2 rounded-3xl border border-white/10 bg-[#08080c] p-3">
-        <div className="grid w-full grid-cols-3 gap-2">
-          <Button variant="secondary" size="sm" onClick={handleSelectAll} className="justify-center">
-            All
-          </Button>
-          <Button variant="secondary" size="sm" onClick={handleCopy} className="justify-center">
-            Copy
-          </Button>
-          <Button variant="secondary" size="sm" onClick={handlePaste} className="justify-center">
-            Paste
-          </Button>
-        </div>
-        {actionMessage ? <p className="text-xs text-zinc-400">{actionMessage}</p> : null}
-      </div>
+      <MonacoEditor
+        height="100%"
+        language={language}
+        theme="vs-dark"
+        value={activeFile.content}
+        onChange={(value) => {
+          if (!readOnly) updateFileContent(activeFilePath, value ?? "");
+        }}
+        options={{
+          readOnly,
+          fontSize: 14,
+          fontFamily: "var(--font-geist-mono), monospace",
+          minimap: { enabled: false },
+          scrollBeyondLastLine: false,
+          padding: { top: 16 },
+          lineNumbers: "on",
+          renderLineHighlight: readOnly ? "none" : "all",
+          cursorBlinking: readOnly ? "solid" : "smooth",
+          smoothScrolling: true,
+          tabSize: 2,
+          wordWrap: "on",
+          automaticLayout: true,
+          domReadOnly: readOnly,
+        }}
+      />
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { PortfolioIdentityStrip } from "@/components/portfolio/portfolio-identit
 import { useAuthStore } from "@/store/auth-store";
 import { useIdeStore } from "@/store/ide-store";
 import { usePortfolioStore } from "@/store/portfolio-store";
+import { useAssignmentStore } from "@/store/assignment-store";
 import { useProjectStore } from "@/store/project-store";
 
 export default function WorkspacePage() {
@@ -39,6 +40,7 @@ export default function WorkspacePage() {
   useEffect(() => {
     if (user?.role !== "STUDENT") return;
     usePortfolioStore.getState().loadStudentArtifacts(user.matricNumber);
+    useAssignmentStore.getState().loadStudentAssignments(user.matricNumber);
   }, [user?.role, user?.matricNumber]);
 
   useEffect(() => {

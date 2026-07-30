@@ -98,19 +98,20 @@ export type EngagementHeat = "high" | "medium" | "low";
 export interface Assignment {
   id: string;
   title: string;
-  description: string;
-  instructions: string;
-  deadline: string;
+  description?: string;
+  instructions?: string;
+  deadline?: string;
   status: AssignmentStatus;
   maxScore: number;
   difficulty: "beginner" | "intermediate" | "advanced";
-  engagement: EngagementHeat;
+  engagement?: EngagementHeat;
   enrolled: number;
   submitted: number;
   starterFiles?: ProjectFile[];
 }
 
 export interface StudentEnrollment {
+  id?: string;
   assignmentId: string;
   studentMatric: string;
   status: EnrollmentStatus;

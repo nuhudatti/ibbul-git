@@ -26,13 +26,16 @@ interface AssignmentState {
 
   getPublishedAssignments: () => Assignment[];
   getStudentAssignments: (matric: string) => (Assignment & { enrollment: StudentEnrollment | null })[];
+  mergeAssignments: (assignments: Assignment[], enrollments?: StudentEnrollment[]) => void;
+  loadAssignments: () => Promise<void>;
+  loadStudentAssignments: (matric: string) => Promise<void>;
   enrollStudent: (assignmentId: string, matric: string) => void;
-  startAssignment: (assignmentId: string, matric: string) => void;
-  submitAssignment: (assignmentId: string, matric: string, score?: number, deployUrl?: string) => void;
+  startAssignment: (assignmentId: string, matric: string) => Promise<void>;
+  submitAssignment: (assignmentId: string, matric: string, score?: number, deployUrl?: string) => Promise<void>;
   setEnrollmentDeployUrl: (assignmentId: string, matric: string, deployUrl: string) => void;
-  publishAssignment: (assignmentId: string) => void;
-  closeAssignment: (assignmentId: string) => void;
-  deleteAssignment: (assignmentId: string) => void;
+  publishAssignment: (assignmentId: string) => Promise<void>;
+  closeAssignment: (assignmentId: string) => Promise<void>;
+  deleteAssignment: (assignmentId: string) => Promise<void>;
   createAssignment: (input: {
     title: string;
     description: string;
@@ -41,12 +44,12 @@ interface AssignmentState {
     maxScore: number;
     difficulty: Assignment["difficulty"];
     starterFiles?: ProjectFile[];
-  }) => string;
-  markEnrollmentGraded: (assignmentId: string, matric: string, score?: number) => void;
+  }) => Promise<string>;
+  markEnrollmentGraded: (assignmentId: string, matric: string, score?: number) => Promise<void>;
   getEnrollmentsForAssignment: (assignmentId: string) => StudentEnrollment[];
   pushActivity: (event: Omit<ActivityEvent, "id" | "timestamp">) => void;
-  reopenAssignment: (assignmentId: string) => void;
-  reopenEnrollment: (assignmentId: string, matric: string) => void;
+  reopenAssignment: (assignmentId: string) => Promise<void>;
+  reopenEnrollment: (assignmentId: string, matric: string) => Promise<void>;
   setFilterRisk: (filter: "all" | "watch" | "critical") => void;
   setActiveClassId: (id: string) => void;
 }
@@ -65,6 +68,36 @@ export const useAssignmentStore = create<AssignmentState>()(
       getPublishedAssignments: () =>
         get().assignments.filter((a) => a.status === "PUBLISHED"),
 
+      mergeAssignments: (assignments, enrollments) => {
+        if (Array.isArray(assignments)) {
+          set(() => ({ assignments }));
+        }
+        if (Array.isArray(enrollments)) {
+          set(() => ({ enrollments }));
+        }
+      },
+
+      loadAssignments: async () => {
+        try {
+          const res = await fetch("/api/assignments");
+          if (!res.ok) return;
+          const data = await res.json();
+          const assignments = Array.isArray(data.assignments) ? data.assignments : [];
+          const enrollments = assignments.flatMap((a: any) => (Array.isArray(a.enrollments) ? a.enrollments : []));
+          get().mergeAssignments(assignments, enrollments);
+        } catch (e) {
+          // ignore
+        }
+      },
+
+      loadStudentAssignments: async (matric) => {
+        try {
+          await get().loadAssignments();
+        } catch (e) {
+          // ignore
+        }
+      },
+
       getStudentAssignments: (matric) => {
         const norm = normalizeMatric(matric);
         const { assignments, enrollments } = get();
@@ -81,6 +114,7 @@ export const useAssignmentStore = create<AssignmentState>()(
       },
 
       enrollStudent: (assignmentId, matric) => {
+        // Enroll on client for optimistic UI; server enrollments handled via publish or enrollments API
         const norm = normalizeMatric(matric);
         const exists = get().enrollments.some(
           (e) => e.assignmentId === assignmentId && normalizeMatric(e.studentMatric) === norm
@@ -94,8 +128,9 @@ export const useAssignmentStore = create<AssignmentState>()(
         }));
       },
 
-      startAssignment: (assignmentId, matric) => {
+      startAssignment: async (assignmentId, matric) => {
         const norm = normalizeMatric(matric);
+        // Optimistic update
         set((s) => ({
           enrollments: s.enrollments.some(
             (e) => e.assignmentId === assignmentId && normalizeMatric(e.studentMatric) === norm
@@ -115,20 +150,32 @@ export const useAssignmentStore = create<AssignmentState>()(
                 },
               ],
         }));
-        const assignment = get().assignments.find((a) => a.id === assignmentId);
         get().pushActivity({
           type: "start",
           student: resolveStudentName(norm),
           matric: norm,
-          message: `started ${assignment?.title ?? "assignment"}`,
+          message: `started ${get().assignments.find((a) => a.id === assignmentId)?.title ?? "assignment"}`,
         });
+        try {
+          const res = await fetch("/api/enrollments", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ assignmentId, studentMatric: norm, action: "start" }),
+          });
+          if (res.ok) {
+            const d = await res.json();
+            const enrollment = d.enrollment;
+            if (enrollment) set((s) => ({ enrollments: [...s.enrollments.filter((e) => e.id !== enrollment.id), enrollment] }));
+          }
+        } catch (e) {
+          // ignore
+        }
       },
 
-      submitAssignment: (assignmentId, matric, score, deployUrl) => {
+      submitAssignment: async (assignmentId, matric, score, deployUrl) => {
         const norm = normalizeMatric(matric);
         const snap = useProjectStore.getState().getSnapshot(norm, assignmentId);
         const resolvedDeploy = deployUrl ?? snap?.deployUrl;
-
         set((s) => {
           const hasEnrollment = s.enrollments.some(
             (e) => e.assignmentId === assignmentId && normalizeMatric(e.studentMatric) === norm
@@ -166,6 +213,20 @@ export const useAssignmentStore = create<AssignmentState>()(
           matric: norm,
           message: `submitted ${assignment?.title ?? "assignment"}`,
         });
+        try {
+          const res = await fetch("/api/enrollments", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ assignmentId, studentMatric: norm, action: "submit", score, deployUrl: resolvedDeploy }),
+          });
+          if (res.ok) {
+            const d = await res.json();
+            const enrollment = d.enrollment;
+            if (enrollment) set((s) => ({ enrollments: [...s.enrollments.filter((e) => e.id !== enrollment.id), enrollment] }));
+          }
+        } catch (e) {
+          // ignore
+        }
       },
 
       setEnrollmentDeployUrl: (assignmentId, matric, deployUrl) => {
@@ -189,46 +250,84 @@ export const useAssignmentStore = create<AssignmentState>()(
                 },
               ],
         }));
-      },
-
-      publishAssignment: (assignmentId) => {
-        const roster = getClassRosterMatrics();
-        set((s) => {
-          const newEnrollments = [...s.enrollments];
-          for (const matric of roster) {
-            const exists = newEnrollments.some(
-              (e) =>
-                e.assignmentId === assignmentId &&
-                normalizeMatric(e.studentMatric) === matric
-            );
-            if (!exists) {
-              newEnrollments.push({
-                assignmentId,
-                studentMatric: matric,
-                status: "NOT_STARTED",
-              });
+        (async () => {
+          try {
+            const res = await fetch("/api/enrollments", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ assignmentId, studentMatric: norm, action: "setDeploy", deployUrl }),
+            });
+            if (res.ok) {
+              const d = await res.json();
+              const enrollment = d.enrollment;
+              if (enrollment)
+                set((s) => ({
+                  enrollments: [...s.enrollments.filter((e) => e.id !== enrollment.id), enrollment],
+                }));
             }
+          } catch (e) {
+            // ignore
           }
-          return {
-            assignments: s.assignments.map((a) =>
-              a.id === assignmentId
-                ? { ...a, status: "PUBLISHED" as const, enrolled: roster.length }
-                : a
-            ),
-            enrollments: newEnrollments,
-          };
-        });
-        const assignment = get().assignments.find((a) => a.id === assignmentId);
-        get().pushActivity({
-          type: "grade",
-          student: "Lecturer",
-          matric: "LEC",
-          message: `published assignment: ${assignment?.title ?? assignmentId}`,
-        });
+        })();
       },
 
-      createAssignment: (input) => {
+      publishAssignment: async (assignmentId) => {
+        try {
+          const res = await fetch(`/api/assignments/${encodeURIComponent(assignmentId)}/publish`, { method: "POST" });
+          if (!res.ok) return;
+          const d = await res.json();
+          if (d.assignment) {
+            // merge assignment and its enrollments
+            const assignment = d.assignment;
+            const enrollments = Array.isArray(d.enrollments) ? d.enrollments : [];
+            set((s) => ({ assignments: s.assignments.map((a) => (a.id === assignment.id ? assignment : a)), enrollments }));
+          }
+        } catch (e) {
+          // ignore
+        }
+      },
+
+      createAssignment: async (input) => {
         const roster = getClassRosterMatrics();
+        try {
+          const res = await fetch("/api/assignments", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: input.title,
+              description: input.description,
+              instructions: input.instructions,
+              deadline: input.deadline,
+              maxScore: input.maxScore,
+              difficulty: input.difficulty,
+              starterFiles: input.starterFiles,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const assignment = data.assignment as Assignment;
+            if (assignment) {
+              set((s) => ({ assignments: [assignment, ...s.assignments] }));
+            }
+            const starter = input.starterFiles && input.starterFiles.length ? input.starterFiles : BLANK_STARTER;
+            for (const matric of roster) {
+              try {
+                useProjectStore.getState().saveSnapshot(
+                  matric,
+                  assignment.id,
+                  assignment.title,
+                  starter
+                );
+              } catch (e) {
+                // swallow snapshot errors — non-fatal for assignment creation
+              }
+            }
+            return assignment.id;
+          }
+        } catch (e) {
+          // fallback to local optimistic state
+        }
+
         const id = `asn-${Date.now()}`;
         const assignment: Assignment = {
           id,
@@ -247,12 +346,8 @@ export const useAssignmentStore = create<AssignmentState>()(
         set((s) => ({
           assignments: [assignment, ...s.assignments],
         }));
-
-        // Create starter snapshots for all students in the class roster so
-        // each student has a project scaffold accessible in My Projects.
         const starter = input.starterFiles && input.starterFiles.length ? input.starterFiles : BLANK_STARTER;
         for (const matric of roster) {
-          // useProjectStore is imported at file top
           try {
             useProjectStore.getState().saveSnapshot(
               matric,
@@ -267,36 +362,79 @@ export const useAssignmentStore = create<AssignmentState>()(
         return id;
       },
 
-      markEnrollmentGraded: (assignmentId, matric) => {
+      markEnrollmentGraded: async (assignmentId, matric, score) => {
         const norm = normalizeMatric(matric);
+        // optimistic update
         set((s) => ({
           enrollments: s.enrollments.map((e) =>
             e.assignmentId === assignmentId && normalizeMatric(e.studentMatric) === norm
-              ? { ...e, status: "GRADED" as const }
+              ? { ...e, status: "GRADED" as const, score }
               : e
           ),
         }));
+        try {
+          const res = await fetch("/api/enrollments", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ assignmentId, studentMatric: norm, action: "grade", score }),
+          });
+          if (res.ok) {
+            const d = await res.json();
+            const enrollment = d.enrollment;
+            if (enrollment) set((s) => ({ enrollments: [...s.enrollments.filter((e) => e.id !== enrollment.id), enrollment] }));
+          }
+        } catch (e) {
+          // ignore
+        }
       },
 
       getEnrollmentsForAssignment: (assignmentId) =>
         get().enrollments.filter((e) => e.assignmentId === assignmentId),
 
-      closeAssignment: (assignmentId) => {
-        set((s) => ({
-          assignments: s.assignments.map((a) =>
-            a.id === assignmentId ? { ...a, status: "CLOSED" as const } : a
-          ),
-        }));
+      closeAssignment: async (assignmentId) => {
+        try {
+          const res = await fetch(`/api/assignments/${encodeURIComponent(assignmentId)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "CLOSED" }),
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          const updated = data.assignment;
+          if (updated) {
+            set((s) => ({ assignments: s.assignments.map((a) => (a.id === updated.id ? updated : a)) }));
+          }
+        } catch (e) {
+          set((s) => ({
+            assignments: s.assignments.map((a) =>
+              a.id === assignmentId ? { ...a, status: "CLOSED" as const } : a
+            ),
+          }));
+        }
       },
-          reopenAssignment: (assignmentId) => {
-            set((s) => ({
-              assignments: s.assignments.map((a) =>
-                a.id === assignmentId ? { ...a, status: "PUBLISHED" as const } : a
-              ),
-            }));
-          },
+      reopenAssignment: async (assignmentId) => {
+        try {
+          const res = await fetch(`/api/assignments/${encodeURIComponent(assignmentId)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "PUBLISHED" }),
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          const updated = data.assignment;
+          if (updated) {
+            set((s) => ({ assignments: s.assignments.map((a) => (a.id === updated.id ? updated : a)) }));
+          }
+        } catch (e) {
+          set((s) => ({
+            assignments: s.assignments.map((a) =>
+              a.id === assignmentId ? { ...a, status: "PUBLISHED" as const } : a
+            ),
+          }));
+        }
+      },
 
-      reopenEnrollment: (assignmentId, matric) => {
+      reopenEnrollment: async (assignmentId, matric) => {
         const norm = normalizeMatric(matric);
         set((s) => ({
           enrollments: s.enrollments.map((e) =>
@@ -311,13 +449,33 @@ export const useAssignmentStore = create<AssignmentState>()(
               : e
           ),
         }));
+        try {
+          await fetch("/api/enrollments", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ assignmentId, studentMatric: norm, status: "IN_PROGRESS" }),
+          });
+        } catch (e) {
+          // ignore
+        }
       },
 
-      deleteAssignment: (assignmentId) => {
-        set((s) => ({
-          assignments: s.assignments.filter((a) => a.id !== assignmentId),
-          enrollments: s.enrollments.filter((e) => e.assignmentId !== assignmentId),
-        }));
+      deleteAssignment: async (assignmentId) => {
+        try {
+          const res = await fetch(`/api/assignments/${encodeURIComponent(assignmentId)}`, {
+            method: "DELETE",
+          });
+          if (!res.ok) return;
+          set((s) => ({
+            assignments: s.assignments.filter((a) => a.id !== assignmentId),
+            enrollments: s.enrollments.filter((e) => e.assignmentId !== assignmentId),
+          }));
+        } catch (e) {
+          set((s) => ({
+            assignments: s.assignments.filter((a) => a.id !== assignmentId),
+            enrollments: s.enrollments.filter((e) => e.assignmentId !== assignmentId),
+          }));
+        }
         // Note: project snapshots are not removed to avoid mutating persisted
         // project store directly in this helper. Snapshots can be cleaned up
         // separately if needed.
@@ -365,6 +523,12 @@ export const useAssignmentStore = create<AssignmentState>()(
 
       setFilterRisk: (filter) => set({ filterRisk: filter }),
     }),
-    { name: "ula-assignments" }
+    {
+      name: "ula-assignments",
+      partialize: (state) => ({
+        activeClassId: state.activeClassId,
+        filterRisk: state.filterRisk,
+      }),
+    }
   )
 );
