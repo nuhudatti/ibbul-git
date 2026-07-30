@@ -25,6 +25,9 @@ interface AssignmentStreamCardProps {
 export function AssignmentStreamCard({ assignment: a, index, onPublish }: AssignmentStreamCardProps) {
   const progress = a.enrolled > 0 ? (a.submitted / a.enrolled) * 100 : 0;
 
+  const engagement = (a.engagement ?? "medium") as EngagementHeat;
+  const heatClass = HEAT_GLOW[engagement] ?? HEAT_GLOW.medium;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -34,9 +37,7 @@ export function AssignmentStreamCard({ assignment: a, index, onPublish }: Assign
       className={cn(
         "relative p-4 rounded-2xl ula-glass overflow-hidden cursor-pointer",
         "border transition-all duration-300",
-        a.status === "PUBLISHED"
-          ? HEAT_GLOW[(a.engagement ?? "medium") as EngagementHeat]
-          : "border-white/6 opacity-60"
+        a.status === "PUBLISHED" ? heatClass : "border-white/6 opacity-60"
       )}
     >
       {/* Wave progress background */}
