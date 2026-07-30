@@ -1,34 +1,54 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/services/prisma";
 import { getClassRosterMatrics } from "@/lib/class-roster";
+import { requireLecturer } from "@/lib/lecturer-auth";
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const auth = await requireLecturer(req);
+  if ("error" in auth) return auth.error;
+
   try {
+    const assignment = await prisma.assignment.findUnique({ where: { id } });
+    if (!assignment) {
+      return NextResponse.json({ error: "Assignment not found" }, { status: 404 });
+    }
+
     const roster = getClassRosterMatrics();
-    // create enrollments for roster
-    const ops = roster.map((matric) => ({
-      assignmentId: id,
-      studentMatric: matric,
-      status: "NOT_STARTED",
-    }));
-    // upsert enrollments (create many ignoring conflicts)
-    for (const op of ops) {
-      await prisma.enrollment.upsert({
-        where: { id: `${op.assignmentId}-${op.studentMatric}` },
-        update: {},
-        create: {
-          id: `${op.assignmentId}-${op.studentMatric}`,
-          assignmentId: op.assignmentId,
-          studentMatric: op.studentMatric,
-          status: "NOT_STARTED",
-        },
+    const existingStudents = await prisma.studentProfile.findMany({
+      where: { matric: { in: roster } },
+      select: { matric: true },
+    });
+    const validMatricSet = new Set(existingStudents.map((student) => student.matric));
+    const enrollments = roster
+      .filter((studentMatric) => validMatricSet.has(studentMatric))
+      .map((studentMatric) => ({
+        id: `${id}-${studentMatric}`,
+        assignmentId: id,
+        studentMatric,
+        status: "NOT_STARTED" as const,
+      }));
+
+    if (enrollments.length > 0) {
+      await prisma.enrollment.createMany({
+        data: enrollments,
+        skipDuplicates: true,
       });
     }
-    const updated = await prisma.assignment.update({ where: { id }, data: { status: "PUBLISHED", enrolled: roster.length } });
-    const enrollments = await prisma.enrollment.findMany({ where: { assignmentId: id } });
-    return NextResponse.json({ assignment: updated, enrollments });
-  } catch (e) {
-    return NextResponse.json({ error: "Failed to publish" }, { status: 500 });
+
+    const enrolled = await prisma.enrollment.count({ where: { assignmentId: id } });
+    const updated = await prisma.assignment.update({
+      where: { id },
+      data: {
+        status: "PUBLISHED",
+        enrolled,
+      },
+      include: { enrollments: true },
+    });
+
+    return NextResponse.json({ assignment: updated });
+  } catch (error) {
+    console.error("[Publish Assignment Error]", { assignmentId: id, error });
+    return NextResponse.json({ error: "Failed to publish assignment" }, { status: 500 });
   }
 }
