@@ -1,10 +1,6 @@
 import { normalizeMatric } from "@/lib/matric";
 import { prisma } from "@/lib/services/prisma";
-import {
-  getResolvedProfileRecord,
-  createStudentProfile,
-  hashPassword,
-} from "@/lib/services/student-profile-service";
+import { getResolvedProfileRecord } from "@/lib/services/student-profile-service";
 import type { PortfolioArtifact, PortfolioFeedEvent } from "@/types";
 
 function toPortfolioArtifact(record: {
@@ -168,19 +164,38 @@ export async function verifyServerArtifact(
   const existing = await prisma.portfolioArtifact.findUnique({ where: { id } });
   if (!existing) return null;
 
-  const updated = await prisma.portfolioArtifact.update({
-    where: { id },
-    data: {
-      verified: approved,
-      verifiedAt: new Date(),
-      lecturerId,
-      lecturerName,
-      lecturerNote: note ?? null,
-      status: approved ? "VERIFIED" : "REJECTED",
-    },
-  });
+  // Persist artifact verification and also mark the student's latest
+  // project snapshot (if any) as graded so other clients can read the
+  // authoritative graded state from the database.
+  const [updated] = await prisma.$transaction([
+    prisma.portfolioArtifact.update({
+      where: { id },
+      data: {
+        verified: approved,
+        verifiedAt: new Date(),
+        lecturerId,
+        lecturerName,
+        lecturerNote: note ?? null,
+        status: approved ? "VERIFIED" : "REJECTED",
+      },
+    }),
+    // Update the latest ProjectSnapshot for this student+assignment (if present)
+    // to include the artifact score as the persisted grade. This ensures
+    // lecturer verification appears for other devices that read server data.
+    prisma.projectSnapshot.updateMany({
+      where: {
+        studentMatric: existing.studentMatric,
+        assignmentId: existing.assignmentId,
+      },
+      data: {
+        score: existing.score ?? undefined,
+        // keep submittedAt if already set; otherwise set to now when marking graded
+        submittedAt: existing.score != null ? new Date() : undefined,
+      },
+    }),
+  ]);
 
-  return toPortfolioArtifact(updated);
+  return toPortfolioArtifact(updated as any);
 }
 
 export async function getGlobalFeed(limit = 24): Promise<PortfolioFeedEvent[]> {
@@ -268,16 +283,6 @@ export async function seedDemoPortfolio() {
   ];
 
   for (const artifact of demos) {
-    // Do NOT auto-create real student profiles in production.
-    // Only upsert demo artifacts if the referenced StudentProfile already exists.
-    const norm = normalizeMatric(artifact.studentMatric);
-    const existing = await prisma.studentProfile.findUnique({ where: { matric: norm } });
-    if (!existing) {
-      // skip artifacts for missing students to preserve FK integrity
-      // they may be demo records — do not invent production users
-      continue;
-    }
-
     await upsertServerArtifact(artifact);
   }
 
