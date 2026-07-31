@@ -49,6 +49,7 @@ export function PreviewStage() {
     liveDeployUrl ??
     `https://${safeMatric.toLowerCase()}.preview.ula.edu/${projectId}`;
   const isLiveHosted = Boolean(liveDeployUrl);
+  const openUrl = liveDeployUrl ?? previewBlobUrl;
 
   useEffect(() => {
     const blob = new Blob([srcDoc], { type: "text/html" });
@@ -122,18 +123,21 @@ export function PreviewStage() {
           <Button variant="ghost" size="sm" onClick={handleRefresh} title="Refresh">
             <RefreshCw size={14} className={cn(isRefreshing && "animate-spin")} />
           </Button>
-          <button
-            type="button"
-            onClick={() => {
-              if (!previewBlobUrl) return;
-              window.open(previewBlobUrl, "_blank", "noopener,noreferrer");
-            }}
-            disabled={!previewBlobUrl}
-            title="Open in new tab"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+          <a
+            href={openUrl ?? undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-disabled={!openUrl}
+            title={openUrl ? "Open in new tab" : "Preview not ready yet"}
+            className={cn(
+              "inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
+              openUrl
+                ? "text-zinc-400 hover:text-white hover:bg-white/5"
+                : "text-zinc-500 pointer-events-none"
+            )}
           >
             <ExternalLink size={14} />
-          </button>
+          </a>
         </div>
       </div>
 
