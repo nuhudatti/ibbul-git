@@ -57,13 +57,10 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Failed to create student", error);
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      const meta = error.meta as { target?: string[] } | undefined;
-      const target = Array.isArray(meta?.target)
-        ? meta.target.join(", ")
+    const prismaError = error as { code?: string; meta?: { target?: string[] } };
+    if (prismaError.code === "P2002") {
+      const target = Array.isArray(prismaError.meta?.target)
+        ? prismaError.meta.target.join(", ")
         : "field";
       return NextResponse.json(
         { error: `A student with this ${target} already exists` },
