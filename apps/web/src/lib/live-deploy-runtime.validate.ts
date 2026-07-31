@@ -53,7 +53,7 @@ const run = async () => {
         ];
         const response = buildLiveDeployResponse(files, "scripts/app.js", deployUrl);
         assert.equal(response.status, 200);
-        assert.equal(response.headers["Content-Type"], "text/javascript; charset=utf-8");
+        assert.equal(response.headers["Content-Type"], "application/javascript; charset=utf-8");
         assert.match(response.body.toString(), /import '\/live\/test-matric\/test-project\/lib\/util.js';/);
       },
     },
@@ -127,6 +127,49 @@ const run = async () => {
         ];
         const response = buildLiveDeployResponse(files, "styles/fonts.css", deployUrl);
         assert.match(response.body.toString(), /url\('\/live\/test-matric\/test-project\/fonts\/test.woff2'\)/);
+      },
+    },
+    {
+      name: "serves a complete static site structure with root, nested pages, CSS, JS, and images",
+      fn: () => {
+        const files: ProjectFile[] = [
+          { path: "index.html", content: '<!DOCTYPE html><html><head><link rel="stylesheet" href="/css/style.css"></head><body><img src="/images/logo.png"><script src="/js/app.js"></script><a href="/index2.html">Index2</a><a href="/pages/about.html">About</a></body></html>' },
+          { path: "index2.html", content: '<!DOCTYPE html><html><head></head><body>Index2 works</body></html>' },
+          { path: "css/style.css", content: "body{color:#111;background:url('/images/logo.png')}" },
+          { path: "js/app.js", content: "console.log('live app');" },
+          { path: "images/logo.png", content: "PNGDATA" },
+          { path: "pages/about.html", content: '<!DOCTYPE html><html><head></head><body><img src="../images/logo.png">About page</body></html>' },
+        ];
+
+        const root = buildLiveDeployResponse(files, "", deployUrl);
+        assert.equal(root.status, 200);
+        assert.match(root.body.toString(), /href="\/live\/test-matric\/test-project\/css\/style.css"/);
+        assert.match(root.body.toString(), /src="\/live\/test-matric\/test-project\/images\/logo.png"/);
+        assert.match(root.body.toString(), /src="\/live\/test-matric\/test-project\/js\/app.js"/);
+        assert.match(root.body.toString(), /href="\/live\/test-matric\/test-project\/index2.html"/);
+
+        const index2 = buildLiveDeployResponse(files, "index2.html", deployUrl);
+        assert.equal(index2.status, 200);
+        assert.match(index2.body.toString(), /Index2 works/);
+
+        const css = buildLiveDeployResponse(files, "css/style.css", deployUrl);
+        assert.equal(css.status, 200);
+        assert.equal(css.headers["Content-Type"], "text/css; charset=utf-8");
+        assert.match(css.body.toString(), /url\('\/live\/test-matric\/test-project\/images\/logo.png'\)/);
+
+        const js = buildLiveDeployResponse(files, "js/app.js", deployUrl);
+        assert.equal(js.status, 200);
+        assert.equal(js.headers["Content-Type"], "application/javascript; charset=utf-8");
+        assert.match(js.body.toString(), /console\.log\('live app'\);/);
+
+        const image = buildLiveDeployResponse(files, "images/logo.png", deployUrl);
+        assert.equal(image.status, 200);
+        assert.equal(image.headers["Content-Type"], "image/png");
+        assert.equal(image.body.toString(), "PNGDATA");
+
+        const about = buildLiveDeployResponse(files, "pages/about.html", deployUrl);
+        assert.equal(about.status, 200);
+        assert.match(about.body.toString(), /src="\.\.\/images\/logo\.png"/);
       },
     },
   ];

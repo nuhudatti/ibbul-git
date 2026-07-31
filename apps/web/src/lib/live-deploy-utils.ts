@@ -31,7 +31,7 @@ export const getContentType = (path: string): string => {
       return "text/css; charset=utf-8";
     case "js":
     case "mjs":
-      return "text/javascript; charset=utf-8";
+      return "application/javascript; charset=utf-8";
     case "json":
       return "application/json; charset=utf-8";
     case "svg":
@@ -148,10 +148,6 @@ export const injectBaseHref = (html: string, baseHref: string): string => {
 export const rewriteHtmlLocalPaths = (html: string, deployUrl: string): string => {
   const rootBase = normalizeDeployRoot(deployUrl);
   let output = html;
-
-  if (!/<base\s[^>]*>/i.test(output)) {
-    output = output.replace(/<head([^>]*)>/i, `<head$1><base href="${rootBase}/">`);
-  }
 
   output = output.replace(/((?:src|href|poster|action)=)(['"]?)\/(?!\/)([^'"\s>]+)\2/gi, (match, prefix, quote, path) => {
     return `${prefix}${quote}${rootBase}/${path}${quote}`;
