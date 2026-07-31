@@ -113,7 +113,8 @@ export async function listStudentProfilesForAdmin(): Promise<AdminStudentRecord[
 
 export async function createStudentProfile(data: StudentProfileCreateInput) {
   const norm = normalizeMatric(data.matric);
-  const email = (data.email ?? `${norm.replace(/\//g, "-").toLowerCase()}@student.ula.edu`).trim();
+  const defaultEmail = `${norm.replace(/\//g, "-").toLowerCase()}@student.ula.edu`;
+  const email = (data.email?.trim() || defaultEmail).trim();
   const now = new Date();
 
   const record = await prisma.studentProfile.create({
