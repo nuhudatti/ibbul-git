@@ -1,10 +1,11 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
+import { CodeMirrorEditor } from "@/components/ide/code-editor-codemirror";
 import { useIdeStore } from "@/store/ide-store";
 import { getLanguageFromPath } from "@/lib/utils";
 
-const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
+const MOBILE_REGEX = /Mobi|Android|iPhone|iPad|iPod|Windows Phone|webOS|BlackBerry/i;
 
 export function CodeEditor() {
   const activeFilePath = useIdeStore((s) => s.activeFilePath);
@@ -15,6 +16,18 @@ export function CodeEditor() {
   const readOnly = workspaceMode === "submitted";
   const activeFile = files.find((f) => f.path === activeFilePath);
   const language = activeFile?.language ?? getLanguageFromPath(activeFilePath);
+  const [clipboardSupported, setClipboardSupported] = useState(false);
+  const [editorHandle, setEditorHandle] = useState<{
+    selectAll?: () => void;
+    paste?: (text: string) => void;
+  } | null>(null);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    setClipboardSupported(
+      !!navigator.clipboard?.writeText && !!navigator.clipboard?.readText
+    );
+  }, []);
 
   if (!activeFile) {
     return (
@@ -28,7 +41,11 @@ export function CodeEditor() {
     return (
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 bg-[#08080c] p-6 text-center">
         <div className="max-h-[min(70vh,520px)] max-w-full overflow-hidden rounded-xl border border-white/10 bg-black/30 p-2 shadow-2xl">
-          <img src={activeFile.content} alt={activeFilePath} className="max-h-[min(62vh,460px)] max-w-full object-contain" />
+          <img
+            src={activeFile.content}
+            alt={activeFilePath}
+            className="max-h-[min(62vh,460px)] max-w-full object-contain"
+          />
         </div>
         <div>
           <p className="text-sm font-medium text-zinc-200">{activeFilePath}</p>
@@ -38,6 +55,31 @@ export function CodeEditor() {
     );
   }
 
+  const handleSelectAll = () => {
+    editorHandle?.selectAll?.();
+  };
+
+  const handleCopyAll = async () => {
+    if (!activeFile?.content) return;
+    try {
+      await navigator.clipboard.writeText(activeFile.content);
+    } catch {
+      // ignore clipboard failures
+    }
+  };
+
+  const handlePaste = async () => {
+    if (!editorHandle?.paste || !navigator.clipboard?.readText) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        editorHandle.paste(text);
+      }
+    } catch {
+      // ignore clipboard failures
+    }
+  };
+
   return (
     <div className="flex-1 min-h-0 relative">
       {readOnly ? (
@@ -45,31 +87,46 @@ export function CodeEditor() {
           Read-only
         </div>
       ) : null}
-      <MonacoEditor
-        height="100%"
-        language={language}
-        theme="vs-dark"
-        value={activeFile.content}
-        onChange={(value) => {
-          if (!readOnly) updateFileContent(activeFilePath, value ?? "");
-        }}
-        options={{
-          readOnly,
-          fontSize: 14,
-          fontFamily: "var(--font-geist-mono), monospace",
-          minimap: { enabled: false },
-          scrollBeyondLastLine: false,
-          padding: { top: 16 },
-          lineNumbers: "on",
-          renderLineHighlight: readOnly ? "none" : "all",
-          cursorBlinking: readOnly ? "solid" : "smooth",
-          smoothScrolling: true,
-          tabSize: 2,
-          wordWrap: "on",
-          automaticLayout: true,
-          domReadOnly: readOnly,
-        }}
-      />
+
+      {!readOnly ? (
+        <div className="absolute top-3 right-3 z-10 flex flex-wrap items-center gap-2 px-2 py-1 rounded-2xl bg-black/50 backdrop-blur-md border border-white/10">
+          <button
+            type="button"
+            className="rounded-md border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-100 hover:bg-white/10"
+            onClick={handleSelectAll}
+          >
+            Select all
+          </button>
+          <button
+            type="button"
+            className="rounded-md border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-100 hover:bg-white/10"
+            onClick={handleCopyAll}
+          >
+            Copy
+          </button>
+          {clipboardSupported ? (
+            <button
+              type="button"
+              className="rounded-md border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-100 hover:bg-white/10"
+              onClick={handlePaste}
+            >
+              Paste
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="h-full min-h-0">
+        <CodeMirrorEditor
+          value={activeFile.content}
+          language={language}
+          readOnly={readOnly}
+          onChange={(value) => {
+            if (!readOnly) updateFileContent(activeFilePath, value);
+          }}
+          onMount={setEditorHandle}
+        />
+      </div>
     </div>
   );
 }

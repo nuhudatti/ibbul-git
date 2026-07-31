@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   RefreshCw,
@@ -41,6 +41,7 @@ export function PreviewStage() {
   const user = useAuthStore((s) => s.user);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
   const srcDoc = useMemo(() => buildPreviewHtml(files), [files, previewKey]);
   const liveDeployUrl = deployment.url ?? submissionMeta?.deployUrl;
   const safeMatric = user?.matricNumber ? matricToSlug(user.matricNumber) : "student";
@@ -48,6 +49,16 @@ export function PreviewStage() {
     liveDeployUrl ??
     `https://${safeMatric.toLowerCase()}.preview.ula.edu/${projectId}`;
   const isLiveHosted = Boolean(liveDeployUrl);
+
+  useEffect(() => {
+    const blob = new Blob([srcDoc], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    setPreviewBlobUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+      setPreviewBlobUrl(null);
+    };
+  }, [srcDoc]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -111,15 +122,18 @@ export function PreviewStage() {
           <Button variant="ghost" size="sm" onClick={handleRefresh} title="Refresh">
             <RefreshCw size={14} className={cn(isRefreshing && "animate-spin")} />
           </Button>
-          <a
-            href={`data:text/html;charset=utf-8,${encodeURIComponent(srcDoc)}`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => {
+              if (!previewBlobUrl) return;
+              window.open(previewBlobUrl, "_blank", "noopener,noreferrer");
+            }}
+            disabled={!previewBlobUrl}
             title="Open in new tab"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ExternalLink size={14} />
-          </a>
+          </button>
         </div>
       </div>
 
