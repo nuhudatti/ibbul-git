@@ -53,7 +53,7 @@ const buildPreviewRuntime = (entry: string, manifestJson: string) =>
     "  function normalizePath(path) {",
     "    return path",
     "      .trim()",
-    "      .replace(new RegExp('\\\\', 'g'), '/')",
+    "      .replace(new RegExp('\\\\\\\\', 'g'), '/')",
     "      .replace(new RegExp('^/+', 'g'), '')",
     "      .replace(new RegExp('/+$', 'g'), '')",
     "      .replace(new RegExp('\\\\s+', 'g'), '')",
