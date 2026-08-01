@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/services/prisma";
 import { normalizeMatric } from "@/lib/matric";
+import { createReview } from "@/lib/services/review-workflow-service";
 import type { ProjectFile } from "@/types";
 
 interface SnapshotPayload {
@@ -47,6 +48,21 @@ export async function POST(request: Request) {
       score: score ?? existing?.score ?? null,
     };
 
+    const existingReview = await prisma.review.findFirst({
+      where: {
+        studentMatric: canonicalMatric,
+        assignmentId: normalizedAssignmentId,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (existingReview && ["APPROVED", "PUBLISHED"].includes(existingReview.status)) {
+      return NextResponse.json(
+        { error: "Cannot update snapshots after project approval or publication." },
+        { status: 403 }
+      );
+    }
+
     const snapshot = existing
       ? await prisma.projectSnapshot.update({
           where: { id: existing.id },
@@ -55,6 +71,24 @@ export async function POST(request: Request) {
       : await prisma.projectSnapshot.create({
           data: snapshotData,
         });
+
+    if (snapshotData.submittedAt) {
+      await createReview({
+        studentMatric: canonicalMatric,
+        assignmentId: normalizedAssignmentId,
+        projectSnapshotId: snapshot.id,
+        title: projectName,
+        summary: "Student submission created.",
+        files: Array.isArray(snapshot.files)
+          ? snapshot.files.map((file: any) => ({
+              fileName: file.path ?? file.fileName,
+              fileUrl: file.url ?? null,
+              fileType: file.language ?? null,
+              sizeBytes: null,
+            }))
+          : [],
+      });
+    }
 
     return NextResponse.json({ snapshot });
   } catch (error) {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
+  ClipboardCheck,
   Download,
   KeyRound,
   LogOut,
@@ -402,6 +403,14 @@ export function AdminControlCenter() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => router.push("/admin/reviews")}
+            >
+              <ClipboardCheck size={14} />
+              Reviews
+            </Button>
             <button
               type="button"
               onClick={() => load()}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/services/prisma";
 import { normalizeMatric } from "@/lib/matric";
+import { createReview } from "@/lib/services/review-workflow-service";
 
 export async function POST(req: Request) {
   try {
@@ -48,6 +49,33 @@ export async function POST(req: Request) {
         deployUrl: data.deployUrl ?? undefined,
       },
     });
+
+    if (action === "submit") {
+      const snapshot = await prisma.projectSnapshot.findFirst({
+        where: { studentMatric: norm, assignmentId },
+        orderBy: { savedAt: "desc" },
+      });
+
+      try {
+        await createReview({
+          studentMatric: norm,
+          assignmentId,
+          projectSnapshotId: snapshot?.id ?? null,
+          title: snapshot?.projectName ?? "Submitted project",
+          summary: "Student submitted a project for review.",
+          files: Array.isArray(snapshot?.files)
+            ? snapshot.files.map((file: any) => ({
+                fileName: file.path ?? file.fileName,
+                fileUrl: file.url ?? null,
+                fileType: file.language ?? null,
+                sizeBytes: null,
+              }))
+            : [],
+        });
+      } catch (error) {
+        console.warn("Failed to create review during enrollment submit:", error);
+      }
+    }
 
     return NextResponse.json({ enrollment: up });
   } catch (e) {

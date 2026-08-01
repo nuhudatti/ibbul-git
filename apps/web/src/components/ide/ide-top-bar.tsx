@@ -127,6 +127,25 @@ export function IdeTopBar() {
     addTerminalLog("Submitting for AI grading...");
     await new Promise((r) => setTimeout(r, 1200));
 
+    try {
+      await fetch("/api/project-snapshots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matricNumber: user.matricNumber,
+          assignmentId: activeAssignmentId,
+          projectName,
+          files,
+          submitted: true,
+          deployUrl: useIdeStore.getState().deployment.url,
+          score: assignment?.maxScore ? undefined : undefined,
+        }),
+      });
+      addTerminalLog("Submission snapshot persisted to the database.");
+    } catch (error) {
+      addTerminalLog("Failed to persist submission snapshot.");
+    }
+
     let score: number | undefined;
     try {
       const res = await fetch("/api/grading/evaluate", {

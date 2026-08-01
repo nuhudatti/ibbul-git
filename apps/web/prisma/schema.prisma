@@ -169,6 +169,150 @@ enum EnrollmentStatus {
   GRADED
 }
 
+enum ReviewWorkflowStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  CHANGES_REQUESTED
+  RESUBMITTED
+  APPROVED
+  PUBLISHED
+  REJECTED
+}
+
+model Review {
+  id                String               @id @default(cuid())
+  studentMatric     String
+  assignmentId      String
+  projectSnapshotId String?
+  title             String
+  summary           String?
+  priority          String               @default("MEDIUM")
+  deadline          DateTime?
+  status            ReviewWorkflowStatus @default(DRAFT)
+  submittedAt       DateTime?
+  reviewedAt        DateTime?
+  reviewStartedAt   DateTime?
+  publishedAt       DateTime?
+  publishNote       String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  reviewerMatric    String?
+  reviewerName      String?
+  outcomeNote       String?
+
+  comments          ReviewComment[]
+  revisions         Revision[]
+  checklist         ReviewChecklist[]
+  notifications     Notification[]
+  rating            ReviewRating?
+
+  @@index([studentMatric])
+  @@index([assignmentId])
+  @@index([status])
+}
+
+model ReviewComment {
+  id           String   @id @default(cuid())
+  reviewId     String
+  authorMatric String
+  authorRole   String
+  message      String
+  createdAt    DateTime @default(now())
+  isInternal   Boolean  @default(false)
+  feedbackType String   @default("GENERAL")
+  filePath     String?
+  lineNumber   Int?
+  priority     String   @default("MEDIUM")
+  status       String   @default("OPEN")
+  resolvedAt   DateTime?
+
+  review       Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+}
+
+model Revision {
+  id               String               @id @default(cuid())
+  reviewId         String
+  studentMatric    String
+  summary          String?
+  status           ReviewWorkflowStatus @default(DRAFT)
+  submittedAt      DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  revisionNumber   Int                  @default(1)
+  sourceRevisionId String?
+  deploymentUrl    String?
+  submitterMatric  String?
+  submitterRole    String?
+
+  review           Review               @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  files            RevisionFile[]
+
+  @@index([reviewId])
+  @@index([studentMatric])
+}
+
+model RevisionFile {
+  id         String   @id @default(cuid())
+  revisionId String
+  fileName   String
+  fileUrl    String?
+  fileType   String?
+  sizeBytes  Int?
+  fileHash   String?
+  createdAt  DateTime @default(now())
+
+  revision   Revision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+
+  @@index([revisionId])
+}
+
+model ReviewRating {
+  id             String  @id @default(cuid())
+  review         Review  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reviewId       String  @unique
+  codeQuality    Int?
+  uiUx           Int?
+  responsiveness Int?
+  accessibility  Int?
+  performance    Int?
+  bestPractices  Int?
+  overall        Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Notification {
+  id              String   @id @default(cuid())
+  recipientMatric String
+  reviewId        String?
+  message         String
+  type            String   @default("review")
+  isRead          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  review          Review?  @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+
+  @@index([recipientMatric])
+  @@index([isRead])
+}
+
+model ReviewChecklist {
+  id        String   @id @default(cuid())
+  reviewId  String
+  title     String
+  checked   Boolean  @default(false)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+}
+
 model Assignment {
   id           String   @id @default(cuid())
   title        String
