@@ -109,6 +109,41 @@ async function notifyRecipient(recipientMatric: string, reviewId: string | null,
   });
 }
 
+export async function saveReviewDraft(reviewId: string, note?: string | null, summary?: string | null) {
+  const review = await prisma.review.findUniqueOrThrow({
+    where: { id: reviewId },
+  });
+
+  const updated = await prisma.review.update({
+    where: { id: reviewId },
+    data: {
+      status: "DRAFT",
+      summary: summary ?? review.summary,
+      outcomeNote: note ?? review.outcomeNote,
+      reviewedAt: review.reviewedAt ?? new Date(),
+      reviewStartedAt: review.reviewStartedAt ?? new Date(),
+    },
+  });
+
+  await notifyRecipient(
+    review.studentMatric,
+    review.id,
+    note ?? "Lecturer draft review saved.",
+    "review"
+  );
+
+  return prisma.review.findUniqueOrThrow({
+    where: { id: updated.id },
+    include: {
+      comments: true,
+      revisions: true,
+      checklist: true,
+      notifications: true,
+      rating: true,
+    },
+  });
+}
+
 export async function createReview(input: CreateReviewInput) {
   const existingReview = await prisma.review.findFirst({
     where: {
@@ -280,7 +315,7 @@ export async function addChecklistItem(reviewId: string, title: string, notes?: 
 }
 
 export async function getReviewById(reviewId: string) {
-  return prisma.review.findUniqueOrThrow({
+  const review = await prisma.review.findUniqueOrThrow({
     where: { id: reviewId },
     include: {
       comments: {
@@ -297,6 +332,41 @@ export async function getReviewById(reviewId: string) {
       rating: true,
     },
   });
+
+  const student = await prisma.studentProfile.findUnique({
+    where: { matric: review.studentMatric },
+    select: {
+      matric: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      program: true,
+      headline: true,
+      avatarInitials: true,
+      avatarUrl: true,
+      accountRole: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  const projectSnapshot = review.projectSnapshotId
+    ? await prisma.projectSnapshot.findUnique({ where: { id: review.projectSnapshotId } })
+    : null;
+
+  return {
+    ...review,
+    student,
+    projectSnapshot: projectSnapshot
+      ? {
+          ...projectSnapshot,
+          files: Array.isArray(projectSnapshot.files)
+            ? (projectSnapshot.files as Array<{ path: string; content: string; language?: string }>)
+            : [],
+        }
+      : null,
+  };
 }
 
 export async function getReviewsForStudent(studentMatric: string) {
