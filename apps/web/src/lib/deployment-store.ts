@@ -1,5 +1,5 @@
-import type { ProjectFile } from "@/types";
-import { buildPreviewHtml } from "@/lib/build-preview";
+import type { ProjectFile } from "../types/index.ts";
+import { buildPreviewHtml } from "./build-preview.ts";
 
 export interface StoredDeployment {
   matric: string;

@@ -7,7 +7,7 @@ const normalizePath = (path: string) =>
     .replace(/^\/+/, "")
     .replace(/\/+$/g, "")
     .replace(/\s+/g, "")
-    .replace(/\/+/, "/");
+    .replace(/\/+/g, "/");
 
 const dirname = (path: string) => {
   const normalized = normalizePath(path);

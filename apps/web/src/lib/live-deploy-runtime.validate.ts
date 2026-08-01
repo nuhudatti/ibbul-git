@@ -1,5 +1,7 @@
 import assert from "node:assert";
 import { buildLiveDeployResponse } from "./live-deploy-runtime.ts";
+import { buildManifest } from "./live-deploy-utils.ts";
+import { saveDeployment, getDeploymentByPath } from "./deployment-store.ts";
 import type { ProjectFile } from "../types/index.ts";
 
 const deployUrl = "/live/test-matric/test-project";
@@ -133,7 +135,11 @@ const run = async () => {
       name: "serves a complete static site structure with root, nested pages, CSS, JS, and images",
       fn: () => {
         const files: ProjectFile[] = [
-          { path: "index.html", content: '<!DOCTYPE html><html><head><link rel="stylesheet" href="/css/style.css"></head><body><img src="/images/logo.png"><script src="/js/app.js"></script><a href="/index2.html">Index2</a><a href="/pages/about.html">About</a></body></html>' },
+          {
+            path: "index.html",
+            content:
+              '<!DOCTYPE html><html><head><link rel="stylesheet" href="/css/style.css"></head><body><img src="/images/logo.png"><script src="/js/app.js"></script><a href="/index2.html">Index2</a><a href="/pages/about.html">About</a></body></html>',
+          },
           { path: "index2.html", content: '<!DOCTYPE html><html><head></head><body>Index2 works</body></html>' },
           { path: "css/style.css", content: "body{color:#111;background:url('/images/logo.png')}" },
           { path: "js/app.js", content: "console.log('live app');" },
@@ -147,6 +153,7 @@ const run = async () => {
         assert.match(root.body.toString(), /src="\/live\/test-matric\/test-project\/images\/logo.png"/);
         assert.match(root.body.toString(), /src="\/live\/test-matric\/test-project\/js\/app.js"/);
         assert.match(root.body.toString(), /href="\/live\/test-matric\/test-project\/index2.html"/);
+        assert.doesNotMatch(root.body.toString(), /<base\s/i);
 
         const index2 = buildLiveDeployResponse(files, "index2.html", deployUrl);
         assert.equal(index2.status, 200);
@@ -170,6 +177,98 @@ const run = async () => {
         const about = buildLiveDeployResponse(files, "pages/about.html", deployUrl);
         assert.equal(about.status, 200);
         assert.match(about.body.toString(), /src="\.\.\/images\/logo\.png"/);
+      },
+    },
+    {
+      name: "preserves full nested paths through storage, manifest, and runtime",
+      fn: () => {
+        const files: ProjectFile[] = [
+          { path: "index.html", content: "<html><head></head><body>root</body></html>" },
+          { path: "pages/about.html", content: "<html><head></head><body>About</body></html>" },
+          { path: "css/style.css", content: "body{color:#111;}" },
+          { path: "js/app.js", content: "console.log('ok');" },
+          { path: "images/logo.png", content: "PNGDATA" },
+        ];
+
+        const manifest = buildManifest(files);
+        assert.deepEqual(Object.keys(manifest).sort(), [
+          "css/style.css",
+          "images/logo.png",
+          "index.html",
+          "js/app.js",
+          "pages/about.html",
+        ]);
+
+        const stored = saveDeployment("test-matric", "test-project", "Test Project", files);
+        assert.deepEqual(stored.files.map((f) => f.path).sort(), [
+          "css/style.css",
+          "images/logo.png",
+          "index.html",
+          "js/app.js",
+          "pages/about.html",
+        ]);
+        assert.equal(stored.deployPath, deployUrl);
+
+        const loaded = getDeploymentByPath(deployUrl);
+        assert.ok(loaded, "Deployment should be retrievable by deploy path");
+        assert.deepEqual((loaded?.files ?? []).map((f: ProjectFile) => f.path).sort(), [
+          "css/style.css",
+          "images/logo.png",
+          "index.html",
+          "js/app.js",
+          "pages/about.html",
+        ]);
+
+        const root = buildLiveDeployResponse(files, "", deployUrl);
+        assert.equal(root.status, 200);
+
+        const about = buildLiveDeployResponse(files, "pages/about.html", deployUrl);
+        assert.equal(about.status, 200);
+
+        const css = buildLiveDeployResponse(files, "css/style.css", deployUrl);
+        assert.equal(css.status, 200);
+
+        const js = buildLiveDeployResponse(files, "js/app.js", deployUrl);
+        assert.equal(js.status, 200);
+
+        const image = buildLiveDeployResponse(files, "images/logo.png", deployUrl);
+        assert.equal(image.status, 200);
+      },
+    },
+    {
+      name: "preserves nested directory paths through manifest and runtime for deployed files",
+      fn: () => {
+        const files: ProjectFile[] = [
+          { path: "index.html", content: "<html><head></head><body>root</body></html>" },
+          { path: "pages/about.html", content: "<html><head></head><body>About</body></html>" },
+          { path: "css/style.css", content: "body{color:#111;}" },
+          { path: "js/app.js", content: "console.log('ok');" },
+          { path: "images/logo.png", content: "PNGDATA" },
+        ];
+
+        const manifest = buildManifest(files);
+        assert.deepEqual(Object.keys(manifest).sort(), [
+          "css/style.css",
+          "images/logo.png",
+          "index.html",
+          "js/app.js",
+          "pages/about.html",
+        ]);
+
+        const root = buildLiveDeployResponse(files, "", deployUrl);
+        assert.equal(root.status, 200);
+
+        const about = buildLiveDeployResponse(files, "pages/about.html", deployUrl);
+        assert.equal(about.status, 200);
+
+        const css = buildLiveDeployResponse(files, "css/style.css", deployUrl);
+        assert.equal(css.status, 200);
+
+        const js = buildLiveDeployResponse(files, "js/app.js", deployUrl);
+        assert.equal(js.status, 200);
+
+        const image = buildLiveDeployResponse(files, "images/logo.png", deployUrl);
+        assert.equal(image.status, 200);
       },
     },
   ];
