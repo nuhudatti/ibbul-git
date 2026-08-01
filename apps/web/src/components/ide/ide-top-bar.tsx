@@ -26,7 +26,13 @@ import { DeployModal } from "./deploy-modal";
 import { LiveDeployStrip } from "./live-deploy-strip";
 import { SubmissionSealedToast } from "@/components/portfolio/submission-sealed-toast";
 
-export function IdeTopBar() {
+type ReviewRecord = {
+  id: string;
+  assignmentId: string;
+  status: string;
+};
+
+export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: ReviewRecord | null; onReviewUpdated?: () => void }) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const projectName = useIdeStore((s) => s.projectName);
@@ -60,13 +66,17 @@ export function IdeTopBar() {
   const [showSaveToast, setShowSaveToast] = useState(false);
   const initialToast = useRef(true);
 
-  const isSubmittedView = workspaceMode === "submitted";
+  const isReviewChangesRequested =
+    currentReview?.assignmentId === activeAssignmentId &&
+    currentReview?.status === "CHANGES_REQUESTED";
+  const isSubmittedView = workspaceMode === "submitted" && !isReviewChangesRequested;
   const assignment = user && activeAssignmentId
     ? getStudentAssignments(user.matricNumber).find((a) => a.id === activeAssignmentId)
     : null;
   const alreadySubmitted =
     assignment?.enrollment?.status === "SUBMITTED" ||
     assignment?.enrollment?.status === "GRADED";
+  const canSubmit = activeAssignmentId && (!alreadySubmitted || isReviewChangesRequested);
 
   useEffect(() => {
     if (initialToast.current) {
@@ -116,16 +126,18 @@ export function IdeTopBar() {
   };
 
   const handleSubmit = async () => {
-    if (!user || !activeAssignmentId || isSubmittedView || alreadySubmitted) return;
+    if (!user || !activeAssignmentId || isSubmittedView || !canSubmit) return;
 
     setIsSubmitting(true);
-    addTerminalLog("Saving submission snapshot...");
+    addTerminalLog(isReviewChangesRequested ? "Saving revision snapshot..." : "Saving submission snapshot...");
     saveSnapshot(user.matricNumber, activeAssignmentId, projectName, files, {
       submitted: true,
     });
 
-    addTerminalLog("Submitting for AI grading...");
-    await new Promise((r) => setTimeout(r, 1200));
+    if (!isReviewChangesRequested) {
+      addTerminalLog("Submitting for AI grading...");
+      await new Promise((r) => setTimeout(r, 1200));
+    }
 
     try {
       await fetch("/api/project-snapshots", {
@@ -138,31 +150,32 @@ export function IdeTopBar() {
           files,
           submitted: true,
           deployUrl: useIdeStore.getState().deployment.url,
-          score: assignment?.maxScore ? undefined : undefined,
         }),
       });
-      addTerminalLog("Submission snapshot persisted to the database.");
+      addTerminalLog(isReviewChangesRequested ? "Revision snapshot persisted to the database." : "Submission snapshot persisted to the database.");
     } catch (error) {
-      addTerminalLog("Failed to persist submission snapshot.");
+      addTerminalLog(isReviewChangesRequested ? "Failed to persist revision snapshot." : "Failed to persist submission snapshot.");
     }
 
     let score: number | undefined;
-    try {
-      const res = await fetch("/api/grading/evaluate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          files,
-          rubric: { maxScore: assignment?.maxScore ?? 100 },
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        score = data.score;
+    if (!isReviewChangesRequested) {
+      try {
+        const res = await fetch("/api/grading/evaluate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId,
+            files,
+            rubric: { maxScore: assignment?.maxScore ?? 100 },
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          score = data.score;
+        }
+      } catch {
+        /* grading optional for MVP */
       }
-    } catch {
-      /* grading optional for MVP */
     }
 
     const snapshot = saveSnapshot(user.matricNumber, activeAssignmentId, projectName, files, {
@@ -171,31 +184,32 @@ export function IdeTopBar() {
       deployUrl: useIdeStore.getState().deployment.url,
     });
 
-    submitAssignment(
-      activeAssignmentId,
-      user.matricNumber,
-      score,
-      snapshot.deployUrl
-    );
+    if (!isReviewChangesRequested) {
+      submitAssignment(
+        activeAssignmentId,
+        user.matricNumber,
+        score,
+        snapshot.deployUrl
+      );
 
-    const artifact = await createFromSubmission({
-      studentMatric: user.matricNumber,
-      assignmentId: activeAssignmentId,
-      courseId: activeClassId,
-      courseName: "Web Development",
-      title: assignment?.title ?? projectName,
-      description: assignment?.description,
-      score: score ?? null,
-      maxScore: assignment?.maxScore ?? 100,
-      deployUrl: snapshot.deployUrl,
-    });
+      const artifact = await createFromSubmission({
+        studentMatric: user.matricNumber,
+        assignmentId: activeAssignmentId,
+        courseId: activeClassId,
+        courseName: "Web Development",
+        title: assignment?.title ?? projectName,
+        description: assignment?.description,
+        score: score ?? null,
+        maxScore: assignment?.maxScore ?? 100,
+        deployUrl: snapshot.deployUrl,
+      });
 
-    setSealedToast({ hash: artifact.hash });
-
-    addTerminalLog("Portfolio artifact sealed · added to your verified identity.");
+      setSealedToast({ hash: artifact.hash });
+      addTerminalLog("Portfolio artifact sealed · added to your verified identity.");
+    }
 
     loadProject(projectName, files, activeAssignmentId, {
-      mode: "submitted",
+      mode: isReviewChangesRequested ? "edit" : "submitted",
       submission: {
         submittedAt: snapshot.submittedAt ?? new Date().toISOString(),
         score,
@@ -205,8 +219,15 @@ export function IdeTopBar() {
     });
 
     addTerminalLog(
-      score != null ? `Submitted! Score: ${score}/100` : "Submitted! Awaiting lecturer review."
+      isReviewChangesRequested
+        ? "Revision submitted for review."
+        : score != null
+        ? `Submitted! Score: ${score}/100`
+        : "Submitted! Awaiting lecturer review."
     );
+    if (isReviewChangesRequested) {
+      await onReviewUpdated?.();
+    }
     setIsSubmitting(false);
   };
 

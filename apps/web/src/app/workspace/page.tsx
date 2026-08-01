@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileExplorer } from "@/components/ide/file-explorer";
@@ -12,6 +12,7 @@ import { TerminalPanel } from "@/components/ide/terminal-panel";
 import { IdeTopBar } from "@/components/ide/ide-top-bar";
 import { SubmittedBanner } from "@/components/student/submitted-banner";
 import { AssignmentsPanel } from "@/components/student/assignments-panel";
+import { StudentReviewPanel, type ReviewRecord } from "@/components/student/student-review-panel";
 import { PortfolioIdentityStrip } from "@/components/portfolio/portfolio-identity-strip";
 import { useAuthStore } from "@/store/auth-store";
 import { useIdeStore } from "@/store/ide-store";
@@ -26,6 +27,63 @@ export default function WorkspacePage() {
   const viewMode = useIdeStore((s) => s.viewMode);
   const files = useIdeStore((s) => s.files);
   const refreshPreview = useIdeStore((s) => s.refreshPreview);
+  const activeAssignmentId = useIdeStore((s) => s.activeAssignmentId);
+  const workspaceMode = useIdeStore((s) => s.workspaceMode);
+
+  const [studentReviews, setStudentReviews] = useState<ReviewRecord[]>([]);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const loadReviews = useCallback(async () => {
+    if (!user || user.role !== "STUDENT") {
+      setStudentReviews([]);
+      setReviewLoading(false);
+      return;
+    }
+
+    setReviewLoading(true);
+    setReviewError(null);
+
+    try {
+      const res = await fetch("/api/reviews/mine");
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to load reviews");
+      }
+      const payload = await res.json();
+      setStudentReviews(Array.isArray(payload.reviews) ? payload.reviews : []);
+    } catch (error) {
+      setReviewError((error as Error).message);
+      setStudentReviews([]);
+    } finally {
+      setReviewLoading(false);
+    }
+  }, [user]);
+
+  const currentReview = useMemo(
+    () => studentReviews.find((review) => review.assignmentId === activeAssignmentId) ?? null,
+    [studentReviews, activeAssignmentId]
+  );
+
+  useEffect(() => {
+    void loadReviews();
+  }, [loadReviews]);
+
+  useEffect(() => {
+    if (
+      currentReview?.status === "CHANGES_REQUESTED" &&
+      activeAssignmentId &&
+      workspaceMode === "submitted"
+    ) {
+      const state = useIdeStore.getState();
+      if (state.activeAssignmentId === activeAssignmentId) {
+        state.loadProject(state.projectName, state.files, activeAssignmentId, {
+          mode: "edit",
+          submission: state.submissionMeta,
+        });
+      }
+    }
+  }, [currentReview, activeAssignmentId, workspaceMode]);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "STUDENT") {
@@ -75,9 +133,10 @@ export default function WorkspacePage() {
 
   return (
     <div className="h-[100dvh] min-h-screen flex flex-col bg-[#050508] overflow-hidden">
-      <IdeTopBar />
+      <IdeTopBar currentReview={currentReview} onReviewUpdated={loadReviews} />
       <PortfolioIdentityStrip />
       <SubmittedBanner />
+      {currentReview ? <StudentReviewPanel review={currentReview} /> : null}
       <AssignmentsPanel />
 
       <motion.div
