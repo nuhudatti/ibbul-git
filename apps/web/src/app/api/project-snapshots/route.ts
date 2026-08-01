@@ -56,9 +56,9 @@ export async function POST(request: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    if (existingReview && ["APPROVED", "PUBLISHED"].includes(existingReview.status)) {
+    if (existingReview && ["APPROVED", "PUBLISHED", "REJECTED"].includes(existingReview.status)) {
       return NextResponse.json(
-        { error: "Cannot update snapshots after project approval or publication." },
+        { error: "Cannot update snapshots after project approval, publication, or rejection." },
         { status: 403 }
       );
     }

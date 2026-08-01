@@ -34,7 +34,6 @@ type ReviewRecord = {
 
 export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: ReviewRecord | null; onReviewUpdated?: () => void }) {
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const projectName = useIdeStore((s) => s.projectName);
   const files = useIdeStore((s) => s.files);
   const isDirty = useIdeStore((s) => s.isDirty);
@@ -77,6 +76,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
     assignment?.enrollment?.status === "SUBMITTED" ||
     assignment?.enrollment?.status === "GRADED";
   const canSubmit = activeAssignmentId && (!alreadySubmitted || isReviewChangesRequested);
+  const submitLabel = isReviewChangesRequested ? "Resubmit" : "Submit";
 
   useEffect(() => {
     if (initialToast.current) {
@@ -346,10 +346,10 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
               <Rocket size={14} />
               <span>{isSubmittedView ? "Redeploy" : "Deploy"}</span>
             </Button>
-            {!isSubmittedView && !alreadySubmitted && activeAssignmentId ? (
+            {!isSubmittedView && canSubmit ? (
               <Button variant="success" size="md" onClick={handleSubmit} isLoading={isSubmitting} className="w-full sm:w-auto justify-center">
                 <Send size={14} />
-                <span>Submit</span>
+                <span>{submitLabel}</span>
               </Button>
             ) : null}
           </div>

@@ -23,10 +23,21 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
+    if (session.role === "ADMIN") {
+      return NextResponse.json(
+        { error: "Admin cannot review student projects. Use the platform management tools instead." },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const review = await getReviewById(id);
 
-    if (session.role !== "ADMIN" && review.studentMatric !== session.matric) {
+    if (session.role === "LECTURER") {
+      return NextResponse.json({ review });
+    }
+
+    if (review.studentMatric !== session.matric) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -50,11 +61,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    if (session.role !== "ADMIN" && action !== "resubmit") {
-      return NextResponse.json({ error: "Admin authentication required" }, { status: 401 });
-    }
-
     if (action === "comment") {
+      if (session.role !== "LECTURER") {
+        return NextResponse.json({ error: "Lecturer access required" }, { status: 403 });
+      }
       const comment = await addComment({
         reviewId: id,
         authorMatric: session.matric,
@@ -66,6 +76,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     if (action === "feedback") {
+      if (session.role !== "LECTURER") {
+        return NextResponse.json({ error: "Lecturer access required" }, { status: 403 });
+      }
       const feedback = await addFeedback({
         reviewId: id,
         authorMatric: session.matric,
@@ -81,11 +94,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     if (action === "checklist") {
+      if (session.role !== "LECTURER") {
+        return NextResponse.json({ error: "Lecturer access required" }, { status: 403 });
+      }
       const item = await addChecklistItem(id, body.title, body.notes, body.checked ?? false);
       return NextResponse.json({ checklistItem: item });
     }
 
     if (action === "resubmit") {
+      if (session.role !== "STUDENT") {
+        return NextResponse.json({ error: "Student access required" }, { status: 403 });
+      }
       const revision = await resubmitRevision({
         reviewId: id,
         studentMatric: session.matric,
@@ -95,8 +114,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ revision });
     }
 
-    const adminCheck = await requireAdmin(req);
-    if ("error" in adminCheck) return adminCheck.error;
+    if (session.role !== "LECTURER") {
+      return NextResponse.json({ error: "Lecturer access required" }, { status: 403 });
+    }
 
     if (action === "start-review") {
       const review = await startReview(id);

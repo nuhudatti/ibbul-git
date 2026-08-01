@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getSessionTokenFromRequest, getSession } from "@/lib/auth-session";
-import { requireAdmin } from "@/lib/admin-auth";
 import {
   createReview,
   getAllReviews,
@@ -11,8 +10,16 @@ import {
 
 export async function POST(req: Request) {
   try {
-    const adminCheck = await requireAdmin(req);
-    if ("error" in adminCheck) return adminCheck.error;
+    const token = getSessionTokenFromRequest(req);
+    const session = getSession(token);
+
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    if (session.role !== "LECTURER") {
+      return NextResponse.json({ error: "Lecturer access required" }, { status: 403 });
+    }
 
     const body = await req.json();
     const { studentMatric, assignmentId, projectSnapshotId, title, summary, reviewerMatric, reviewerName, checklist } = body as {
@@ -58,8 +65,13 @@ export async function GET(req: Request) {
     }
 
     if (session.role === "ADMIN") {
-      const adminCheck = await requireAdmin(req);
-      if ("error" in adminCheck) return adminCheck.error;
+      return NextResponse.json(
+        { error: "Admin cannot review student projects. Use the platform management tools instead." },
+        { status: 403 }
+      );
+    }
+
+    if (session.role === "LECTURER") {
       const reviews = await getAllReviews();
       return NextResponse.json({ reviews });
     }

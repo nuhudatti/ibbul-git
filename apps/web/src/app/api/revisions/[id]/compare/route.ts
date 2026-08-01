@@ -20,7 +20,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       },
     });
 
-    if (session.role !== "ADMIN" && revision.review.studentMatric !== session.matric) {
+    if (session.role !== "ADMIN" && session.role !== "LECTURER" && revision.review.studentMatric !== session.matric) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

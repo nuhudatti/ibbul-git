@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
-  ClipboardCheck,
   Download,
   KeyRound,
   LogOut,
@@ -34,7 +33,7 @@ import {
 } from "@/lib/temp-password";
 import type { AdminStats, AdminStudentRecord, StudentAccountStatus } from "@/types";
 import { parseBulkCsvText, parseBulkFileContent } from "@/lib/bulk-import-parse";
-import { MATRIC_FORMAT_DESC, MATRIC_FORMAT_HINT, normalizeMatric } from "@/lib/matric";
+import { MATRIC_FORMAT_DESC, MATRIC_FORMAT_HINT } from "@/lib/matric";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/ui/user-avatar";
 
@@ -76,7 +75,6 @@ function StatCard({
 export function AdminControlCenter() {
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
-  const user = useAuthStore((s) => s.user);
 
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [students, setStudents] = useState<AdminStudentRecord[]>([]);
@@ -149,7 +147,7 @@ export function AdminControlCenter() {
   }, [handleSessionExpired]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   const filtered = useMemo(() => {
@@ -403,15 +401,7 @@ export function AdminControlCenter() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => router.push("/admin/reviews")}
-            >
-              <ClipboardCheck size={14} />
-              Reviews
-            </Button>
-            <button
+              <button
               type="button"
               onClick={() => load()}
               className="p-2 rounded-lg border border-white/8 text-zinc-500 hover:text-white"
