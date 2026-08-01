@@ -145,12 +145,33 @@ export const injectBaseHref = (html: string, baseHref: string): string => {
   return html.replace(/<head([^>]*)>/i, `<head$1><base href="${baseHref}">`);
 };
 
-export const rewriteHtmlLocalPaths = (html: string, deployUrl: string): string => {
+const isExternalOrSpecialUrl = (value: string) => {
+  if (!value) return true;
+  return /^(?:[a-z][a-z\d+.-]*:|\/\/|#|\?|data:|mailto:|tel:|javascript:)/i.test(value);
+};
+
+const rewriteLocalReference = (value: string, deployUrl: string, requestPath = "") => {
+  if (!value || isExternalOrSpecialUrl(value)) return null;
+
   const rootBase = normalizeDeployRoot(deployUrl);
+  if (value.startsWith("/")) {
+    return `${rootBase}${value}`;
+  }
+
+  const basePath = requestPath ? `${rootBase}/${requestPath}` : `${rootBase}/`;
+  const resolved = new URL(value, `http://localhost${basePath}`);
+  return `${resolved.pathname}${resolved.search}${resolved.hash}`;
+};
+
+export const rewriteHtmlLocalPaths = (html: string, deployUrl: string, requestPath = ""): string => {
   let output = html;
 
-  output = output.replace(/((?:src|href|poster|action)=)(['"]?)\/(?!\/)([^'"\s>]+)\2/gi, (match, prefix, quote, path) => {
-    return `${prefix}${quote}${rootBase}/${path}${quote}`;
+  output = output.replace(/((?:src|href|poster|action)=)(['"]?)([^'"\s>]+)(\2)/gi, (match, prefix, quote, value) => {
+    const rewritten = rewriteLocalReference(value, deployUrl, requestPath);
+    if (!rewritten) {
+      return match;
+    }
+    return `${prefix}${quote}${rewritten}${quote}`;
   });
 
   output = output.replace(/srcset=(['"])(.*?)\1/gi, (_, quote, value) => {
@@ -160,8 +181,9 @@ export const rewriteHtmlLocalPaths = (html: string, deployUrl: string): string =
         const parts = segment.trim().split(/\s+/, 2);
         const src = parts[0];
         const descriptor = parts[1] || "";
-        if (src.startsWith('/') && !src.startsWith('//')) {
-          return `${rootBase}${src}${descriptor ? ' ' + descriptor : ''}`;
+        const rewritten = rewriteLocalReference(src, deployUrl, requestPath);
+        if (rewritten) {
+          return `${rewritten}${descriptor ? ' ' + descriptor : ''}`;
         }
         return segment;
       })
@@ -169,30 +191,38 @@ export const rewriteHtmlLocalPaths = (html: string, deployUrl: string): string =
     return `srcset=${quote}${updated}${quote}`;
   });
 
-  output = output.replace(/url\((['"]?)\/(?!\/)([^)'"\s]+)\1\)/gi, (_, quote, path) => {
-    return `url(${quote}${rootBase}/${path}${quote}`;
+  output = output.replace(/url\((['"]?)([^)'"\s]+)\1\)/gi, (_, quote, value) => {
+    const rewritten = rewriteLocalReference(value, deployUrl, requestPath);
+    return rewritten ? `url(${quote}${rewritten}${quote})` : `url(${quote}${value}${quote})`;
   });
 
   output = output.replace(/(<[^>]+style=)(['"])(.*?)\2/gi, (match: string, prefix: string, quote: string, value: string) => {
-    const rewritten = value.replace(/url\((['"]?)\/(?!\/)([^)'"\s]+)\1\)/gi, (_, q: string, path: string) => `url(${q}${rootBase}/${path}${q})`);
+    const rewritten = value.replace(/url\((['"]?)([^)'"\s]+)\1\)/gi, (_: string, q: string, path: string) => {
+      const rewrittenPath = rewriteLocalReference(path, deployUrl, requestPath);
+      return rewrittenPath ? `url(${q}${rewrittenPath}${q})` : `url(${q}${path}${q})`;
+    });
     return `${prefix}${quote}${rewritten}${quote}`;
   });
 
   return output;
 };
 
-export const rewriteCssLocalPaths = (css: string, deployUrl: string): string => {
-  const rootBase = normalizeDeployRoot(deployUrl);
-
+export const rewriteCssLocalPaths = (css: string, deployUrl: string, requestPath = ""): string => {
   let output = css;
-  output = output.replace(/@import\s+(['"])(\/(?!\/)[^'"]+)\1/gi, (_, quote, path) => `@import ${quote}${rootBase}${path}${quote}`);
-  output = output.replace(/@import\s+url\((['"]?)\/(?!\/)([^)'"\s]+)\1\)/gi, (_, quote, path) => `@import url(${quote}${rootBase}/${path}${quote})`);
-  output = output.replace(/url\((['"]?)\/(?!\/)([^)'"\s]+)\1\)/gi, (_, quote, path) => `url(${quote}${rootBase}/${path}${quote})`);
+  output = output.replace(/@import\s+(['"])(\/(?!\/)[^'"]+)\1/gi, (_, quote, path) => `@import ${quote}${normalizeDeployRoot(deployUrl)}${path}${quote}`);
+  output = output.replace(/@import\s+url\((['"]?)([^)'"\s]+)\1\)/gi, (_, quote, path) => {
+    const rewritten = rewriteLocalReference(path, deployUrl, requestPath);
+    return rewritten ? `@import url(${quote}${rewritten}${quote})` : `@import url(${quote}${path}${quote})`;
+  });
+  output = output.replace(/url\((['"]?)([^)'"\s]+)\1\)/gi, (_, quote, path) => {
+    const rewritten = rewriteLocalReference(path, deployUrl, requestPath);
+    return rewritten ? `url(${quote}${rewritten}${quote})` : `url(${quote}${path}${quote})`;
+  });
 
   return output;
 };
 
-export const rewriteJsLocalPaths = (js: string, deployUrl: string): string => {
+export const rewriteJsLocalPaths = (js: string, deployUrl: string, requestPath = ""): string => {
   const rootBase = normalizeDeployRoot(deployUrl);
   let output = js;
 

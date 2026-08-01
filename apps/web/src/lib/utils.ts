@@ -47,6 +47,21 @@ export function getLanguageFromPath(path: string): string {
   return map[ext ?? ""] ?? "plaintext";
 }
 
+export function resolveCreationPath(path: string, parentFolder?: string | null): string {
+  const normalizedPath = path.trim().replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+/g, "/");
+  if (!normalizedPath) return "";
+
+  const normalizedParent = (parentFolder ?? "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "")
+    .replace(/\/+/g, "/");
+
+  if (!normalizedParent) return normalizedPath;
+  if (normalizedPath.includes("/")) return normalizedPath;
+  return `${normalizedParent}/${normalizedPath}`;
+}
+
 export function resolveDeployUrl(deployUrl?: string | null, baseUrl?: string): string | null {
   if (!deployUrl) return null;
   const raw = deployUrl.trim();

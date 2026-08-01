@@ -132,6 +132,35 @@ const run = async () => {
       },
     },
     {
+      name: "preserves projectId in relative and root-relative links for live deployment pages",
+      fn: () => {
+        const files: ProjectFile[] = [
+          {
+            path: "index.html",
+            content: '<a href="index2.html">Page 2</a><link rel="stylesheet" href="css/style.css"><script src="js/app.js"></script><img src="images/logo.png">',
+          },
+          { path: "index2.html", content: "<html></html>" },
+          { path: "css/style.css", content: "body{color:#111;}" },
+          { path: "js/app.js", content: "console.log('ok');" },
+          { path: "images/logo.png", content: "PNGDATA" },
+          { path: "pages/about.html", content: '<a href="index2.html">Nested page</a>' },
+        ];
+
+        const root = buildLiveDeployResponse(files, "index.html", deployUrl);
+        assert.equal(root.status, 200);
+        assert.match(root.body.toString(), /href="\/live\/test-matric\/test-project\/index2.html"/);
+        assert.match(root.body.toString(), /href="\/live\/test-matric\/test-project\/css\/style.css"/);
+        assert.match(root.body.toString(), /src="\/live\/test-matric\/test-project\/js\/app.js"/);
+        assert.match(root.body.toString(), /src="\/live\/test-matric\/test-project\/images\/logo.png"/);
+        assert.doesNotMatch(root.body.toString(), /href="\/live\/test-matric\/(?!test-project)/);
+
+        const nested = buildLiveDeployResponse(files, "pages/about.html", deployUrl);
+        assert.equal(nested.status, 200);
+        assert.match(nested.body.toString(), /\/live\/test-matric\/test-project\/pages\/index2.html/);
+        assert.doesNotMatch(nested.body.toString(), /href="\/live\/test-matric\/(?!test-project)/);
+      },
+    },
+    {
       name: "serves a complete static site structure with root, nested pages, CSS, JS, and images",
       fn: () => {
         const files: ProjectFile[] = [
@@ -176,7 +205,7 @@ const run = async () => {
 
         const about = buildLiveDeployResponse(files, "pages/about.html", deployUrl);
         assert.equal(about.status, 200);
-        assert.match(about.body.toString(), /src="\.\.\/images\/logo\.png"/);
+        assert.match(about.body.toString(), /src="\/live\/test-matric\/test-project\/images\/logo\.png"/);
       },
     },
     {

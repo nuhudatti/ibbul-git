@@ -46,7 +46,7 @@ export function buildLiveDeployResponse(
     return {
       status: 200,
       headers,
-      body: rewriteHtmlLocalPaths(file.content, deployUrl),
+      body: rewriteHtmlLocalPaths(file.content, deployUrl, requestPath),
     };
   }
 
@@ -54,7 +54,7 @@ export function buildLiveDeployResponse(
     return {
       status: 200,
       headers,
-      body: rewriteCssLocalPaths(file.content, deployUrl),
+      body: rewriteCssLocalPaths(file.content, deployUrl, requestPath),
     };
   }
 
@@ -62,7 +62,7 @@ export function buildLiveDeployResponse(
     return {
       status: 200,
       headers,
-      body: rewriteJsLocalPaths(file.content, deployUrl),
+      body: rewriteJsLocalPaths(file.content, deployUrl, requestPath),
     };
   }
 

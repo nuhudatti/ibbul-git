@@ -14,9 +14,8 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getLanguageFromPath, resolveCreationPath } from "@/lib/utils";
 import { useIdeStore } from "@/store/ide-store";
-import { getLanguageFromPath } from "@/lib/utils";
 
 const FILE_ICONS: Record<string, string> = {
   html: "🌐",
@@ -98,6 +97,7 @@ export function FileExplorer() {
   const toggleExplorer = useIdeStore((s) => s.toggleExplorer);
   const isOpen = useIdeStore((s) => s.isExplorerOpen);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [selectedFolderPath, setSelectedFolderPath] = useState<string | null>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
 
   const tree = useMemo(() => buildExplorerTree(files, folders), [files, folders]);
@@ -107,17 +107,20 @@ export function FileExplorer() {
   const handleNewFile = () => {
     const name = window.prompt("New file path", "index.html");
     if (!name) return;
-    const extension = name.split(".").pop()?.toLowerCase();
+    const resolvedPath = resolveCreationPath(name, selectedFolderPath);
+    const extension = resolvedPath.split(".").pop()?.toLowerCase();
     if (!extension || !["html", "css", "js", "jsx", "ts", "tsx", "json", "md"].includes(extension)) {
       notify("Use a supported file extension: .html, .css, .js, .jsx, .ts, .tsx, .json, or .md.");
       return;
     }
-    if (!createFile(name, starterContent(extension))) notify("A file with that path already exists.");
+    if (!createFile(resolvedPath, starterContent(extension))) notify("A file with that path already exists.");
   };
 
   const handleNewFolder = () => {
     const name = window.prompt("New folder path", "assets");
-    if (name && !createFolder(name)) notify("That folder already exists or the path is invalid.");
+    if (!name) return;
+    const resolvedPath = resolveCreationPath(name, selectedFolderPath);
+    if (!createFolder(resolvedPath)) notify("That folder already exists or the path is invalid.");
   };
 
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,7 +137,7 @@ export function FileExplorer() {
     }
     const reader = new FileReader();
     reader.onload = () => {
-      const path = `assets/${file.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
+      const path = resolveCreationPath(file.name.replace(/[^a-zA-Z0-9._-]/g, "-"), selectedFolderPath ?? "assets");
       if (!importAsset(path, String(reader.result), "image")) notify("An asset with that name already exists.");
     };
     reader.readAsDataURL(file);
@@ -158,7 +161,10 @@ export function FileExplorer() {
           <div className="group flex items-center gap-1 rounded-lg hover:bg-white/5">
             <button
               type="button"
-              onClick={() => toggleFolder(node.id)}
+              onClick={() => {
+                toggleFolder(node.id);
+                setSelectedFolderPath(node.id);
+              }}
               className="min-w-0 flex-1 flex items-center gap-2 px-3 py-2 text-sm font-medium text-zinc-300 hover:text-white transition-colors"
               style={{ paddingLeft: indent }}
             >
@@ -205,6 +211,8 @@ export function FileExplorer() {
           onClick={() => {
             if (!node.path) return;
             setActiveFile(node.path);
+            const parentFolder = node.path.split("/").slice(0, -1).join("/");
+            setSelectedFolderPath(parentFolder || null);
             if (window.matchMedia("(max-width: 1023px)").matches) toggleExplorer();
           }}
           className={cn("min-w-0 flex-1 flex items-center gap-2 px-3 py-2 text-sm truncate transition-colors", isActive ? "text-cyan-300" : "text-zinc-400 hover:text-zinc-200")}
