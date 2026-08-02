@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, CheckCircle2, Clock, ExternalLink, Sparkles, Unlock, XCircle } from "lucide-react";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useIdeStore } from "@/store/ide-store";
@@ -79,7 +80,12 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
           </div>
 
           {isAwaitingChanges ? (
-            <div className="mt-4 rounded-3xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/15 via-violet-500/10 to-amber-500/10 p-4 shadow-lg shadow-cyan-500/10">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="mt-4 rounded-3xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/15 via-violet-500/10 to-amber-500/10 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_18px_45px_rgba(34,211,238,0.15)]"
+            >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-2xl">
                   <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-cyan-200">
@@ -137,7 +143,7 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
                   <ArrowRight size={14} />
                 </button>
               </div>
-            </div>
+            </motion.div>
           ) : null}
 
           {isApproved ? (

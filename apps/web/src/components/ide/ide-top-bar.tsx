@@ -78,6 +78,24 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
     assignment?.enrollment?.status === "GRADED";
   const canSubmit = activeAssignmentId && (!alreadySubmitted || isReviewChangesRequested);
   const submitLabel = isReviewChangesRequested ? "Resubmit" : "Submit";
+  const handleResumeEditing = () => {
+    if (!user || !activeAssignmentId) return;
+    const state = useIdeStore.getState();
+    const snapshot = useProjectStore.getState().getSnapshot(user.matricNumber, activeAssignmentId);
+    const files = snapshot?.files?.length ? snapshot.files : state.files;
+    state.loadProject(snapshot?.projectName ?? state.projectName, files, activeAssignmentId, {
+      mode: "edit",
+      submission: {
+        submittedAt: snapshot?.submittedAt ?? state.submissionMeta?.submittedAt ?? new Date().toISOString(),
+        score: snapshot?.score ?? state.submissionMeta?.score,
+        deployUrl: snapshot?.deployUrl ?? state.submissionMeta?.deployUrl,
+        assignmentTitle: assignment?.title ?? state.projectName,
+      },
+    });
+    if (!state.isExplorerOpen) state.toggleExplorer();
+    if (state.viewMode !== "code") state.setViewMode("code");
+    if (files?.length && files[0]?.path) state.setActiveFile(files[0].path);
+  };
 
   useEffect(() => {
     if (initialToast.current) {
@@ -343,6 +361,17 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
               <Play size={14} />
               <span>{viewMode === "preview" ? "Refresh" : "Run"}</span>
             </Button>
+            {isReviewChangesRequested ? (
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={handleResumeEditing}
+                className="w-full sm:w-auto justify-center border-cyan-400/30 bg-cyan-400/10 text-cyan-100 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_10px_30px_rgba(34,211,238,0.12)]"
+              >
+                <Unlock size={14} />
+                <span>Continue editing</span>
+              </Button>
+            ) : null}
             <Button
               variant="primary"
               size="md"
