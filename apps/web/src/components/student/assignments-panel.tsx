@@ -59,7 +59,9 @@ const STATUS_CONFIG: Record<
 
 type Tab = "active" | "submitted";
 
-export function AssignmentsPanel() {
+import type { ReviewRecord } from "@/components/student/student-review-panel";
+
+export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: ReviewRecord[] }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("active");
   const user = useAuthStore((s) => s.user);
@@ -206,6 +208,8 @@ export function AssignmentsPanel() {
     const isViewing =
       activeAssignmentId === a.id && workspaceMode === "submitted";
     const snapshot = getSnapshot(matric, a.id);
+    const reviewForAssignment = studentReviews.find((r) => r.assignmentId === a.id);
+    const needsChanges = reviewForAssignment?.status === "CHANGES_REQUESTED";
     const isSubmitted = status === "SUBMITTED" || status === "GRADED";
     const liveUrl = snapshot?.deployUrl ?? a.enrollment?.deployUrl;
 
@@ -227,6 +231,12 @@ export function AssignmentsPanel() {
           <div className="absolute top-3 right-3">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15">
               <Lock size={12} className="text-emerald-400" />
+            </span>
+          </div>
+        ) : needsChanges ? (
+          <div className="absolute top-3 right-3">
+            <span className="flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold bg-amber-500/10 border border-amber-400/25 text-amber-300">
+              <span>Needs changes</span>
             </span>
           </div>
         ) : null}
@@ -301,6 +311,29 @@ export function AssignmentsPanel() {
                 <Eye size={14} />
                 {isViewing ? "Viewing snapshot" : "View submission"}
               </Button>
+                {needsChanges ? (
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    variant="primary"
+                    onClick={() => {
+                      // Open the submission in edit mode so the student can apply changes
+                      const files = snapshot?.files?.length ? snapshot.files : a.starterFiles?.length ? a.starterFiles : [];
+                      loadProject(a.title, files, a.id, {
+                        mode: "edit",
+                        submission: {
+                          submittedAt: snapshot?.submittedAt ?? new Date().toISOString(),
+                          score: snapshot?.score ?? a.enrollment?.score,
+                          deployUrl: snapshot?.deployUrl ?? a.enrollment?.deployUrl,
+                          assignmentTitle: a.title,
+                        },
+                      });
+                      setOpen(false);
+                    }}
+                  >
+                    <ChevronRight size={14} /> Make changes
+                  </Button>
+                ) : null}
               {liveUrl ? (
                 <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-cyan-400/5 border border-cyan-400/15">
                   <span className="text-[10px] font-mono text-cyan-300/80 truncate flex-1">

@@ -137,7 +137,7 @@ export default function WorkspacePage() {
       <PortfolioIdentityStrip />
       <SubmittedBanner />
       {currentReview ? <StudentReviewPanel review={currentReview} /> : null}
-      <AssignmentsPanel />
+      <AssignmentsPanel studentReviews={studentReviews} />
 
       <motion.div
         initial={{ opacity: 0 }}
