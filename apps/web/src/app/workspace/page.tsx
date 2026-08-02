@@ -139,8 +139,14 @@ export default function WorkspacePage() {
     const pendingReview = studentReviews.find((review) => review.status === "CHANGES_REQUESTED");
     if (!pendingReview) return;
 
-    void openAssignmentWorkspace(pendingReview.assignmentId, pendingReview.title);
-  }, [studentReviews, openAssignmentWorkspace]);
+    if (
+      activeAssignmentId !== pendingReview.assignmentId ||
+      workspaceMode !== "edit" ||
+      files.length === 0
+    ) {
+      void openAssignmentWorkspace(pendingReview.assignmentId, pendingReview.title);
+    }
+  }, [studentReviews, activeAssignmentId, workspaceMode, files.length, openAssignmentWorkspace]);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "STUDENT") {

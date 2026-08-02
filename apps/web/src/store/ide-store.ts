@@ -246,7 +246,7 @@ export const useIdeStore = create<IdeState>()(
       projectName: name,
       files: mapFiles(files),
       folders: [],
-      activeFilePath: files[0]?.path ?? "index.html",
+      activeFilePath: files[0]?.path ?? get().activeFilePath ?? "index.html",
       activeAssignmentId: assignmentId ?? null,
       workspaceMode: mode,
       submissionMeta: opts?.submission ?? null,
@@ -254,6 +254,7 @@ export const useIdeStore = create<IdeState>()(
       previewKey: Date.now(),
       viewMode: mode === "submitted" ? "preview" : "code",
       isTerminalOpen: false,
+      isExplorerOpen: mode === "edit" ? true : get().isExplorerOpen,
       deployment: deployUrl
         ? {
             status: "success",
