@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowRight, CheckCircle2, Clock, Edit2, ExternalLink, Sparkles, Unlock, XCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, ExternalLink, Sparkles, Unlock, XCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useIdeStore } from "@/store/ide-store";
 import { useProjectStore } from "@/store/project-store";
@@ -54,6 +55,7 @@ function formatDate(value?: string | null) {
 }
 
 export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
+  const router = useRouter();
   const completedChecklist = review.checklist.filter((item) => item.checked).length;
   const statusLabel = review.status.replace(/_/g, " ");
   const isAwaitingChanges = review.status === "CHANGES_REQUESTED";
@@ -109,13 +111,16 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
                       }
                     }
 
-                    const files = snapshot?.files?.length ? snapshot.files : [];
-                    state.loadProject(snapshot?.projectName ?? review.title, files, review.assignmentId, {
+                    const fallbackFiles = state.files?.length ? state.files : [];
+                    const files = snapshot?.files?.length ? snapshot.files : fallbackFiles;
+                    const projectName = snapshot?.projectName ?? state.projectName ?? review.title;
+
+                    state.loadProject(projectName, files, review.assignmentId, {
                       mode: "edit",
                       submission: {
-                        submittedAt: snapshot?.submittedAt ?? new Date().toISOString(),
-                        score: snapshot?.score ?? undefined,
-                        deployUrl: snapshot?.deployUrl ?? undefined,
+                        submittedAt: snapshot?.submittedAt ?? state.submissionMeta?.submittedAt ?? new Date().toISOString(),
+                        score: snapshot?.score ?? state.submissionMeta?.score,
+                        deployUrl: snapshot?.deployUrl ?? state.submissionMeta?.deployUrl,
                         assignmentTitle: review.title,
                       },
                     });
@@ -123,6 +128,7 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
                     if (!state.isExplorerOpen) state.toggleExplorer();
                     if (state.viewMode !== "code") state.setViewMode("code");
                     if (files?.length && files[0]?.path) state.setActiveFile(files[0].path);
+                    router.push("/workspace");
                   }}
                   className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20"
                 >
