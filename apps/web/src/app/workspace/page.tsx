@@ -81,7 +81,8 @@ export default function WorkspacePage() {
         }
       }
 
-      const files = snapshot?.files?.length ? snapshot.files : state.files;
+      const fallbackFiles = state.files?.length ? state.files : [];
+      const files = snapshot?.files?.length ? snapshot.files : fallbackFiles;
       const resolvedName = snapshot?.projectName ?? title;
 
       state.loadProject(resolvedName, files, assignmentId, {
@@ -96,7 +97,8 @@ export default function WorkspacePage() {
 
       if (!state.isExplorerOpen) state.toggleExplorer();
       if (state.viewMode !== "code") state.setViewMode("code");
-      if (files[0]?.path) state.setActiveFile(files[0].path);
+      if (files?.length && files[0]?.path) state.setActiveFile(files[0].path);
+      state.setDirty(false);
     },
     [user?.matricNumber]
   );
@@ -134,10 +136,11 @@ export default function WorkspacePage() {
   }, [loadReviews]);
 
   useEffect(() => {
-    if (currentReview?.status === "CHANGES_REQUESTED" && activeAssignmentId) {
-      void openAssignmentWorkspace(activeAssignmentId, currentReview.title);
-    }
-  }, [activeAssignmentId, currentReview?.status, currentReview?.title, openAssignmentWorkspace]);
+    const pendingReview = studentReviews.find((review) => review.status === "CHANGES_REQUESTED");
+    if (!pendingReview) return;
+
+    void openAssignmentWorkspace(pendingReview.assignmentId, pendingReview.title);
+  }, [studentReviews, openAssignmentWorkspace]);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "STUDENT") {

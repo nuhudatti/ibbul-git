@@ -60,7 +60,11 @@ export function ViewModeTabs() {
         <span className="ml-auto text-[10px] px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/20 flex items-center gap-1">
           <Lock size={10} /> Submission snapshot
         </span>
-      ) : null}
+      ) : (
+        <span className="ml-auto text-[10px] px-2.5 py-1 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 flex items-center gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" /> Editable workspace
+        </span>
+      )}
     </div>
   );
 }
