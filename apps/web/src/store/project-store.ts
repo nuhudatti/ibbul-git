@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ProjectFile, ProjectSnapshot } from "@/types";
 import { normalizeMatric } from "@/lib/matric";
+import { useIdeStore } from "./ide-store";
 
 interface ProjectStoreState {
   snapshots: Record<string, ProjectSnapshot>;
@@ -18,6 +19,7 @@ interface ProjectStoreState {
   ) => ProjectSnapshot;
   getSnapshot: (matric: string, assignmentId: string) => ProjectSnapshot | undefined;
   getStudentSnapshots: (matric: string) => ProjectSnapshot[];
+  restoreSnapshot: (matric: string, assignmentId: string, fallbackTitle?: string) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectStoreState>()(
@@ -67,6 +69,42 @@ export const useProjectStore = create<ProjectStoreState>()(
               new Date(b.submittedAt ?? b.savedAt).getTime() -
               new Date(a.submittedAt ?? a.savedAt).getTime()
           );
+      },
+
+      restoreSnapshot: async (matric, assignmentId, fallbackTitle) => {
+        const key = get().snapshotKey(matric, assignmentId);
+        let snapshot = get().snapshots[key] ?? get().snapshots[`${matric.toLowerCase().trim()}:${assignmentId}`];
+
+        try {
+          const res = await fetch(`/api/project-snapshots?matricNumber=${encodeURIComponent(matric)}&assignmentId=${encodeURIComponent(assignmentId)}`);
+          if (res.ok) {
+            const data = await res.json();
+            snapshot = data?.snapshot ?? snapshot;
+          }
+        } catch (e) {
+          // ignore network issues
+        }
+
+        const ide = useIdeStore.getState();
+        const fallbackFiles = ide.files?.length ? ide.files : [];
+        const files = snapshot?.files?.length ? snapshot.files : fallbackFiles;
+        const projectName = snapshot?.projectName ?? ide.projectName ?? fallbackTitle ?? "Restored Project";
+
+        useIdeStore.getState().loadProject(projectName, files, assignmentId, {
+          mode: "edit",
+          submission: {
+            submittedAt: snapshot?.submittedAt ?? ide.submissionMeta?.submittedAt ?? new Date().toISOString(),
+            score: snapshot?.score ?? ide.submissionMeta?.score,
+            deployUrl: snapshot?.deployUrl ?? ide.submissionMeta?.deployUrl,
+            assignmentTitle: fallbackTitle ?? ide.submissionMeta?.assignmentTitle,
+          },
+        });
+
+        // Ensure explorer and editor are visible and focused
+        const state = useIdeStore.getState();
+        if (!state.isExplorerOpen) state.toggleExplorer();
+        if (state.viewMode !== "code") state.setViewMode("code");
+        if (files?.length && files[0]?.path) state.setActiveFile(files[0].path);
       },
     }),
     { name: "ula-projects" }

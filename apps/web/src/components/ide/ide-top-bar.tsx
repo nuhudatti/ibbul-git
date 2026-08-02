@@ -54,6 +54,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
   const loadProject = useIdeStore((s) => s.loadProject);
   const submitAssignment = useAssignmentStore((s) => s.submitAssignment);
   const saveSnapshot = useProjectStore((s) => s.saveSnapshot);
+  const restoreSnapshot = useProjectStore((s) => s.restoreSnapshot);
   const getStudentAssignments = useAssignmentStore((s) => s.getStudentAssignments);
   const isDeployModalOpen = useIdeStore((s) => s.isDeployModalOpen);
   const openDeployModal = useIdeStore((s) => s.openDeployModal);
@@ -80,33 +81,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
   const submitLabel = isReviewChangesRequested ? "Resubmit" : "Submit";
   const handleResumeEditing = async () => {
     if (!user || !activeAssignmentId) return;
-    const state = useIdeStore.getState();
-    let snapshot = useProjectStore.getState().getSnapshot(user.matricNumber, activeAssignmentId);
-    try {
-      const res = await fetch(
-        `/api/project-snapshots?matricNumber=${encodeURIComponent(user.matricNumber)}&assignmentId=${encodeURIComponent(activeAssignmentId)}`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        snapshot = data?.snapshot ?? snapshot;
-      }
-    } catch {
-      // ignore server errors
-    }
-
-    const files = snapshot?.files?.length ? snapshot.files : state.files;
-    state.loadProject(snapshot?.projectName ?? state.projectName, files, activeAssignmentId, {
-      mode: "edit",
-      submission: {
-        submittedAt: snapshot?.submittedAt ?? state.submissionMeta?.submittedAt ?? new Date().toISOString(),
-        score: snapshot?.score ?? state.submissionMeta?.score,
-        deployUrl: snapshot?.deployUrl ?? state.submissionMeta?.deployUrl,
-        assignmentTitle: assignment?.title ?? state.projectName,
-      },
-    });
-    if (!state.isExplorerOpen) state.toggleExplorer();
-    if (state.viewMode !== "code") state.setViewMode("code");
-    if (files?.length && files[0]?.path) state.setActiveFile(files[0].path);
+    await restoreSnapshot(user.matricNumber, activeAssignmentId, assignment?.title ?? undefined);
   };
 
   useEffect(() => {
@@ -381,7 +356,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
                 className="w-full sm:w-auto justify-center border-cyan-400/30 bg-cyan-400/10 text-cyan-100 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_10px_30px_rgba(34,211,238,0.12)]"
               >
                 <Unlock size={14} />
-                <span>Continue editing</span>
+                <span>Open full project</span>
               </Button>
             ) : null}
             <Button

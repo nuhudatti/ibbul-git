@@ -69,36 +69,8 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
   const openFullProject = async () => {
     const user = useAuthStore.getState().user;
     const matric = user?.matricNumber ?? "";
-    const state = useIdeStore.getState();
 
-    let snapshot = useProjectStore.getState().getSnapshot(matric, review.assignmentId);
-    try {
-      const res = await fetch(`/api/project-snapshots?matricNumber=${encodeURIComponent(matric)}&assignmentId=${encodeURIComponent(review.assignmentId)}`);
-      if (res.ok) {
-        const data = await res.json();
-        snapshot = data?.snapshot ?? snapshot;
-      }
-    } catch {
-      // ignore fetch errors
-    }
-
-    const fallbackFiles = state.files?.length ? state.files : [];
-    const files = snapshot?.files?.length ? snapshot.files : fallbackFiles;
-    const projectName = snapshot?.projectName ?? state.projectName ?? review.title;
-
-    state.loadProject(projectName, files, review.assignmentId, {
-      mode: "edit",
-      submission: {
-        submittedAt: snapshot?.submittedAt ?? state.submissionMeta?.submittedAt ?? new Date().toISOString(),
-        score: snapshot?.score ?? state.submissionMeta?.score,
-        deployUrl: snapshot?.deployUrl ?? state.submissionMeta?.deployUrl,
-        assignmentTitle: review.title,
-      },
-    });
-
-    if (!state.isExplorerOpen) state.toggleExplorer();
-    if (state.viewMode !== "code") state.setViewMode("code");
-    if (files?.length && files[0]?.path) state.setActiveFile(files[0].path);
+    await useProjectStore.getState().restoreSnapshot(matric, review.assignmentId, review.title);
     router.push("/workspace");
   };
 
