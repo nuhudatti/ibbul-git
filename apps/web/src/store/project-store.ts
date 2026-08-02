@@ -121,78 +121,66 @@ export const useProjectStore = create<ProjectStoreState>()(
       },
 
       restoreSnapshot: async (matric, assignmentId, fallbackTitle) => {
-        console.log("=== [PROJECT STORE] RESTORE SNAPSHOT START ===", { 
-          matric, 
-          assignmentId, 
+        const canonicalMatric = normalizeMatric(matric);
+        console.log("RESTORE STARTED", {
+          matric: canonicalMatric,
+          assignmentId,
           fallbackTitle,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
-        
-        if (!matric || !assignmentId) {
+
+        if (!canonicalMatric || !assignmentId) {
           console.error("[PROJECT STORE] ERROR: Missing matric or assignmentId");
           return;
         }
 
         try {
-          const snapshot = await get().loadSnapshot(matric, assignmentId);
-          console.log("[PROJECT STORE] Snapshot loaded:", {
+          const snapshot = await get().loadSnapshot(canonicalMatric, assignmentId);
+          console.log("SNAPSHOT LOADED", {
             snapshotId: snapshot?.assignmentId,
-            filesCount: snapshot?.files?.length,
+            filesCount: snapshot?.files?.length ?? 0,
             projectName: snapshot?.projectName,
             submittedAt: snapshot?.submittedAt,
           });
 
           const ide = useIdeStore.getState();
-          const fallbackFiles = ide.files?.length && ide.activeAssignmentId === assignmentId ? ide.files : [];
+          const fallbackFiles =
+            ide.files?.length && ide.activeAssignmentId === assignmentId ? ide.files : [];
           const files = snapshot?.files?.length ? snapshot.files : fallbackFiles;
-          const projectName = snapshot?.projectName ?? ide.projectName ?? fallbackTitle ?? "Restored Project";
-
-          console.log("[PROJECT STORE] Calling loadProject with mode: edit", {
-            projectName,
-            assignmentId,
-            filesLength: files?.length,
-          });
+          const projectName =
+            snapshot?.projectName ?? ide.projectName ?? fallbackTitle ?? "Restored Project";
 
           useIdeStore.getState().loadProject(projectName, files, assignmentId, {
             mode: "edit",
+            revisionUnlocked: true,
             submission: {
-              submittedAt: snapshot?.submittedAt ?? ide.submissionMeta?.submittedAt ?? new Date().toISOString(),
+              submittedAt:
+                snapshot?.submittedAt ??
+                ide.submissionMeta?.submittedAt ??
+                new Date().toISOString(),
               score: snapshot?.score ?? ide.submissionMeta?.score,
               deployUrl: snapshot?.deployUrl ?? ide.submissionMeta?.deployUrl,
               assignmentTitle: fallbackTitle ?? ide.submissionMeta?.assignmentTitle,
             },
           });
 
-          // Additional state update
-          useIdeStore.setState({
-            workspaceMode: "edit",
-            isExplorerOpen: true,
-            viewMode: "code",
-          });
+          useIdeStore.getState().unlockRevisionEditing();
 
           const state = useIdeStore.getState();
-          console.log("[PROJECT STORE] Post-restore IDE state:", {
+          if (files?.length && files[0]?.path) {
+            state.setActiveFile(files[0].path);
+          }
+          state.setDirty(false);
+
+          console.log("RESTORE COMPLETE", {
             workspaceMode: state.workspaceMode,
             viewMode: state.viewMode,
             activeFile: state.activeFilePath,
-            filesLength: state.files.length,
+            filesCount: state.files.length,
             isExplorerOpen: state.isExplorerOpen,
+            readOnly: state.isReadOnly(),
             activeAssignmentId: state.activeAssignmentId,
           });
-
-          if (state.viewMode !== "code") {
-            console.log("[PROJECT STORE] Setting viewMode to code");
-            state.setViewMode("code");
-          }
-
-          if (files?.length && files[0]?.path) {
-            console.log("[PROJECT STORE] Setting active file to:", files[0].path);
-            state.setActiveFile(files[0].path);
-          }
-
-          state.setDirty(false);
-          console.log("=== [PROJECT STORE] RESTORE SNAPSHOT COMPLETE ===");
-          
         } catch (error) {
           console.error("[PROJECT STORE] ERROR in restoreSnapshot:", error);
           throw error;

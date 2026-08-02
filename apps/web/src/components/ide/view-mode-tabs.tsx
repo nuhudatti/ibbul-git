@@ -16,6 +16,7 @@ export function ViewModeTabs() {
   const setViewMode = useIdeStore((s) => s.setViewMode);
   const isDirty = useIdeStore((s) => s.isDirty);
   const workspaceMode = useIdeStore((s) => s.workspaceMode);
+  const revisionEditUnlocked = useIdeStore((s) => s.revisionEditUnlocked);
   const openPreview = useIdeStore((s) => s.openPreview);
 
   const handleTab = (id: WorkspaceView) => {
@@ -56,7 +57,7 @@ export function ViewModeTabs() {
           );
         })}
       </div>
-      {workspaceMode === "submitted" ? (
+      {workspaceMode === "submitted" && !revisionEditUnlocked ? (
         <span className="ml-auto text-[10px] px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/20 flex items-center gap-1">
           <Lock size={10} /> Submission snapshot
         </span>

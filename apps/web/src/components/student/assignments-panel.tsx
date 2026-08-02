@@ -327,18 +327,15 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
                     className="flex-1"
                     variant="primary"
                     onClick={() => {
-                      // Open the submission in edit mode so the student can apply changes
-                      const files = snapshot?.files?.length ? snapshot.files : a.starterFiles?.length ? a.starterFiles : [];
-                      loadProject(a.title, files, a.id, {
-                        mode: "edit",
-                        submission: {
-                          submittedAt: snapshot?.submittedAt ?? new Date().toISOString(),
-                          score: snapshot?.score ?? a.enrollment?.score,
-                          deployUrl: snapshot?.deployUrl ?? a.enrollment?.deployUrl,
-                          assignmentTitle: a.title,
-                        },
-                      });
-                      setOpen(false);
+                      void useProjectStore
+                        .getState()
+                        .restoreSnapshot(matric, a.id, a.title)
+                        .then(() => {
+                          setOpen(false);
+                          document
+                            .getElementById("workspace-ide")
+                            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        });
                     }}
                   >
                     <ChevronRight size={14} /> Make changes

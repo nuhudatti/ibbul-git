@@ -8,12 +8,13 @@ import { LiveDeployStrip } from "@/components/ide/live-deploy-strip";
 
 export function SubmittedBanner() {
   const workspaceMode = useIdeStore((s) => s.workspaceMode);
+  const revisionEditUnlocked = useIdeStore((s) => s.revisionEditUnlocked);
   const submissionMeta = useIdeStore((s) => s.submissionMeta);
   const projectName = useIdeStore((s) => s.projectName);
   const exitSubmittedView = useIdeStore((s) => s.exitSubmittedView);
   const openDeployModal = useIdeStore((s) => s.openDeployModal);
 
-  if (workspaceMode !== "submitted" || !submissionMeta) return null;
+  if (workspaceMode !== "submitted" || !submissionMeta || revisionEditUnlocked) return null;
 
   const submittedDate = new Date(submissionMeta.submittedAt).toLocaleString(undefined, {
     dateStyle: "medium",

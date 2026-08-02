@@ -12,7 +12,9 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "test:node": "node --experimental-transform-types src/lib/live-deploy-runtime.validate.ts",
-    "test:live-deploy-api": "node --experimental-transform-types src/lib/live-deploy-api.validate.ts"
+    "test:live-deploy-api": "node --experimental-transform-types src/lib/live-deploy-api.validate.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@codemirror/closebrackets": "^0.19.2",

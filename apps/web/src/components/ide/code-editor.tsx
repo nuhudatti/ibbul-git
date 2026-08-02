@@ -12,8 +12,9 @@ export function CodeEditor() {
   const files = useIdeStore((s) => s.files);
   const updateFileContent = useIdeStore((s) => s.updateFileContent);
   const workspaceMode = useIdeStore((s) => s.workspaceMode);
+  const revisionEditUnlocked = useIdeStore((s) => s.revisionEditUnlocked);
 
-  const readOnly = workspaceMode === "submitted";
+  const readOnly = workspaceMode === "submitted" && !revisionEditUnlocked;
   const activeFile = files.find((f) => f.path === activeFilePath);
   const language = activeFile?.language ?? getLanguageFromPath(activeFilePath);
   const [clipboardSupported, setClipboardSupported] = useState(false);
@@ -26,6 +27,7 @@ export function CodeEditor() {
     activeFilePath,
     filesCount: files.length,
     workspaceMode,
+    revisionEditUnlocked,
     readOnly,
     hasActiveFile: !!activeFile,
     language,

@@ -41,6 +41,8 @@ interface IdeState {
   previewKey: number;
   previewDevice: PreviewDevice;
   activeAssignmentId: string | null;
+  /** True when lecturer requested changes — overrides submitted/read-only lock */
+  revisionEditUnlocked: boolean;
 
   isDeployModalOpen: boolean;
   openDeployModal: () => void;
@@ -65,7 +67,7 @@ interface IdeState {
     name: string,
     files: ProjectFile[],
     assignmentId?: string,
-    opts?: { mode?: WorkspaceMode; submission?: SubmissionMeta | null }
+    opts?: { mode?: WorkspaceMode; submission?: SubmissionMeta | null; revisionUnlocked?: boolean }
   ) => void;
   exitSubmittedView: () => void;
   updateSubmissionMeta: (partial: Partial<SubmissionMeta>) => void;
@@ -80,6 +82,7 @@ interface IdeState {
   markSaved: () => void;
   setDirty: (dirty: boolean) => void;
   isReadOnly: () => boolean;
+  unlockRevisionEditing: () => void;
 }
 
 const defaultDeployment: DeploymentState = {
@@ -116,6 +119,7 @@ export const useIdeStore = create<IdeState>()(
       previewKey: 0,
       previewDevice: "desktop",
       activeAssignmentId: null,
+      revisionEditUnlocked: false,
       isDeployModalOpen: false,
       terminalLogs: ["Project ULA ready.", "Press Run to launch your project in full preview."],
       aiMessages: [
@@ -218,7 +222,7 @@ export const useIdeStore = create<IdeState>()(
     return true;
   },
   updateFileContent: (path, content) => {
-    if (get().workspaceMode === "submitted") return;
+    if (get().isReadOnly()) return;
     set((state) => ({
       files: state.files.map((f) => (f.path === path ? { ...f, content } : f)),
       isDirty: true,
@@ -241,13 +245,14 @@ export const useIdeStore = create<IdeState>()(
   loadProject: (name, files, assignmentId, opts) => {
     const mode = opts?.mode ?? "edit";
     const deployUrl = opts?.submission?.deployUrl;
-    console.log("[IdeStore] loadProject", {
+    const revisionUnlocked = mode === "edit" || Boolean(opts?.revisionUnlocked);
+    console.log("loadProject CALLED", {
       name,
       assignmentId,
       mode,
+      revisionUnlocked,
       filesLength: files.length,
       firstFilePath: files[0]?.path,
-      submission: opts?.submission,
     });
     set({
       projectId: assignmentId ?? get().projectId,
@@ -256,13 +261,14 @@ export const useIdeStore = create<IdeState>()(
       folders: [],
       activeFilePath: files[0]?.path ?? get().activeFilePath ?? "index.html",
       activeAssignmentId: assignmentId ?? null,
-      workspaceMode: mode,
+      workspaceMode: revisionUnlocked ? "edit" : mode,
+      revisionEditUnlocked: revisionUnlocked,
       submissionMeta: opts?.submission ?? null,
       isDirty: false,
       previewKey: Date.now(),
-      viewMode: mode === "submitted" ? "preview" : "code",
+      viewMode: revisionUnlocked || mode === "edit" ? "code" : "preview",
       isTerminalOpen: false,
-      isExplorerOpen: mode === "edit" ? true : get().isExplorerOpen,
+      isExplorerOpen: revisionUnlocked || mode === "edit" ? true : get().isExplorerOpen,
       deployment: deployUrl
         ? {
             status: "success",
@@ -273,16 +279,36 @@ export const useIdeStore = create<IdeState>()(
         : defaultDeployment,
     });
     const state = get();
-    console.log("PROJECT RESTORE EXECUTED", {
+    console.log("loadProject COMPLETE", {
       workspaceMode: state.workspaceMode,
+      revisionEditUnlocked: state.revisionEditUnlocked,
       isExplorerOpen: state.isExplorerOpen,
       viewMode: state.viewMode,
       activeFilePath: state.activeFilePath,
+      filesCount: state.files.length,
+      readOnly: state.isReadOnly(),
+    });
+  },
+  unlockRevisionEditing: () => {
+    console.log("unlockRevisionEditing CALLED");
+    set({
+      workspaceMode: "edit",
+      revisionEditUnlocked: true,
+      viewMode: "code",
+      isExplorerOpen: true,
+    });
+    const state = get();
+    console.log("unlockRevisionEditing COMPLETE", {
+      workspaceMode: state.workspaceMode,
+      viewMode: state.viewMode,
+      isExplorerOpen: state.isExplorerOpen,
+      readOnly: state.isReadOnly(),
     });
   },
   exitSubmittedView: () =>
     set((s) => ({
       workspaceMode: "edit",
+      revisionEditUnlocked: true,
       submissionMeta: null,
       viewMode: "code",
       deployment: s.deployment.url
@@ -313,6 +339,7 @@ export const useIdeStore = create<IdeState>()(
   resetWorkspaceSession: () =>
     set({
       workspaceMode: "edit",
+      revisionEditUnlocked: false,
       submissionMeta: null,
       viewMode: "code",
       activeAssignmentId: null,
@@ -343,7 +370,7 @@ export const useIdeStore = create<IdeState>()(
   resetDeployment: () => set({ deployment: defaultDeployment }),
   markSaved: () => set({ lastSaved: new Date(), isDirty: false, saveStatus: "saved", saveError: null }),
   setDirty: (dirty) => set({ isDirty: dirty, saveStatus: dirty ? "saving" : "saved" }),
-  isReadOnly: () => get().workspaceMode === "submitted",
+  isReadOnly: () => get().workspaceMode === "submitted" && !get().revisionEditUnlocked,
     }),
     { name: "ula-ide" }
   )

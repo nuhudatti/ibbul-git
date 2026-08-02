@@ -67,23 +67,38 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
   const [showSaveToast, setShowSaveToast] = useState(false);
   const initialToast = useRef(true);
 
-  const isReviewChangesRequested =
-    currentReview?.assignmentId === activeAssignmentId &&
-    currentReview?.status === "CHANGES_REQUESTED";
+  const isReviewChangesRequested = currentReview?.status === "CHANGES_REQUESTED";
   const isSubmittedView = workspaceMode === "submitted" && !isReviewChangesRequested;
-  const assignment = user && activeAssignmentId
-    ? getStudentAssignments(user.matricNumber).find((a) => a.id === activeAssignmentId)
-    : null;
+  const assignment =
+    user && (activeAssignmentId ?? currentReview?.assignmentId)
+      ? getStudentAssignments(user.matricNumber).find(
+          (a) => a.id === (activeAssignmentId ?? currentReview?.assignmentId)
+        )
+      : null;
   const alreadySubmitted =
     assignment?.enrollment?.status === "SUBMITTED" ||
     assignment?.enrollment?.status === "GRADED";
-  const canSubmit = activeAssignmentId && (!alreadySubmitted || isReviewChangesRequested);
+  const submitAssignmentId = activeAssignmentId ?? currentReview?.assignmentId ?? null;
+  const canSubmit = submitAssignmentId && (!alreadySubmitted || isReviewChangesRequested);
   const submitLabel = isReviewChangesRequested ? "Resubmit" : "Submit";
   const handleResumeEditing = async () => {
-    if (!user || !activeAssignmentId) return;
-    console.log("[IdeTopBar] handleResumeEditing", { matric: user.matricNumber, activeAssignmentId, assignmentTitle: assignment?.title });
-    await restoreSnapshot(user.matricNumber, activeAssignmentId, assignment?.title ?? undefined);
-    console.log("[IdeTopBar] restoreSnapshot completed", { workspaceMode: useIdeStore.getState().workspaceMode, activeFilePath: useIdeStore.getState().activeFilePath });
+    if (!user) return;
+    const assignmentId = currentReview?.assignmentId ?? activeAssignmentId;
+    const title = assignment?.title ?? currentReview?.title ?? projectName;
+    if (!assignmentId) return;
+
+    console.log("BUTTON CLICKED (top bar resume)", { matric: user.matricNumber, assignmentId, title });
+    await restoreSnapshot(user.matricNumber, assignmentId, title);
+    useIdeStore.getState().unlockRevisionEditing();
+    const state = useIdeStore.getState();
+    console.log("[IdeTopBar] restoreSnapshot completed", {
+      workspaceMode: state.workspaceMode,
+      viewMode: state.viewMode,
+      activeFilePath: state.activeFilePath,
+      filesCount: state.files.length,
+      readOnly: state.isReadOnly(),
+    });
+    document.getElementById("workspace-ide")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   useEffect(() => {
@@ -117,7 +132,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           matricNumber: user.matricNumber,
-          assignmentId: activeAssignmentId,
+          assignmentId: submitAssignmentId,
           projectName,
           files,
         }),
@@ -134,11 +149,11 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
   };
 
   const handleSubmit = async () => {
-    if (!user || !activeAssignmentId || isSubmittedView || !canSubmit) return;
+    if (!user || !submitAssignmentId || isSubmittedView || !canSubmit) return;
 
     setIsSubmitting(true);
     addTerminalLog(isReviewChangesRequested ? "Saving revision snapshot..." : "Saving submission snapshot...");
-    saveSnapshot(user.matricNumber, activeAssignmentId, projectName, files, {
+    saveSnapshot(user.matricNumber, submitAssignmentId, projectName, files, {
       submitted: true,
     });
 
@@ -153,7 +168,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           matricNumber: user.matricNumber,
-          assignmentId: activeAssignmentId,
+          assignmentId: submitAssignmentId,
           projectName,
           files,
           submitted: true,
@@ -186,7 +201,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
       }
     }
 
-    const snapshot = saveSnapshot(user.matricNumber, activeAssignmentId, projectName, files, {
+    const snapshot = saveSnapshot(user.matricNumber, submitAssignmentId, projectName, files, {
       submitted: true,
       score,
       deployUrl: useIdeStore.getState().deployment.url,
@@ -194,7 +209,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
 
     if (!isReviewChangesRequested) {
       submitAssignment(
-        activeAssignmentId,
+        submitAssignmentId,
         user.matricNumber,
         score,
         snapshot.deployUrl
@@ -202,7 +217,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
 
       const artifact = await createFromSubmission({
         studentMatric: user.matricNumber,
-        assignmentId: activeAssignmentId,
+        assignmentId: submitAssignmentId,
         courseId: activeClassId,
         courseName: "Web Development",
         title: assignment?.title ?? projectName,
@@ -216,8 +231,41 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
       addTerminalLog("Portfolio artifact sealed · added to your verified identity.");
     }
 
-    loadProject(projectName, files, activeAssignmentId, {
-      mode: isReviewChangesRequested ? "edit" : "submitted",
+    if (isReviewChangesRequested && currentReview?.id) {
+      try {
+        const res = await fetch(`/api/reviews/${currentReview.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "resubmit",
+            summary: "Revision submitted.",
+            files: files.map((file) => ({
+              fileName: file.path,
+              fileUrl: null,
+              fileType: file.language ?? null,
+              sizeBytes: file.content?.length ?? null,
+            })),
+            deploymentUrl: useIdeStore.getState().deployment.url,
+          }),
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          addTerminalLog(`Revision API failed: ${text || res.status}`);
+          setIsSubmitting(false);
+          return;
+        }
+        console.log("Revision request API succeeded");
+        addTerminalLog("Revision submitted for lecturer review.");
+      } catch (error) {
+        addTerminalLog("Failed to submit revision for review.");
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    loadProject(projectName, files, submitAssignmentId, {
+      mode: "submitted",
+      revisionUnlocked: false,
       submission: {
         submittedAt: snapshot.submittedAt ?? new Date().toISOString(),
         score,

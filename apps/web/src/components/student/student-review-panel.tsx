@@ -2,8 +2,8 @@
 
 import { ArrowRight, CheckCircle2, Clock, ExternalLink, Sparkles, Unlock } from "lucide-react";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { normalizeMatric } from "@/lib/matric";
 import { useProjectStore } from "@/store/project-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useIdeStore } from "@/store/ide-store";
@@ -56,7 +56,6 @@ function formatDate(value?: string | null) {
 }
 
 export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
-  const router = useRouter();
   const completedChecklist = review.checklist.filter((item) => item.checked).length;
   const statusLabel = review.status.replace(/_/g, " ");
   const isAwaitingChanges = review.status === "CHANGES_REQUESTED";
@@ -67,21 +66,21 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
     : `Review for "${review.title}" by ${review.reviewerName ?? "your instructor"}`;
 
   const openFullProject = async () => {
-    console.log("=== [REVIEW PANEL] BUTTON CLICKED ===", { 
-      assignmentId: review.assignmentId, 
-      title: review.title, 
+    console.log("BUTTON CLICKED", {
+      assignmentId: review.assignmentId,
+      title: review.title,
       status: review.status,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-    
+
     try {
       const user = useAuthStore.getState().user;
-      const matric = user?.matricNumber ?? "";
-      console.log("[REVIEW PANEL] User state:", { 
-        matric, 
+      const matric = user?.matricNumber ? normalizeMatric(user.matricNumber) : "";
+      console.log("[REVIEW PANEL] User state:", {
+        matric,
         hasUser: !!user,
         role: user?.role,
-        assignmentId: review.assignmentId 
+        assignmentId: review.assignmentId,
       });
 
       if (!matric) {
@@ -89,27 +88,25 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
         return;
       }
 
-      console.log("[REVIEW PANEL] Calling restoreSnapshot...");
+      console.log("RESTORE STARTED (from review panel)");
       const startTime = performance.now();
-      
+
       await useProjectStore.getState().restoreSnapshot(matric, review.assignmentId, review.title);
-      
+
       const endTime = performance.now();
-      console.log("[REVIEW PANEL] restoreSnapshot completed", { 
+      const ideState = useIdeStore.getState();
+      console.log("[REVIEW PANEL] restoreSnapshot completed", {
         duration: `${(endTime - startTime).toFixed(2)}ms`,
-        ideState: {
-          workspaceMode: useIdeStore.getState().workspaceMode,
-          viewMode: useIdeStore.getState().viewMode,
-          activeAssignmentId: useIdeStore.getState().activeAssignmentId,
-          filesCount: useIdeStore.getState().files.length,
-          isExplorerOpen: useIdeStore.getState().isExplorerOpen,
-        }
+        workspaceMode: ideState.workspaceMode,
+        viewMode: ideState.viewMode,
+        activeAssignmentId: ideState.activeAssignmentId,
+        filesCount: ideState.files.length,
+        isExplorerOpen: ideState.isExplorerOpen,
+        activeFile: ideState.activeFilePath,
+        readOnly: ideState.isReadOnly(),
       });
 
-      console.log("[REVIEW PANEL] Pushing to /workspace...");
-      router.push("/workspace");
-      console.log("[REVIEW PANEL] Router.push completed");
-      
+      document.getElementById("workspace-ide")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
       console.error("[REVIEW PANEL] ERROR in openFullProject:", error);
       throw error;

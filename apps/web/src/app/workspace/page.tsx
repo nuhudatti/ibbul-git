@@ -66,17 +66,6 @@ export default function WorkspacePage() {
     }
   }, [user]);
 
-  const openAssignmentWorkspace = useCallback(
-    async (assignmentId: string, title: string) => {
-      const matric = user?.matricNumber;
-      console.log("[Workspace] openAssignmentWorkspace", { assignmentId, title, matric });
-      if (!matric) return;
-
-      await useProjectStore.getState().restoreSnapshot(matric, assignmentId, title);
-    },
-    [user?.matricNumber]
-  );
-
   useEffect(() => {
     // Poll for updates so students see lecturer actions (requests for changes) promptly
     if (!user || user.role !== "STUDENT") return;
@@ -101,10 +90,21 @@ export default function WorkspacePage() {
   }, [user, loadReviews]);
 
   const currentReview = useMemo(() => {
-    const match = studentReviews.find((review) => review.assignmentId === activeAssignmentId) ?? null;
+    const changesRequested = studentReviews.find((review) => review.status === "CHANGES_REQUESTED");
+    if (changesRequested) {
+      console.log("[Workspace] currentReview (changes requested)", changesRequested);
+      return changesRequested;
+    }
+    const match =
+      studentReviews.find((review) => review.assignmentId === activeAssignmentId) ?? null;
     console.log("[Workspace] currentReview computed", { activeAssignmentId, review: match });
     return match;
   }, [studentReviews, activeAssignmentId]);
+
+  const pendingChangesReview = useMemo(
+    () => studentReviews.find((review) => review.status === "CHANGES_REQUESTED") ?? null,
+    [studentReviews]
+  );
 
   useEffect(() => {
     void loadReviews();
@@ -113,14 +113,47 @@ export default function WorkspacePage() {
   const lastAutoUnlockedAssignment = useRef<string | null>(null);
 
   useEffect(() => {
-    if (currentReview?.status !== "CHANGES_REQUESTED" || !activeAssignmentId) return;
-    if (lastAutoUnlockedAssignment.current === activeAssignmentId) return;
+    if (!pendingChangesReview || !user?.matricNumber) return;
 
-    if (workspaceMode !== "edit" || files.length === 0) {
-      void openAssignmentWorkspace(activeAssignmentId, currentReview.title);
-      lastAutoUnlockedAssignment.current = activeAssignmentId;
+    const assignmentId = pendingChangesReview.assignmentId;
+    const needsRestore =
+      activeAssignmentId !== assignmentId ||
+      workspaceMode !== "edit" ||
+      files.length === 0 ||
+      useIdeStore.getState().isReadOnly();
+
+    if (!needsRestore) {
+      lastAutoUnlockedAssignment.current = assignmentId;
+      return;
     }
-  }, [currentReview, activeAssignmentId, workspaceMode, files.length, openAssignmentWorkspace]);
+
+    if (lastAutoUnlockedAssignment.current === assignmentId) return;
+
+    console.log("[Workspace] auto-unlock revision editing", {
+      assignmentId,
+      activeAssignmentId,
+      workspaceMode,
+      filesCount: files.length,
+    });
+
+    void (async () => {
+      try {
+        await useProjectStore
+          .getState()
+          .restoreSnapshot(user.matricNumber, assignmentId, pendingChangesReview.title);
+        lastAutoUnlockedAssignment.current = assignmentId;
+      } catch (error) {
+        console.error("[Workspace] auto-unlock failed", error);
+        lastAutoUnlockedAssignment.current = null;
+      }
+    })();
+  }, [
+    pendingChangesReview,
+    user?.matricNumber,
+    activeAssignmentId,
+    workspaceMode,
+    files.length,
+  ]);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "STUDENT") {
@@ -177,6 +210,7 @@ export default function WorkspacePage() {
       <AssignmentsPanel studentReviews={studentReviews} />
 
       <motion.div
+        id="workspace-ide"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="flex-1 flex flex-col min-h-0 overflow-hidden"
