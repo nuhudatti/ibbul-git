@@ -69,6 +69,7 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
   const startAssignment = useAssignmentStore((s) => s.startAssignment);
   const getSnapshot = useProjectStore((s) => s.getSnapshot);
   const saveSnapshot = useProjectStore((s) => s.saveSnapshot);
+  const loadSnapshot = useProjectStore((s) => s.loadSnapshot);
   const loadProject = useIdeStore((s) => s.loadProject);
   const activeAssignmentId = useIdeStore((s) => s.activeAssignmentId);
   const workspaceMode = useIdeStore((s) => s.workspaceMode);
@@ -109,18 +110,7 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
   ).length;
 
   const loadServerSnapshot = async (assignmentId: string) => {
-    try {
-      const res = await fetch(
-        `/api/project-snapshots?matricNumber=${encodeURIComponent(matric)}&assignmentId=${encodeURIComponent(
-          assignmentId
-        )}`
-      );
-      if (!res.ok) return undefined;
-      const data = await res.json();
-      return data?.snapshot;
-    } catch {
-      return undefined;
-    }
+    return loadSnapshot(matric, assignmentId);
   };
 
   const handleStart = async (
@@ -191,15 +181,19 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
 
     const shouldEdit = Boolean(opts?.forceEdit);
 
-    loadProject(resolved.projectName || title, files, assignmentId, {
-      mode: shouldEdit ? "edit" : "submitted",
-      submission: {
-        submittedAt,
-        score,
-        deployUrl: resolved.deployUrl ?? deployUrl,
-        assignmentTitle: title,
-      },
-    });
+    if (shouldEdit) {
+      await useProjectStore.getState().restoreSnapshot(matric, assignmentId, title);
+    } else {
+      loadProject(resolved.projectName || title, files, assignmentId, {
+        mode: "submitted",
+        submission: {
+          submittedAt,
+          score,
+          deployUrl: resolved.deployUrl ?? deployUrl,
+          assignmentTitle: title,
+        },
+      });
+    }
 
     if (shouldEdit) {
       const ideState = useIdeStore.getState();
