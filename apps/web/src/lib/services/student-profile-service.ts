@@ -20,6 +20,33 @@ export type StudentProfileCreateInput = {
   headline?: string;
 };
 
+/**
+ * Return type for getProfileRecordByMatric.
+ * Ensures that status is always properly typed as StudentAccountStatus, not just string.
+ */
+export type StudentProfileRecord = {
+  id: string;
+  matric: string;
+  firstName: string;
+  lastName: string;
+  program: string;
+  headline: string;
+  email: string;
+  avatarInitials: string;
+  avatarUrl: string | null;
+  passwordHash: string;
+  accountRole: "STUDENT" | "LECTURER" | "ADMIN";
+  status: StudentAccountStatus; // Explicitly typed as StudentAccountStatus, not string
+  mustChangePassword: boolean;
+  notifyAssignments: boolean;
+  notifyGrades: boolean;
+  notifyPortfolio: boolean;
+  publicProfile: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  lastLoginAt: Date | null;
+};
+
 export function hashPassword(password: string) {
   return createHash("sha256").update(`${SALT}:${password}`).digest("hex");
 }
@@ -99,34 +126,63 @@ function toResolvedProfile(record: {
   };
 }
 
-export async function getProfileRecordByMatric(matric: string) {
+export async function getProfileRecordByMatric(matric: string): Promise<StudentProfileRecord | null> {
   const norm = normalizeMatric(matric);
   const record = await prisma.studentProfile.findUnique({ where: { matric: norm } });
-  if (record) return record;
+  if (record) {
+    // The Prisma record already has status as AccountStatus, which is now the same as StudentAccountStatus
+    return {
+      id: record.id,
+      matric: record.matric,
+      firstName: record.firstName,
+      lastName: record.lastName,
+      program: record.program,
+      headline: record.headline,
+      email: record.email,
+      avatarInitials: record.avatarInitials,
+      avatarUrl: record.avatarUrl,
+      passwordHash: record.passwordHash,
+      accountRole: record.accountRole as "STUDENT" | "LECTURER" | "ADMIN",
+      status: record.status, // Now status is directly compatible with StudentAccountStatus (which is AccountStatus from Prisma)
+      mustChangePassword: record.mustChangePassword,
+      notifyAssignments: record.notifyAssignments,
+      notifyGrades: record.notifyGrades,
+      notifyPortfolio: record.notifyPortfolio,
+      publicProfile: record.publicProfile,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+      lastLoginAt: record.lastLoginAt,
+    };
+  }
 
   // Fallback to seeded in-memory demo student profile when database has no matching record.
   const demo = DEMO_USERS[norm] ?? DEMO_USERS[matric];
   if (!demo) return null;
 
   const hashed = hashPassword(demo.password);
+  const status: StudentAccountStatus = "active"; // Explicitly type the status literal as StudentAccountStatus
+  const now = new Date();
   return {
+    id: `demo-${norm}`,
     matric: normalizeMatric(demo.matricNumber),
     firstName: demo.firstName,
     lastName: demo.lastName,
     program: "Computer Science",
+    headline: "Verified builder · Live deployable work",
     email: `${demo.matricNumber.replace(/\//g, "-").toLowerCase()}@student.ula.edu`,
     avatarInitials: `${demo.firstName.charAt(0)}${demo.lastName.charAt(0)}`.toUpperCase(),
+    avatarUrl: null,
     passwordHash: hashed,
     accountRole: "STUDENT",
-    status: "active",
+    status, // Now status is explicitly typed as StudentAccountStatus
     mustChangePassword: false,
     notifyAssignments: true,
     notifyGrades: true,
     notifyPortfolio: true,
     publicProfile: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    lastLoginAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
+    lastLoginAt: now,
   };
 }
 

@@ -1,6 +1,7 @@
-import type { Role } from "@prisma/client";
+import type { Role, AccountStatus } from "@prisma/client";
 
 export type UserRole = Role;
+export type StudentAccountStatus = AccountStatus;
 
 export interface User {
   id: string;
@@ -14,8 +15,6 @@ export interface User {
   headline?: string;
   mustChangePassword?: boolean;
 }
-
-export type StudentAccountStatus = "active" | "pending" | "suspended";
 
 export interface AdminStudentRecord {
   matric: string;

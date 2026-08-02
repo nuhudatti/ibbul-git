@@ -34,7 +34,7 @@ export async function GET(
     totalArtifacts: artifacts.length,
     avgScore: scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null,
     liveDeploys: artifacts.filter((a) => a.deployUrl).length,
-    updatedAt: record?.updatedAt.toISOString(),
+    updatedAt: record?.updatedAt ? record.updatedAt.toISOString() : new Date().toISOString(),
   };
 
   return NextResponse.json({

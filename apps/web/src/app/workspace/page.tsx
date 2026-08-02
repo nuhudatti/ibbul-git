@@ -32,18 +32,6 @@ export default function WorkspacePage() {
   const isExplorerOpen = useIdeStore((s) => s.isExplorerOpen);
   const projectName = useIdeStore((s) => s.projectName);
 
-  console.log("[WORKSPACE PAGE RENDER]", {
-    viewMode,
-    workspaceMode,
-    filesCount: files.length,
-    activeAssignmentId,
-    isExplorerOpen,
-    projectName,
-    hasCurrentReview: !!currentReview,
-    reviewStatus: currentReview?.status,
-    timestamp: new Date().toISOString(),
-  });
-
   const [studentReviews, setStudentReviews] = useState<ReviewRecord[]>([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
