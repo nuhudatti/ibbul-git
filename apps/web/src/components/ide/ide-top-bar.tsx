@@ -84,7 +84,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
   const handleResumeEditing = async () => {
     if (!user) return;
     const assignmentId = currentReview?.assignmentId ?? activeAssignmentId;
-    const title = assignment?.title ?? currentReview?.title ?? projectName;
+    const title = assignment?.title ?? projectName;
     if (!assignmentId) return;
 
     console.log("BUTTON CLICKED (top bar resume)", { matric: user.matricNumber, assignmentId, title });
