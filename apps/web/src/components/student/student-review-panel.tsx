@@ -1,7 +1,10 @@
 "use client";
 
-import { CheckCircle2, Clock, ExternalLink, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, XCircle, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIdeStore } from "@/store/ide-store";
+import { useProjectStore } from "@/store/project-store";
+import { useAuthStore } from "@/store/auth-store";
 
 export type ReviewRecord = {
   id: string;
@@ -73,6 +76,52 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
             <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
               <p className="font-semibold">Changes requested</p>
               <p className="mt-1 text-zinc-200">Your instructor has requested edits. You can update this project and resubmit from the workspace.</p>
+              <div className="mt-3 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const loadProject = useIdeStore.getState().loadProject;
+                    const toggleExplorer = useIdeStore.getState().toggleExplorer;
+                    const isExplorerOpen = useIdeStore.getState().isExplorerOpen;
+                    const setActiveFile = useIdeStore.getState().setActiveFile;
+                    const getSnapshot = useProjectStore.getState().getSnapshot;
+                    const user = useAuthStore.getState().user;
+
+                    const matric = user?.matricNumber ?? "";
+                    let snapshot = getSnapshot(matric, review.assignmentId);
+                    if (!snapshot) {
+                      try {
+                        const res = await fetch(`/api/project-snapshots?matricNumber=${encodeURIComponent(matric)}&assignmentId=${encodeURIComponent(review.assignmentId)}`);
+                        if (res.ok) {
+                          const data = await res.json();
+                          snapshot = data?.snapshot ?? null;
+                        }
+                      } catch {
+                        // ignore fetch errors
+                      }
+                    }
+
+                    const files = snapshot?.files?.length ? snapshot.files : [];
+                    loadProject(snapshot?.projectName ?? review.title, files, review.assignmentId, {
+                      mode: "edit",
+                      submission: {
+                        submittedAt: snapshot?.submittedAt ?? new Date().toISOString(),
+                        score: snapshot?.score ?? undefined,
+                        deployUrl: snapshot?.deployUrl ?? undefined,
+                        assignmentTitle: review.title,
+                      },
+                    });
+
+                    if (!isExplorerOpen) toggleExplorer();
+                    if (files && files.length > 0) setActiveFile(files[0].path);
+                    useIdeStore.getState().setViewMode("code");
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg bg-cyan-400/10 px-3 py-1.5 text-sm font-medium text-cyan-200 hover:bg-cyan-400/15"
+                >
+                  <Edit2 size={14} />
+                  <span>Open project to edit</span>
+                </button>
+              </div>
             </div>
           ) : null}
 
