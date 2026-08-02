@@ -156,7 +156,8 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
     assignmentId: string,
     title: string,
     starterFiles?: (typeof assignments)[0]["starterFiles"],
-    enrollment?: (typeof assignments)[0]["enrollment"]
+    enrollment?: (typeof assignments)[0]["enrollment"],
+    opts?: { forceEdit?: boolean }
   ) => {
     let snapshot = getSnapshot(matric, assignmentId);
     if (!snapshot?.files?.length) {
@@ -188,8 +189,10 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
     const resolved = snapshot ?? getSnapshot(matric, assignmentId);
     if (!resolved) return;
 
+    const shouldEdit = Boolean(opts?.forceEdit);
+
     loadProject(resolved.projectName || title, files, assignmentId, {
-      mode: "submitted",
+      mode: shouldEdit ? "edit" : "submitted",
       submission: {
         submittedAt,
         score,
@@ -197,6 +200,12 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
         assignmentTitle: title,
       },
     });
+
+    if (shouldEdit) {
+      const ideState = useIdeStore.getState();
+      if (!ideState.isExplorerOpen) ideState.toggleExplorer();
+    }
+
     setOpen(false);
   };
 
@@ -303,13 +312,15 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
               <Button
                 size="sm"
                 className="flex-1"
-                variant={isViewing ? "primary" : "secondary"}
+                variant={needsChanges ? "primary" : isViewing ? "primary" : "secondary"}
                 onClick={() =>
-                  handleViewSubmitted(a.id, a.title, a.starterFiles, a.enrollment ?? undefined)
+                  handleViewSubmitted(a.id, a.title, a.starterFiles, a.enrollment ?? undefined, {
+                    forceEdit: needsChanges,
+                  })
                 }
               >
                 <Eye size={14} />
-                {isViewing ? "Viewing snapshot" : "View submission"}
+                {needsChanges ? "Open to edit" : isViewing ? "Viewing snapshot" : "View submission"}
               </Button>
                 {needsChanges ? (
                   <Button

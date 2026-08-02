@@ -93,20 +93,21 @@ export default function WorkspacePage() {
   }, [loadReviews]);
 
   useEffect(() => {
-    if (
-      currentReview?.status === "CHANGES_REQUESTED" &&
-      activeAssignmentId &&
-      workspaceMode === "submitted"
-    ) {
+    if (currentReview?.status === "CHANGES_REQUESTED" && activeAssignmentId) {
       const state = useIdeStore.getState();
-      if (state.activeAssignmentId === activeAssignmentId) {
+      if (state.activeAssignmentId === activeAssignmentId || !state.activeAssignmentId) {
         state.loadProject(state.projectName, state.files, activeAssignmentId, {
           mode: "edit",
-          submission: state.submissionMeta,
+          submission: state.submissionMeta ?? {
+            submittedAt: currentReview.submittedAt ?? new Date().toISOString(),
+            assignmentTitle: currentReview.title,
+          },
         });
+        if (!state.isExplorerOpen) state.toggleExplorer();
+        if (state.viewMode !== "code") state.setViewMode("code");
       }
     }
-  }, [currentReview, activeAssignmentId, workspaceMode]);
+  }, [currentReview, activeAssignmentId]);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "STUDENT") {

@@ -243,7 +243,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
             <div className="flex flex-wrap items-center gap-2 mt-1 text-xs">
                   {isSubmittedView ? (
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/25 flex items-center gap-1 shrink-0">
-                  <Lock size={10} /> Submitted · View only
+                  <Lock size={10} /> Snapshot view
                 </span>
               ) : activeAssignmentId ? (
                 <span className="px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 shrink-0">

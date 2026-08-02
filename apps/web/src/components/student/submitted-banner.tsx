@@ -37,7 +37,7 @@ export function SubmittedBanner() {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-semibold text-emerald-300 flex items-center gap-1.5">
                   <CheckCircle2 size={15} />
-                  Submitted · View only
+                  Submission snapshot
                 </span>
                 <span className="text-sm text-zinc-300 truncate font-medium">{projectName}</span>
                 {submissionMeta.assignmentTitle ? (
