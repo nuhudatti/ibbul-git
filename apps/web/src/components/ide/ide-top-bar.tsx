@@ -78,10 +78,22 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
     assignment?.enrollment?.status === "GRADED";
   const canSubmit = activeAssignmentId && (!alreadySubmitted || isReviewChangesRequested);
   const submitLabel = isReviewChangesRequested ? "Resubmit" : "Submit";
-  const handleResumeEditing = () => {
+  const handleResumeEditing = async () => {
     if (!user || !activeAssignmentId) return;
     const state = useIdeStore.getState();
-    const snapshot = useProjectStore.getState().getSnapshot(user.matricNumber, activeAssignmentId);
+    let snapshot = useProjectStore.getState().getSnapshot(user.matricNumber, activeAssignmentId);
+    try {
+      const res = await fetch(
+        `/api/project-snapshots?matricNumber=${encodeURIComponent(user.matricNumber)}&assignmentId=${encodeURIComponent(activeAssignmentId)}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        snapshot = data?.snapshot ?? snapshot;
+      }
+    } catch {
+      // ignore server errors
+    }
+
     const files = snapshot?.files?.length ? snapshot.files : state.files;
     state.loadProject(snapshot?.projectName ?? state.projectName, files, activeAssignmentId, {
       mode: "edit",

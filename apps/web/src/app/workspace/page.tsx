@@ -67,18 +67,16 @@ export default function WorkspacePage() {
       if (!matric) return;
 
       let snapshot = useProjectStore.getState().getSnapshot(matric, assignmentId);
-      if (!snapshot?.files?.length) {
-        try {
-          const res = await fetch(
-            `/api/project-snapshots?matricNumber=${encodeURIComponent(matric)}&assignmentId=${encodeURIComponent(assignmentId)}`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            snapshot = data?.snapshot ?? null;
-          }
-        } catch {
-          // ignore snapshot load failures and fall back to the current editor state
+      try {
+        const res = await fetch(
+          `/api/project-snapshots?matricNumber=${encodeURIComponent(matric)}&assignmentId=${encodeURIComponent(assignmentId)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          snapshot = data?.snapshot ?? snapshot;
         }
+      } catch {
+        // ignore snapshot load failures and fall back to the current editor state
       }
 
       const fallbackFiles = state.files?.length ? state.files : [];

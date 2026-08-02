@@ -66,6 +66,42 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
     ? "Your instructor requested changes — full project access restored."
     : `Review for "${review.title}" by ${review.reviewerName ?? "your instructor"}`;
 
+  const openFullProject = async () => {
+    const user = useAuthStore.getState().user;
+    const matric = user?.matricNumber ?? "";
+    const state = useIdeStore.getState();
+
+    let snapshot = useProjectStore.getState().getSnapshot(matric, review.assignmentId);
+    try {
+      const res = await fetch(`/api/project-snapshots?matricNumber=${encodeURIComponent(matric)}&assignmentId=${encodeURIComponent(review.assignmentId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        snapshot = data?.snapshot ?? snapshot;
+      }
+    } catch {
+      // ignore fetch errors
+    }
+
+    const fallbackFiles = state.files?.length ? state.files : [];
+    const files = snapshot?.files?.length ? snapshot.files : fallbackFiles;
+    const projectName = snapshot?.projectName ?? state.projectName ?? review.title;
+
+    state.loadProject(projectName, files, review.assignmentId, {
+      mode: "edit",
+      submission: {
+        submittedAt: snapshot?.submittedAt ?? state.submissionMeta?.submittedAt ?? new Date().toISOString(),
+        score: snapshot?.score ?? state.submissionMeta?.score,
+        deployUrl: snapshot?.deployUrl ?? state.submissionMeta?.deployUrl,
+        assignmentTitle: review.title,
+      },
+    });
+
+    if (!state.isExplorerOpen) state.toggleExplorer();
+    if (state.viewMode !== "code") state.setViewMode("code");
+    if (files?.length && files[0]?.path) state.setActiveFile(files[0].path);
+    router.push("/workspace");
+  };
+
   return (
     <section className="px-4 py-5 border-b border-white/10 bg-[#08090f] text-zinc-100 overflow-auto">
       <div className="mx-auto max-w-[1480px] space-y-5">
@@ -97,51 +133,24 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
                     You can now reopen the workspace, inspect every file and folder, revise your project, and resubmit with confidence.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const user = useAuthStore.getState().user;
-                    const matric = user?.matricNumber ?? "";
-                    const state = useIdeStore.getState();
-
-                    let snapshot = useProjectStore.getState().getSnapshot(matric, review.assignmentId);
-                    if (!snapshot?.files?.length) {
-                      try {
-                        const res = await fetch(`/api/project-snapshots?matricNumber=${encodeURIComponent(matric)}&assignmentId=${encodeURIComponent(review.assignmentId)}`);
-                        if (res.ok) {
-                          const data = await res.json();
-                          snapshot = data?.snapshot ?? null;
-                        }
-                      } catch {
-                        // ignore fetch errors
-                      }
-                    }
-
-                    const fallbackFiles = state.files?.length ? state.files : [];
-                    const files = snapshot?.files?.length ? snapshot.files : fallbackFiles;
-                    const projectName = snapshot?.projectName ?? state.projectName ?? review.title;
-
-                    state.loadProject(projectName, files, review.assignmentId, {
-                      mode: "edit",
-                      submission: {
-                        submittedAt: snapshot?.submittedAt ?? state.submissionMeta?.submittedAt ?? new Date().toISOString(),
-                        score: snapshot?.score ?? state.submissionMeta?.score,
-                        deployUrl: snapshot?.deployUrl ?? state.submissionMeta?.deployUrl,
-                        assignmentTitle: review.title,
-                      },
-                    });
-
-                    if (!state.isExplorerOpen) state.toggleExplorer();
-                    if (state.viewMode !== "code") state.setViewMode("code");
-                    if (files?.length && files[0]?.path) state.setActiveFile(files[0].path);
-                    router.push("/workspace");
-                  }}
-                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20"
-                >
-                  <Unlock size={14} />
-                  <span>Resume editing</span>
-                  <ArrowRight size={14} />
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={openFullProject}
+                    className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20"
+                  >
+                    <Unlock size={14} />
+                    <span>Open full project</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openFullProject}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    <ArrowRight size={14} />
+                    <span>Restore editable workspace</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           ) : null}
