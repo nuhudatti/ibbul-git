@@ -266,9 +266,9 @@ export const useIdeStore = create<IdeState>()(
       submissionMeta: opts?.submission ?? null,
       isDirty: false,
       previewKey: Date.now(),
-      viewMode: revisionUnlocked || mode === "edit" ? "code" : "preview",
+      viewMode: revisionUnlocked ? "code" : "preview",
       isTerminalOpen: false,
-      isExplorerOpen: revisionUnlocked || mode === "edit" ? true : get().isExplorerOpen,
+      isExplorerOpen: revisionUnlocked ? true : get().isExplorerOpen,
       deployment: deployUrl
         ? {
             status: "success",
