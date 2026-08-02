@@ -272,6 +272,13 @@ export const useIdeStore = create<IdeState>()(
           }
         : defaultDeployment,
     });
+    const state = get();
+    console.log("PROJECT RESTORE EXECUTED", {
+      workspaceMode: state.workspaceMode,
+      isExplorerOpen: state.isExplorerOpen,
+      viewMode: state.viewMode,
+      activeFilePath: state.activeFilePath,
+    });
   },
   exitSubmittedView: () =>
     set((s) => ({

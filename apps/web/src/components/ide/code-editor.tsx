@@ -22,6 +22,16 @@ export function CodeEditor() {
     paste?: (text: string) => void;
   } | null>(null);
 
+  console.log("[CODE EDITOR RENDER]", {
+    activeFilePath,
+    filesCount: files.length,
+    workspaceMode,
+    readOnly,
+    hasActiveFile: !!activeFile,
+    language,
+    timestamp: new Date().toISOString(),
+  });
+
   useEffect(() => {
     if (typeof navigator === "undefined") return;
     setClipboardSupported(
