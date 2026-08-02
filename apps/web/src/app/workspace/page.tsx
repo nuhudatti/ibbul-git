@@ -136,17 +136,12 @@ export default function WorkspacePage() {
   }, [loadReviews]);
 
   useEffect(() => {
-    const pendingReview = studentReviews.find((review) => review.status === "CHANGES_REQUESTED");
-    if (!pendingReview) return;
+    if (currentReview?.status !== "CHANGES_REQUESTED" || !activeAssignmentId) return;
 
-    if (
-      activeAssignmentId !== pendingReview.assignmentId ||
-      workspaceMode !== "edit" ||
-      files.length === 0
-    ) {
-      void openAssignmentWorkspace(pendingReview.assignmentId, pendingReview.title);
+    if (workspaceMode !== "edit" || files.length === 0) {
+      void openAssignmentWorkspace(activeAssignmentId, currentReview.title);
     }
-  }, [studentReviews, activeAssignmentId, workspaceMode, files.length, openAssignmentWorkspace]);
+  }, [currentReview, activeAssignmentId, workspaceMode, files.length, openAssignmentWorkspace]);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "STUDENT") {
