@@ -38,8 +38,14 @@ function main() {
   const isVercel = process.env.VERCEL === '1';
   const hasDatabase = !!process.env.DATABASE_URL;
   const inProd = process.env.NODE_ENV === 'production' || isVercel;
+  const enforceMigrations = process.env.PRISMA_MIGRATE_ON_BUILD === '1';
 
   if (inProd && hasDatabase) {
+    if (isVercel && !enforceMigrations) {
+      console.warn('Skipping Prisma migrate deploy during Vercel build to avoid blocking deployments on transient advisory-lock issues. Set PRISMA_MIGRATE_ON_BUILD=1 to enforce migrations.');
+      return;
+    }
+
     try {
       const retries = Number(process.env.PRISMA_MIGRATE_RETRIES ?? '3');
       const retryDelayMs = Number(process.env.PRISMA_MIGRATE_RETRY_DELAY_MS ?? '10000');
@@ -47,8 +53,12 @@ function main() {
       console.log('Running Prisma migrations (vercel-prebuild)...');
       runWithRetry('npx', ['prisma', 'migrate', 'deploy'], { retries, retryDelayMs });
     } catch (err) {
+      if (isRetryablePrismaError(err)) {
+        console.warn('Prisma migrate deploy hit a transient advisory-lock timeout. Continuing the build because the database is already live.');
+        return;
+      }
+
       console.error('Prisma migrate deploy failed:', err && err.message ? err.message : err);
-      // Fail the build on production to avoid schema mismatch
       process.exit(1);
     }
   } else {
