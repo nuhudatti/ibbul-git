@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { normalizeMatric } from "@/lib/matric";
 import { prisma } from "@/lib/services/prisma";
 import { deleteCloudinaryAsset, uploadToCloudinary } from "@/lib/services/cloudinary";
+import { DEMO_USERS } from "@/lib/mock-data";
 import type { AdminStudentRecord, AdminStats, StudentAccountStatus } from "@/types";
 
 const SALT = "ula-ibbul-v1";
@@ -100,7 +101,33 @@ function toResolvedProfile(record: {
 
 export async function getProfileRecordByMatric(matric: string) {
   const norm = normalizeMatric(matric);
-  return prisma.studentProfile.findUnique({ where: { matric: norm } });
+  const record = await prisma.studentProfile.findUnique({ where: { matric: norm } });
+  if (record) return record;
+
+  // Fallback to seeded in-memory demo student profile when database has no matching record.
+  const demo = DEMO_USERS[norm] ?? DEMO_USERS[matric];
+  if (!demo) return null;
+
+  const hashed = hashPassword(demo.password);
+  return {
+    matric: normalizeMatric(demo.matricNumber),
+    firstName: demo.firstName,
+    lastName: demo.lastName,
+    program: "Computer Science",
+    email: `${demo.matricNumber.replace(/\//g, "-").toLowerCase()}@student.ula.edu`,
+    avatarInitials: `${demo.firstName.charAt(0)}${demo.lastName.charAt(0)}`.toUpperCase(),
+    passwordHash: hashed,
+    accountRole: "STUDENT",
+    status: "active",
+    mustChangePassword: false,
+    notifyAssignments: true,
+    notifyGrades: true,
+    notifyPortfolio: true,
+    publicProfile: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    lastLoginAt: new Date().toISOString(),
+  };
 }
 
 export async function listStudentProfilesForAdmin(): Promise<AdminStudentRecord[]> {
@@ -298,29 +325,51 @@ export async function getResolvedProfileRecord(matric: string) {
 
 export async function authenticateStudent(matric: string, password: string) {
   const norm = normalizeMatric(matric);
-  const record = await getProfileRecordByMatric(norm);
+  const dbRecord = await prisma.studentProfile.findUnique({ where: { matric: norm } });
+  const record = dbRecord ?? (await getProfileRecordByMatric(norm));
   if (!record || !verifyPassword(password, record.passwordHash)) return null;
   if (record.status === "suspended") return null;
 
   const now = new Date();
-  const updated = await prisma.studentProfile.update({
-    where: { matric: norm },
-    data: {
-      lastLoginAt: now,
-      updatedAt: now,
-    },
-  });
+  const persisted = dbRecord
+    ? await prisma.studentProfile.update({
+        where: { matric: norm },
+        data: { lastLoginAt: now, updatedAt: now },
+      })
+    : await prisma.studentProfile.create({
+        data: {
+          matric: norm,
+          firstName: record.firstName,
+          lastName: record.lastName,
+          program: record.program,
+          headline: record.headline,
+          email: record.email,
+          avatarInitials: record.avatarInitials,
+          avatarUrl: (record as any).avatarUrl ?? null,
+          passwordHash: record.passwordHash,
+          accountRole: record.accountRole as "STUDENT" | "LECTURER" | "ADMIN",
+          status: record.status as "active" | "pending" | "suspended",
+          mustChangePassword: record.mustChangePassword,
+          notifyAssignments: record.notifyAssignments,
+          notifyGrades: record.notifyGrades,
+          notifyPortfolio: record.notifyPortfolio,
+          publicProfile: record.publicProfile,
+          createdAt: now,
+          updatedAt: now,
+          lastLoginAt: now,
+        },
+      });
 
   return {
     id: `user-${norm}`,
     matricNumber: norm,
-    firstName: updated.firstName,
-    lastName: updated.lastName,
-    role: updated.accountRole,
+    firstName: persisted.firstName,
+    lastName: persisted.lastName,
+    role: persisted.accountRole,
     institutionId: "inst-1",
-    avatarUrl: updated.avatarUrl ?? undefined,
-    program: updated.program,
-    headline: updated.headline,
-    mustChangePassword: updated.mustChangePassword,
+    avatarUrl: persisted.avatarUrl ?? undefined,
+    program: persisted.program,
+    headline: persisted.headline,
+    mustChangePassword: persisted.mustChangePassword,
   };
 }

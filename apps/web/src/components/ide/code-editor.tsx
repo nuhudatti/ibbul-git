@@ -59,6 +59,8 @@ export function CodeEditor() {
     editorHandle?.selectAll?.();
   };
 
+  console.log("[CodeEditor] render", { activeFilePath, filesLength: files.length, readOnly, activeFile });
+
   const handleCopyAll = async () => {
     if (!activeFile?.content) return;
     try {

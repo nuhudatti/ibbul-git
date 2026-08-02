@@ -73,10 +73,12 @@ export const useProjectStore = create<ProjectStoreState>()(
       },
 
       loadSnapshot: async (matric, assignmentId) => {
+        console.log("[ProjectStore] loadSnapshot start", { matric, assignmentId });
         if (!matric || !assignmentId) return undefined;
         const key = get().snapshotKey(matric, assignmentId);
         const legacyKey = `${matric.toLowerCase().trim()}:${assignmentId}`;
         let snapshot = get().snapshots[key] ?? get().snapshots[legacyKey];
+        console.log("[ProjectStore] local snapshot", { key, legacyKey, snapshotKeys: Object.keys(get().snapshots), snapshot });
 
         try {
           const res = await fetch(
@@ -84,28 +86,41 @@ export const useProjectStore = create<ProjectStoreState>()(
               assignmentId
             )}`
           );
+          console.log("[ProjectStore] loadSnapshot fetch status", res.status);
           if (res.ok) {
             const data = await res.json();
+            console.log("[ProjectStore] loadSnapshot fetch data", data);
             if (data?.snapshot) {
               snapshot = data.snapshot;
               set((s) => ({ snapshots: { ...s.snapshots, [key]: snapshot } }));
             }
           }
-        } catch {
-          // ignore network issues and fallback to local snapshot
+        } catch (error) {
+          console.error("[ProjectStore] loadSnapshot fetch failed", error);
         }
 
+        console.log("[ProjectStore] loadSnapshot returning", snapshot);
         return snapshot;
       },
 
       restoreSnapshot: async (matric, assignmentId, fallbackTitle) => {
+        console.log("[ProjectStore] restoreSnapshot start", { matric, assignmentId, fallbackTitle });
         if (!matric || !assignmentId) return;
         const snapshot = await get().loadSnapshot(matric, assignmentId);
+        console.log("[ProjectStore] restoreSnapshot loaded snapshot", snapshot);
 
         const ide = useIdeStore.getState();
         const fallbackFiles = ide.files?.length && ide.activeAssignmentId === assignmentId ? ide.files : [];
         const files = snapshot?.files?.length ? snapshot.files : fallbackFiles;
         const projectName = snapshot?.projectName ?? ide.projectName ?? fallbackTitle ?? "Restored Project";
+
+        console.log("[ProjectStore] restoreSnapshot calling loadProject", {
+          projectName,
+          assignmentId,
+          mode: "edit",
+          filesLength: files?.length,
+          fallbackFilesLength: fallbackFiles.length,
+        });
 
         useIdeStore.getState().loadProject(projectName, files, assignmentId, {
           mode: "edit",
@@ -118,6 +133,14 @@ export const useProjectStore = create<ProjectStoreState>()(
         });
 
         const state = useIdeStore.getState();
+        console.log("[ProjectStore] restoreSnapshot post loadProject state", {
+          workspaceMode: state.workspaceMode,
+          viewMode: state.viewMode,
+          activeFile: state.activeFilePath,
+          filesLength: state.files.length,
+          isExplorerOpen: state.isExplorerOpen,
+          submissionMeta: state.submissionMeta,
+        });
         if (!state.isExplorerOpen) state.toggleExplorer();
         if (state.viewMode !== "code") state.setViewMode("code");
         if (files?.length && files[0]?.path) state.setActiveFile(files[0].path);

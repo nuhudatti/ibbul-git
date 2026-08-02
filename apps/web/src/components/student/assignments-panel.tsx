@@ -149,15 +149,19 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
     enrollment?: (typeof assignments)[0]["enrollment"],
     opts?: { forceEdit?: boolean }
   ) => {
+    console.log("[AssignmentsPanel] handleViewSubmitted start", { assignmentId, title, forceEdit: opts?.forceEdit, matric });
     let snapshot = getSnapshot(matric, assignmentId);
+    console.log("[AssignmentsPanel] existing snapshot", snapshot);
     if (!snapshot?.files?.length) {
       const serverSnapshot = await loadServerSnapshot(assignmentId);
+      console.log("[AssignmentsPanel] serverSnapshot", serverSnapshot);
       if (serverSnapshot?.files?.length) {
         snapshot = saveSnapshot(matric, assignmentId, serverSnapshot.projectName, serverSnapshot.files, {
           submitted: serverSnapshot.submittedAt != null,
           deployUrl: serverSnapshot.deployUrl ?? undefined,
           score: serverSnapshot.score ?? undefined,
         });
+        console.log("[AssignmentsPanel] snapshot saved locally", snapshot);
       }
     }
 
@@ -180,6 +184,7 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
     if (!resolved) return;
 
     const shouldEdit = Boolean(opts?.forceEdit);
+    console.log("[AssignmentsPanel] shouldEdit", shouldEdit, { resolvedSnapshot: snapshot });
 
     if (shouldEdit) {
       await useProjectStore.getState().restoreSnapshot(matric, assignmentId, title);

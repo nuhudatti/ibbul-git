@@ -69,8 +69,10 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
   const openFullProject = async () => {
     const user = useAuthStore.getState().user;
     const matric = user?.matricNumber ?? "";
+    console.log("[ReviewPanel] openFullProject clicked", { matric, assignmentId: review.assignmentId, title: review.title, status: review.status });
 
     await useProjectStore.getState().restoreSnapshot(matric, review.assignmentId, review.title);
+    console.log("[ReviewPanel] openFullProject after restoreSnapshot", { currentUser: user });
     router.push("/workspace");
   };
 

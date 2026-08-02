@@ -241,6 +241,14 @@ export const useIdeStore = create<IdeState>()(
   loadProject: (name, files, assignmentId, opts) => {
     const mode = opts?.mode ?? "edit";
     const deployUrl = opts?.submission?.deployUrl;
+    console.log("[IdeStore] loadProject", {
+      name,
+      assignmentId,
+      mode,
+      filesLength: files.length,
+      firstFilePath: files[0]?.path,
+      submission: opts?.submission,
+    });
     set({
       projectId: assignmentId ?? get().projectId,
       projectName: name,

@@ -46,13 +46,17 @@ export default function WorkspacePage() {
 
     try {
       const res = await fetch("/api/reviews/mine");
+      console.log("[Workspace] loadReviews response status", res.status);
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text || "Failed to load reviews");
       }
       const payload = await res.json();
-      setStudentReviews(Array.isArray(payload.reviews) ? payload.reviews : []);
+      const reviews = Array.isArray(payload.reviews) ? payload.reviews : [];
+      console.log("[Workspace] loadReviews payload", reviews);
+      setStudentReviews(reviews);
     } catch (error) {
+      console.error("[Workspace] loadReviews failed", error);
       setReviewError((error as Error).message);
       setStudentReviews([]);
     } finally {
@@ -63,6 +67,7 @@ export default function WorkspacePage() {
   const openAssignmentWorkspace = useCallback(
     async (assignmentId: string, title: string) => {
       const matric = user?.matricNumber;
+      console.log("[Workspace] openAssignmentWorkspace", { assignmentId, title, matric });
       if (!matric) return;
 
       await useProjectStore.getState().restoreSnapshot(matric, assignmentId, title);
@@ -93,10 +98,11 @@ export default function WorkspacePage() {
     };
   }, [user, loadReviews]);
 
-  const currentReview = useMemo(
-    () => studentReviews.find((review) => review.assignmentId === activeAssignmentId) ?? null,
-    [studentReviews, activeAssignmentId]
-  );
+  const currentReview = useMemo(() => {
+    const match = studentReviews.find((review) => review.assignmentId === activeAssignmentId) ?? null;
+    console.log("[Workspace] currentReview computed", { activeAssignmentId, review: match });
+    return match;
+  }, [studentReviews, activeAssignmentId]);
 
   useEffect(() => {
     void loadReviews();

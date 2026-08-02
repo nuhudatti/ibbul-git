@@ -81,7 +81,9 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
   const submitLabel = isReviewChangesRequested ? "Resubmit" : "Submit";
   const handleResumeEditing = async () => {
     if (!user || !activeAssignmentId) return;
+    console.log("[IdeTopBar] handleResumeEditing", { matric: user.matricNumber, activeAssignmentId, assignmentTitle: assignment?.title });
     await restoreSnapshot(user.matricNumber, activeAssignmentId, assignment?.title ?? undefined);
+    console.log("[IdeTopBar] restoreSnapshot completed", { workspaceMode: useIdeStore.getState().workspaceMode, activeFilePath: useIdeStore.getState().activeFilePath });
   };
 
   useEffect(() => {
