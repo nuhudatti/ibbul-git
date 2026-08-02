@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileExplorer } from "@/components/ide/file-explorer";
@@ -135,11 +135,15 @@ export default function WorkspacePage() {
     void loadReviews();
   }, [loadReviews]);
 
+  const lastAutoUnlockedAssignment = useRef<string | null>(null);
+
   useEffect(() => {
     if (currentReview?.status !== "CHANGES_REQUESTED" || !activeAssignmentId) return;
+    if (lastAutoUnlockedAssignment.current === activeAssignmentId) return;
 
     if (workspaceMode !== "edit" || files.length === 0) {
       void openAssignmentWorkspace(activeAssignmentId, currentReview.title);
+      lastAutoUnlockedAssignment.current = activeAssignmentId;
     }
   }, [currentReview, activeAssignmentId, workspaceMode, files.length, openAssignmentWorkspace]);
 
