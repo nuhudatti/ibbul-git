@@ -13,6 +13,7 @@ import {
   Lock,
   CheckCircle2,
   Settings,
+  Unlock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
@@ -248,6 +249,11 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
               ) : activeAssignmentId ? (
                 <span className="px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 shrink-0">
                   Assignment
+                </span>
+              ) : null}
+              {isReviewChangesRequested ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200 shrink-0">
+                  <Unlock size={10} /> Resume editing
                 </span>
               ) : null}
               {!isSubmittedView ? (

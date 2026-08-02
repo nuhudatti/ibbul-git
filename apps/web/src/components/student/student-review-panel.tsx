@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Clock, ExternalLink, XCircle, Edit2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, Edit2, ExternalLink, Sparkles, Unlock, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIdeStore } from "@/store/ide-store";
 import { useProjectStore } from "@/store/project-store";
@@ -58,6 +58,10 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
   const statusLabel = review.status.replace(/_/g, " ");
   const isAwaitingChanges = review.status === "CHANGES_REQUESTED";
   const isApproved = review.status === "APPROVED" || review.status === "PUBLISHED";
+  const heroTitle = isAwaitingChanges ? "Resume editing" : statusLabel;
+  const heroDescription = isAwaitingChanges
+    ? "Your instructor requested changes — full project access restored."
+    : `Review for "${review.title}" by ${review.reviewerName ?? "your instructor"}`;
 
   return (
     <section className="px-4 py-5 border-b border-white/10 bg-[#08090f] text-zinc-100 overflow-auto">
@@ -66,30 +70,34 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/70">Course review status</p>
-              <h2 className="mt-2 text-xl font-semibold text-white">{statusLabel}</h2>
-              <p className="mt-1 text-sm text-zinc-400">Review for "{review.title}" by {review.reviewerName ?? "your instructor"}</p>
+              <h2 className="mt-2 text-xl font-semibold text-white">{heroTitle}</h2>
+              <p className="mt-1 text-sm text-zinc-400">{heroDescription}</p>
             </div>
             <span className={cn("inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em]", statusStyles[review.status] ?? "border-white/10 bg-white/5 text-zinc-300")}> <Clock size={14} /> {formatDate(review.submittedAt)} </span>
           </div>
 
           {isAwaitingChanges ? (
-            <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-              <p className="font-semibold">Changes requested</p>
-              <p className="mt-1 text-zinc-200">Your instructor has requested edits. You can update this project and resubmit from the workspace.</p>
-              <div className="mt-3 flex items-center gap-3">
+            <div className="mt-4 rounded-3xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/15 via-violet-500/10 to-amber-500/10 p-4 shadow-lg shadow-cyan-500/10">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="max-w-2xl">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-cyan-200">
+                    <Sparkles size={12} />
+                    Resume editing
+                  </div>
+                  <p className="mt-3 text-lg font-semibold text-white">Your instructor requested changes — full project access restored.</p>
+                  <p className="mt-2 text-sm text-zinc-200">
+                    You can now reopen the workspace, inspect every file and folder, revise your project, and resubmit with confidence.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={async () => {
-                    const loadProject = useIdeStore.getState().loadProject;
-                    const toggleExplorer = useIdeStore.getState().toggleExplorer;
-                    const isExplorerOpen = useIdeStore.getState().isExplorerOpen;
-                    const setActiveFile = useIdeStore.getState().setActiveFile;
-                    const getSnapshot = useProjectStore.getState().getSnapshot;
                     const user = useAuthStore.getState().user;
-
                     const matric = user?.matricNumber ?? "";
-                    let snapshot = getSnapshot(matric, review.assignmentId);
-                    if (!snapshot) {
+                    const state = useIdeStore.getState();
+
+                    let snapshot = useProjectStore.getState().getSnapshot(matric, review.assignmentId);
+                    if (!snapshot?.files?.length) {
                       try {
                         const res = await fetch(`/api/project-snapshots?matricNumber=${encodeURIComponent(matric)}&assignmentId=${encodeURIComponent(review.assignmentId)}`);
                         if (res.ok) {
@@ -102,7 +110,7 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
                     }
 
                     const files = snapshot?.files?.length ? snapshot.files : [];
-                    loadProject(snapshot?.projectName ?? review.title, files, review.assignmentId, {
+                    state.loadProject(snapshot?.projectName ?? review.title, files, review.assignmentId, {
                       mode: "edit",
                       submission: {
                         submittedAt: snapshot?.submittedAt ?? new Date().toISOString(),
@@ -112,14 +120,15 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
                       },
                     });
 
-                    if (!isExplorerOpen) toggleExplorer();
-                    if (files && files.length > 0) setActiveFile(files[0].path);
-                    useIdeStore.getState().setViewMode("code");
+                    if (!state.isExplorerOpen) state.toggleExplorer();
+                    if (state.viewMode !== "code") state.setViewMode("code");
+                    if (files?.length && files[0]?.path) state.setActiveFile(files[0].path);
                   }}
-                  className="inline-flex items-center gap-2 rounded-lg bg-cyan-400/10 px-3 py-1.5 text-sm font-medium text-cyan-200 hover:bg-cyan-400/15"
+                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20"
                 >
-                  <Edit2 size={14} />
-                  <span>Open project to edit</span>
+                  <Unlock size={14} />
+                  <span>Resume editing</span>
+                  <ArrowRight size={14} />
                 </button>
               </div>
             </div>

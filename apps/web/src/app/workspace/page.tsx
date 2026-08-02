@@ -60,6 +60,47 @@ export default function WorkspacePage() {
     }
   }, [user]);
 
+  const openAssignmentWorkspace = useCallback(
+    async (assignmentId: string, title: string) => {
+      const state = useIdeStore.getState();
+      const matric = user?.matricNumber;
+      if (!matric) return;
+
+      let snapshot = useProjectStore.getState().getSnapshot(matric, assignmentId);
+      if (!snapshot?.files?.length) {
+        try {
+          const res = await fetch(
+            `/api/project-snapshots?matricNumber=${encodeURIComponent(matric)}&assignmentId=${encodeURIComponent(assignmentId)}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            snapshot = data?.snapshot ?? null;
+          }
+        } catch {
+          // ignore snapshot load failures and fall back to the current editor state
+        }
+      }
+
+      const files = snapshot?.files?.length ? snapshot.files : state.files;
+      const resolvedName = snapshot?.projectName ?? title;
+
+      state.loadProject(resolvedName, files, assignmentId, {
+        mode: "edit",
+        submission: {
+          submittedAt: snapshot?.submittedAt ?? state.submissionMeta?.submittedAt ?? new Date().toISOString(),
+          score: snapshot?.score ?? state.submissionMeta?.score,
+          deployUrl: snapshot?.deployUrl ?? state.submissionMeta?.deployUrl,
+          assignmentTitle: title,
+        },
+      });
+
+      if (!state.isExplorerOpen) state.toggleExplorer();
+      if (state.viewMode !== "code") state.setViewMode("code");
+      if (files[0]?.path) state.setActiveFile(files[0].path);
+    },
+    [user?.matricNumber]
+  );
+
   useEffect(() => {
     // Poll for updates so students see lecturer actions (requests for changes) promptly
     if (!user || user.role !== "STUDENT") return;
@@ -94,20 +135,9 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     if (currentReview?.status === "CHANGES_REQUESTED" && activeAssignmentId) {
-      const state = useIdeStore.getState();
-      if (state.activeAssignmentId === activeAssignmentId || !state.activeAssignmentId) {
-        state.loadProject(state.projectName, state.files, activeAssignmentId, {
-          mode: "edit",
-          submission: state.submissionMeta ?? {
-            submittedAt: currentReview.submittedAt ?? new Date().toISOString(),
-            assignmentTitle: currentReview.title,
-          },
-        });
-        if (!state.isExplorerOpen) state.toggleExplorer();
-        if (state.viewMode !== "code") state.setViewMode("code");
-      }
+      void openAssignmentWorkspace(activeAssignmentId, currentReview.title);
     }
-  }, [currentReview, activeAssignmentId]);
+  }, [activeAssignmentId, currentReview?.status, currentReview?.title, openAssignmentWorkspace]);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "STUDENT") {
