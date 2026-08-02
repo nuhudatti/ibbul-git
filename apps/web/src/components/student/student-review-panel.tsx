@@ -57,7 +57,7 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
   const isApproved = review.status === "APPROVED" || review.status === "PUBLISHED";
 
   return (
-    <section className="px-4 py-5 border-b border-white/10 bg-[#08090f] text-zinc-100">
+    <section className="px-4 py-5 border-b border-white/10 bg-[#08090f] text-zinc-100 overflow-auto">
       <div className="mx-auto max-w-[1480px] space-y-5">
         <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/20">
           <div className="flex flex-wrap items-center justify-between gap-4">

@@ -60,6 +60,29 @@ export default function WorkspacePage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    // Poll for updates so students see lecturer actions (requests for changes) promptly
+    if (!user || user.role !== "STUDENT") return;
+
+    const interval = setInterval(() => {
+      void loadReviews();
+    }, 10000);
+
+    const onFocus = () => void loadReviews();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void loadReviews();
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [user, loadReviews]);
+
   const currentReview = useMemo(
     () => studentReviews.find((review) => review.assignmentId === activeAssignmentId) ?? null,
     [studentReviews, activeAssignmentId]
@@ -132,7 +155,7 @@ export default function WorkspacePage() {
   if (!isAuthenticated || user?.role !== "STUDENT") return null;
 
   return (
-    <div className="h-[100dvh] min-h-screen flex flex-col bg-[#050508] overflow-hidden">
+    <div className="h-[100dvh] min-h-screen flex flex-col bg-[#050508] overflow-auto">
       <IdeTopBar currentReview={currentReview} onReviewUpdated={loadReviews} />
       <PortfolioIdentityStrip />
       <SubmittedBanner />
