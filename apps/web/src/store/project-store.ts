@@ -122,6 +122,12 @@ export const useProjectStore = create<ProjectStoreState>()(
 
       restoreSnapshot: async (matric, assignmentId, fallbackTitle) => {
         const canonicalMatric = normalizeMatric(matric);
+        console.log("[ProjectStore] restoreSnapshot called", {
+          matric: canonicalMatric,
+          assignmentId,
+          fallbackTitle,
+          timestamp: new Date().toISOString(),
+        });
         console.log("RESTORE STARTED", {
           matric: canonicalMatric,
           assignmentId,
@@ -152,6 +158,13 @@ export const useProjectStore = create<ProjectStoreState>()(
           const projectName =
             snapshot?.projectName ?? ide.projectName ?? fallbackTitle ?? "Restored Project";
 
+          console.log("[ProjectStore] restoreSnapshot will load project", {
+            assignmentId,
+            filesCount: files.length,
+            projectName,
+            hasSnapshot: !!snapshot,
+          });
+
           useIdeStore.getState().loadProject(projectName, files, assignmentId, {
             mode: "edit",
             revisionUnlocked: true,
@@ -166,6 +179,7 @@ export const useProjectStore = create<ProjectStoreState>()(
             },
           });
 
+          console.log("[ProjectStore] restoreSnapshot calling beginRevisionSession", { assignmentId });
           useIdeStore.getState().beginRevisionSession(assignmentId);
 
           const state = useIdeStore.getState();

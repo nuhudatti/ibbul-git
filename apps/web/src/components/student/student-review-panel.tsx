@@ -11,6 +11,7 @@ import { useIdeStore } from "@/store/ide-store";
 export type ReviewRecord = {
   id: string;
   assignmentId: string;
+  studentMatric?: string | null;
   status: string;
   title: string;
   summary?: string | null;
@@ -56,28 +57,50 @@ function formatDate(value?: string | null) {
 }
 
 export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
+  const user = useAuthStore((s) => s.user);
+  const activeAssignmentId = useIdeStore((s) => s.activeAssignmentId);
   const completedChecklist = review.checklist.filter((item) => item.checked).length;
   const statusLabel = review.status.replace(/_/g, " ");
   const isAwaitingChanges = review.status === "CHANGES_REQUESTED";
-  const canEdit = isAwaitingChanges;
+  const currentStudentMatric = normalizeMatric(user?.matricNumber ?? "");
+  const reviewStudentMatric = normalizeMatric(review.studentMatric ?? "");
+  const isCurrentAssignment = !activeAssignmentId || review.assignmentId === activeAssignmentId;
+  const isCurrentStudent = !reviewStudentMatric || currentStudentMatric === reviewStudentMatric;
+  const canResumeEditing = isAwaitingChanges && isCurrentAssignment && isCurrentStudent;
   const isApproved = review.status === "APPROVED" || review.status === "PUBLISHED";
 
-  console.log("[StudentReviewPanel] render", {
+  console.log("[StudentReviewPanel] review audit", {
+    review,
     "review.status": review.status,
-    canEdit,
+    activeAssignmentId,
+    currentStudentMatric,
+    reviewStudentMatric,
+    isCurrentAssignment,
+    isCurrentStudent,
+    canResumeEditing,
     assignmentId: review.assignmentId,
   });
-  const heroTitle = isAwaitingChanges ? "Resume editing" : statusLabel;
-  const heroDescription = isAwaitingChanges
+  console.log("[StudentReviewPanel] render", {
+    "review.status": review.status,
+    canResumeEditing,
+    assignmentId: review.assignmentId,
+    activeAssignmentId,
+  });
+  const heroTitle = canResumeEditing ? "Resume editing" : statusLabel;
+  const heroDescription = canResumeEditing
     ? "Your instructor requested changes — full project access restored."
     : `Review for "${review.title}" by ${review.reviewerName ?? "your instructor"}`;
 
   const openFullProject = async () => {
+    const assignmentId = activeAssignmentId ?? review.assignmentId;
     console.log("[StudentReviewPanel] BUTTON CLICKED", {
-      assignmentId: review.assignmentId,
+      assignmentId,
+      reviewAssignmentId: review.assignmentId,
       title: review.title,
       "review.status": review.status,
-      canEdit,
+      canResumeEditing,
+      isCurrentAssignment,
+      isCurrentStudent,
       timestamp: new Date().toISOString(),
     });
 
@@ -96,10 +119,15 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
         return;
       }
 
-      console.log("RESTORE STARTED (from review panel)");
+      console.log("[StudentReviewPanel] restoreSnapshot start", {
+        matric,
+        assignmentId,
+        title: review.title,
+        canResumeEditing,
+      });
       const startTime = performance.now();
 
-      await useProjectStore.getState().restoreSnapshot(matric, review.assignmentId, review.title);
+      await useProjectStore.getState().restoreSnapshot(matric, assignmentId, review.title);
 
       const endTime = performance.now();
       const ideState = useIdeStore.getState();
@@ -134,7 +162,7 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
             <span className={cn("inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em]", statusStyles[review.status] ?? "border-white/10 bg-white/5 text-zinc-300")}> <Clock size={14} /> {formatDate(review.submittedAt)} </span>
           </div>
 
-          {isAwaitingChanges ? (
+          {canResumeEditing ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}

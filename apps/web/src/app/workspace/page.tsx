@@ -96,7 +96,11 @@ export default function WorkspacePage() {
       return null;
     }
     const forActive = studentReviews.find((review) => review.assignmentId === activeAssignmentId);
-    console.log("[Workspace] currentReview (active assignment only)", forActive ?? null);
+    console.log("[Workspace] currentReview computed", {
+      activeAssignmentId,
+      review: forActive ?? null,
+      studentReviewCount: studentReviews.length,
+    });
     return forActive ?? null;
   }, [studentReviews, activeAssignmentId]);
 
@@ -105,6 +109,10 @@ export default function WorkspacePage() {
     const review = studentReviews.find(
       (r) => r.assignmentId === activeAssignmentId && r.status === "CHANGES_REQUESTED"
     );
+    console.log("[Workspace] active changes-requested review", {
+      activeAssignmentId,
+      review: review ?? null,
+    });
     return review ?? null;
   }, [studentReviews, activeAssignmentId]);
 
