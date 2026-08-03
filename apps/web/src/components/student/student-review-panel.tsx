@@ -67,6 +67,7 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
   const isCurrentAssignment = !activeAssignmentId || review.assignmentId === activeAssignmentId;
   const isCurrentStudent = !reviewStudentMatric || currentStudentMatric === reviewStudentMatric;
   const canResumeEditing = isAwaitingChanges && isCurrentAssignment && isCurrentStudent;
+  const resumeAssignmentId = activeAssignmentId ?? review.assignmentId;
   const isApproved = review.status === "APPROVED" || review.status === "PUBLISHED";
 
   console.log("[StudentReviewPanel] review audit", {
@@ -92,7 +93,7 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
     : `Review for "${review.title}" by ${review.reviewerName ?? "your instructor"}`;
 
   const openFullProject = async () => {
-    const assignmentId = activeAssignmentId ?? review.assignmentId;
+    const assignmentId = resumeAssignmentId;
     console.log("[StudentReviewPanel] BUTTON CLICKED", {
       assignmentId,
       reviewAssignmentId: review.assignmentId,

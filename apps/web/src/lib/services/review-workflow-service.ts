@@ -41,6 +41,27 @@ interface CreateReviewInput {
   files?: Array<{ fileName: string; fileUrl?: string | null; fileType?: string | null; sizeBytes?: number | null }>;
 }
 
+export function resolveSubmissionReviewAction(existingStatus: ReviewWorkflowStatus | string | null | undefined, hasFiles: boolean) {
+  const normalizedStatus = (existingStatus ?? "DRAFT") as ReviewWorkflowStatus;
+  const terminalStatuses = new Set<ReviewWorkflowStatus>(["APPROVED", "PUBLISHED", "REJECTED"]);
+
+  if (terminalStatuses.has(normalizedStatus as ReviewWorkflowStatus)) {
+    throw new Error("Cannot modify a review that is already approved, published, or rejected.");
+  }
+
+  if (normalizedStatus === "CHANGES_REQUESTED" && hasFiles) {
+    return {
+      mode: "resubmit" as const,
+      status: "RESUBMITTED" as const,
+    };
+  }
+
+  return {
+    mode: "refresh" as const,
+    status: "SUBMITTED" as const,
+  };
+}
+
 interface AddCommentInput {
   reviewId: string;
   authorMatric: string;
@@ -154,12 +175,10 @@ export async function createReview(input: CreateReviewInput) {
   });
 
   if (existingReview) {
-    if (["APPROVED", "PUBLISHED", "REJECTED"].includes(existingReview.status)) {
-      throw new Error("Cannot modify a review that is already approved, published, or rejected.");
-    }
+    const action = resolveSubmissionReviewAction(existingReview.status, Boolean(input.files?.length));
 
-    if (existingReview.status === "CHANGES_REQUESTED" && input.files && input.files.length > 0) {
-      const revision = await resubmitRevision({
+    if (action.mode === "resubmit") {
+      await resubmitRevision({
         reviewId: existingReview.id,
         studentMatric: input.studentMatric,
         summary: input.summary ?? "Revision submitted.",
@@ -179,6 +198,17 @@ export async function createReview(input: CreateReviewInput) {
         },
       });
     }
+
+    await prisma.review.update({
+      where: { id: existingReview.id },
+      data: {
+        status: action.status,
+        submittedAt: new Date(),
+        reviewStartedAt: existingReview.reviewStartedAt ?? new Date(),
+        reviewerMatric: input.reviewerMatric ?? existingReview.reviewerMatric,
+        reviewerName: input.reviewerName ?? existingReview.reviewerName,
+      },
+    });
 
     return prisma.review.findUniqueOrThrow({
       where: { id: existingReview.id },
