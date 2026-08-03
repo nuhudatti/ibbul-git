@@ -23,6 +23,34 @@ interface ProjectStoreState {
   restoreSnapshot: (matric: string, assignmentId: string, fallbackTitle?: string) => Promise<void>;
 }
 
+export function waitForHydrationState(
+  hasHydrated: () => boolean,
+  onFinishHydration: (callback: () => void) => (() => void) | undefined
+): Promise<void> {
+  if (typeof window === "undefined") {
+    return Promise.resolve();
+  }
+
+  if (hasHydrated()) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    let unsubscribe: (() => void) | undefined;
+    unsubscribe = onFinishHydration(() => {
+      unsubscribe?.();
+      resolve();
+    });
+  });
+}
+
+export function waitForProjectHydration(): Promise<void> {
+  return waitForHydrationState(
+    () => useProjectStore.persist.hasHydrated(),
+    (callback) => useProjectStore.persist.onFinishHydration(callback)
+  );
+}
+
 export const useProjectStore = create<ProjectStoreState>()(
   persist(
     (set, get) => ({
@@ -141,7 +169,8 @@ export const useProjectStore = create<ProjectStoreState>()(
         }
 
         try {
-          await waitForIdeHydration();
+          console.log("[ProjectStore] waiting for project and ide hydration before restore");
+          await Promise.all([waitForProjectHydration(), waitForIdeHydration()]);
 
           const snapshot = await get().loadSnapshot(canonicalMatric, assignmentId);
           console.log("SNAPSHOT LOADED", {

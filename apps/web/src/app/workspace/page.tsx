@@ -95,28 +95,27 @@ export default function WorkspacePage() {
       console.log("[Workspace] currentReview computed", { activeAssignmentId, review: null });
       return null;
     }
-    const forActive = studentReviews.find((review) => review.assignmentId === activeAssignmentId);
-    const fallback = studentReviews[0] ?? null;
-    const resolvedReview = forActive ?? fallback;
+
+    const review = studentReviews.find((item) => item.assignmentId === activeAssignmentId);
     console.log("[Workspace] currentReview computed", {
       activeAssignmentId,
-      review: resolvedReview,
+      review: review ?? null,
       studentReviewCount: studentReviews.length,
     });
-    return resolvedReview;
+    return review ?? null;
   }, [studentReviews, activeAssignmentId]);
 
   const activeChangesRequestedReview = useMemo(() => {
     if (!activeAssignmentId) return null;
+
     const review = studentReviews.find(
-      (r) => r.assignmentId === activeAssignmentId && r.status === "CHANGES_REQUESTED"
+      (item) => item.assignmentId === activeAssignmentId && item.status === "CHANGES_REQUESTED"
     );
-    const fallback = studentReviews.find((r) => r.status === "CHANGES_REQUESTED");
     console.log("[Workspace] active changes-requested review", {
       activeAssignmentId,
-      review: review ?? fallback ?? null,
+      review: review ?? null,
     });
-    return review ?? fallback ?? null;
+    return review ?? null;
   }, [studentReviews, activeAssignmentId]);
 
   useEffect(() => {
