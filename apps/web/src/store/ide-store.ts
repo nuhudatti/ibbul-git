@@ -43,6 +43,8 @@ interface IdeState {
   activeAssignmentId: string | null;
   /** True when lecturer requested changes — overrides submitted/read-only lock */
   revisionEditUnlocked: boolean;
+  /** Assignment id for an active revision editing session (survives persist rehydration) */
+  revisionSessionAssignmentId: string | null;
 
   isDeployModalOpen: boolean;
   openDeployModal: () => void;
@@ -82,7 +84,9 @@ interface IdeState {
   markSaved: () => void;
   setDirty: (dirty: boolean) => void;
   isReadOnly: () => boolean;
-  unlockRevisionEditing: () => void;
+  unlockRevisionEditing: (assignmentId?: string) => void;
+  beginRevisionSession: (assignmentId: string) => void;
+  endRevisionSession: () => void;
 }
 
 const defaultDeployment: DeploymentState = {
@@ -120,6 +124,7 @@ export const useIdeStore = create<IdeState>()(
       previewDevice: "desktop",
       activeAssignmentId: null,
       revisionEditUnlocked: false,
+      revisionSessionAssignmentId: null,
       isDeployModalOpen: false,
       terminalLogs: ["Project ULA ready.", "Press Run to launch your project in full preview."],
       aiMessages: [
@@ -251,6 +256,7 @@ export const useIdeStore = create<IdeState>()(
       assignmentId,
       mode,
       revisionUnlocked,
+      revisionUnlockedOpt: opts?.revisionUnlocked,
       filesLength: files.length,
       firstFilePath: files[0]?.path,
     });
@@ -263,6 +269,9 @@ export const useIdeStore = create<IdeState>()(
       activeAssignmentId: assignmentId ?? null,
       workspaceMode: revisionUnlocked ? "edit" : mode,
       revisionEditUnlocked: revisionUnlocked,
+      revisionSessionAssignmentId: revisionUnlocked
+        ? (assignmentId ?? get().revisionSessionAssignmentId)
+        : null,
       submissionMeta: opts?.submission ?? null,
       isDirty: false,
       previewKey: Date.now(),
@@ -289,9 +298,33 @@ export const useIdeStore = create<IdeState>()(
       readOnly: state.isReadOnly(),
     });
   },
-  unlockRevisionEditing: () => {
-    console.log("unlockRevisionEditing CALLED");
+  beginRevisionSession: (assignmentId) => {
+    console.log("beginRevisionSession CALLED", { assignmentId });
     set({
+      revisionSessionAssignmentId: assignmentId,
+      activeAssignmentId: assignmentId,
+      workspaceMode: "edit",
+      revisionEditUnlocked: true,
+      viewMode: "code",
+      isExplorerOpen: true,
+    });
+    const state = get();
+    console.log("beginRevisionSession COMPLETE", {
+      revisionSessionAssignmentId: state.revisionSessionAssignmentId,
+      workspaceMode: state.workspaceMode,
+      readOnly: state.isReadOnly(),
+    });
+  },
+  endRevisionSession: () =>
+    set({
+      revisionSessionAssignmentId: null,
+      revisionEditUnlocked: false,
+    }),
+  unlockRevisionEditing: (assignmentId) => {
+    const sessionId = assignmentId ?? get().revisionSessionAssignmentId ?? get().activeAssignmentId;
+    console.log("unlockRevisionEditing CALLED", { assignmentId: sessionId });
+    set({
+      revisionSessionAssignmentId: sessionId,
       workspaceMode: "edit",
       revisionEditUnlocked: true,
       viewMode: "code",
@@ -299,6 +332,7 @@ export const useIdeStore = create<IdeState>()(
     });
     const state = get();
     console.log("unlockRevisionEditing COMPLETE", {
+      revisionSessionAssignmentId: state.revisionSessionAssignmentId,
       workspaceMode: state.workspaceMode,
       viewMode: state.viewMode,
       isExplorerOpen: state.isExplorerOpen,
@@ -307,10 +341,12 @@ export const useIdeStore = create<IdeState>()(
   },
   exitSubmittedView: () =>
     set((s) => ({
-      workspaceMode: "edit",
-      revisionEditUnlocked: true,
+      // Dismiss snapshot banner without unlocking editing — only CHANGES_REQUESTED + restoreSnapshot may unlock
       submissionMeta: null,
       viewMode: "code",
+      workspaceMode: "submitted",
+      revisionEditUnlocked: false,
+      revisionSessionAssignmentId: null,
       deployment: s.deployment.url
         ? {
             status: "success",
@@ -340,6 +376,7 @@ export const useIdeStore = create<IdeState>()(
     set({
       workspaceMode: "edit",
       revisionEditUnlocked: false,
+      revisionSessionAssignmentId: null,
       submissionMeta: null,
       viewMode: "code",
       activeAssignmentId: null,
@@ -372,6 +409,91 @@ export const useIdeStore = create<IdeState>()(
   setDirty: (dirty) => set({ isDirty: dirty, saveStatus: dirty ? "saving" : "saved" }),
   isReadOnly: () => get().workspaceMode === "submitted" && !get().revisionEditUnlocked,
     }),
-    { name: "ula-ide" }
+    {
+      name: "ula-ide",
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<IdeState>;
+        const c = current as IdeState;
+        const merged = { ...c, ...p } as IdeState;
+
+        const sessionId = c.revisionSessionAssignmentId ?? p.revisionSessionAssignmentId ?? null;
+        const sessionActive =
+          Boolean(sessionId) &&
+          (c.revisionEditUnlocked ||
+            p.revisionEditUnlocked ||
+            (c.workspaceMode === "edit" && c.revisionEditUnlocked) ||
+            (p.revisionEditUnlocked && p.workspaceMode === "edit"));
+
+        // Never let stale persisted submitted state clobber an active revision session
+        if (sessionActive && sessionId) {
+          merged.revisionSessionAssignmentId = sessionId;
+          merged.revisionEditUnlocked = true;
+          merged.workspaceMode = "edit";
+          merged.activeAssignmentId = sessionId;
+          merged.viewMode = c.viewMode === "preview" && !c.revisionEditUnlocked ? p.viewMode ?? "code" : c.viewMode ?? "code";
+          merged.isExplorerOpen = c.isExplorerOpen ?? true;
+          if (c.files.length > 0 && c.activeAssignmentId === sessionId) {
+            merged.files = c.files;
+            merged.projectName = c.projectName;
+            merged.activeFilePath = c.activeFilePath;
+            merged.submissionMeta = c.submissionMeta ?? p.submissionMeta ?? null;
+          }
+        } else if (merged.workspaceMode === "submitted") {
+          merged.revisionEditUnlocked = false;
+          merged.revisionSessionAssignmentId = null;
+        }
+
+        console.log("[IdeStore] rehydrate merge", {
+          persistedMode: p.workspaceMode,
+          persistedUnlock: p.revisionEditUnlocked,
+          persistedSession: p.revisionSessionAssignmentId,
+          currentUnlock: c.revisionEditUnlocked,
+          currentSession: c.revisionSessionAssignmentId,
+          resultMode: merged.workspaceMode,
+          resultUnlock: merged.revisionEditUnlocked,
+          resultSession: merged.revisionSessionAssignmentId,
+        });
+        return merged;
+      },
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.error("[IdeStore] rehydration failed", error);
+          return;
+        }
+        console.log("[IdeStore] rehydration complete", {
+          workspaceMode: state?.workspaceMode,
+          revisionEditUnlocked: state?.revisionEditUnlocked,
+          revisionSessionAssignmentId: state?.revisionSessionAssignmentId,
+          activeAssignmentId: state?.activeAssignmentId,
+          filesCount: state?.files?.length,
+        });
+
+        const sessionId = state?.revisionSessionAssignmentId;
+        if (!sessionId) return;
+
+        queueMicrotask(() => {
+          const live = useIdeStore.getState();
+          if (live.revisionSessionAssignmentId !== sessionId) return;
+          if (!live.isReadOnly()) return;
+          console.log("[IdeStore] re-applying revision session after hydration", { sessionId });
+          live.unlockRevisionEditing(sessionId);
+        });
+      },
+    }
   )
 );
+
+export function waitForIdeHydration(): Promise<void> {
+  if (typeof window === "undefined") {
+    return Promise.resolve();
+  }
+  if (useIdeStore.persist.hasHydrated()) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const unsub = useIdeStore.persist.onFinishHydration(() => {
+      unsub();
+      resolve();
+    });
+  });
+}

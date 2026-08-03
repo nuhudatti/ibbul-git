@@ -59,17 +59,25 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
   const completedChecklist = review.checklist.filter((item) => item.checked).length;
   const statusLabel = review.status.replace(/_/g, " ");
   const isAwaitingChanges = review.status === "CHANGES_REQUESTED";
+  const canEdit = isAwaitingChanges;
   const isApproved = review.status === "APPROVED" || review.status === "PUBLISHED";
+
+  console.log("[StudentReviewPanel] render", {
+    "review.status": review.status,
+    canEdit,
+    assignmentId: review.assignmentId,
+  });
   const heroTitle = isAwaitingChanges ? "Resume editing" : statusLabel;
   const heroDescription = isAwaitingChanges
     ? "Your instructor requested changes — full project access restored."
     : `Review for "${review.title}" by ${review.reviewerName ?? "your instructor"}`;
 
   const openFullProject = async () => {
-    console.log("BUTTON CLICKED", {
+    console.log("[StudentReviewPanel] BUTTON CLICKED", {
       assignmentId: review.assignmentId,
       title: review.title,
-      status: review.status,
+      "review.status": review.status,
+      canEdit,
       timestamp: new Date().toISOString(),
     });
 

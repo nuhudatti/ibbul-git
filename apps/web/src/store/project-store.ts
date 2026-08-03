@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ProjectFile, ProjectSnapshot } from "@/types";
 import { normalizeMatric } from "@/lib/matric";
-import { useIdeStore } from "./ide-store";
+import { useIdeStore, waitForIdeHydration } from "./ide-store";
 
 interface ProjectStoreState {
   snapshots: Record<string, ProjectSnapshot>;
@@ -135,6 +135,8 @@ export const useProjectStore = create<ProjectStoreState>()(
         }
 
         try {
+          await waitForIdeHydration();
+
           const snapshot = await get().loadSnapshot(canonicalMatric, assignmentId);
           console.log("SNAPSHOT LOADED", {
             snapshotId: snapshot?.assignmentId,
@@ -164,7 +166,7 @@ export const useProjectStore = create<ProjectStoreState>()(
             },
           });
 
-          useIdeStore.getState().unlockRevisionEditing();
+          useIdeStore.getState().beginRevisionSession(assignmentId);
 
           const state = useIdeStore.getState();
           if (files?.length && files[0]?.path) {

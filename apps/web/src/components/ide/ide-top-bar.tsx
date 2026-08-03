@@ -31,6 +31,7 @@ type ReviewRecord = {
   id: string;
   assignmentId: string;
   status: string;
+  title?: string;
 };
 
 export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: ReviewRecord | null; onReviewUpdated?: () => void }) {
@@ -44,6 +45,8 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
   const viewMode = useIdeStore((s) => s.viewMode);
   const workspaceMode = useIdeStore((s) => s.workspaceMode);
   const activeAssignmentId = useIdeStore((s) => s.activeAssignmentId);
+  const revisionEditUnlocked = useIdeStore((s) => s.revisionEditUnlocked);
+  const revisionSessionAssignmentId = useIdeStore((s) => s.revisionSessionAssignmentId);
   const projectId = useIdeStore((s) => s.projectId);
   const toggleExplorer = useIdeStore((s) => s.toggleExplorer);
   const toggleAiPanel = useIdeStore((s) => s.toggleAiPanel);
@@ -67,29 +70,41 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
   const [showSaveToast, setShowSaveToast] = useState(false);
   const initialToast = useRef(true);
 
-  const isReviewChangesRequested = currentReview?.status === "CHANGES_REQUESTED";
-  const isSubmittedView = workspaceMode === "submitted" && !isReviewChangesRequested;
+  const assignmentReview =
+    activeAssignmentId && currentReview?.assignmentId === activeAssignmentId
+      ? currentReview
+      : null;
+  const isChangesRequestedForActive =
+    assignmentReview?.status === "CHANGES_REQUESTED" &&
+    activeAssignmentId === assignmentReview.assignmentId;
+  const isRevisionEditingActive =
+    revisionEditUnlocked &&
+    Boolean(revisionSessionAssignmentId) &&
+    revisionSessionAssignmentId === activeAssignmentId;
+  const isSubmittedView = workspaceMode === "submitted" && !isRevisionEditingActive;
   const assignment =
-    user && (activeAssignmentId ?? currentReview?.assignmentId)
-      ? getStudentAssignments(user.matricNumber).find(
-          (a) => a.id === (activeAssignmentId ?? currentReview?.assignmentId)
-        )
+    user && activeAssignmentId
+      ? getStudentAssignments(user.matricNumber).find((a) => a.id === activeAssignmentId)
       : null;
   const alreadySubmitted =
     assignment?.enrollment?.status === "SUBMITTED" ||
     assignment?.enrollment?.status === "GRADED";
-  const submitAssignmentId = activeAssignmentId ?? currentReview?.assignmentId ?? null;
-  const canSubmit = submitAssignmentId && (!alreadySubmitted || isReviewChangesRequested);
-  const submitLabel = isReviewChangesRequested ? "Resubmit" : "Submit";
+  const submitAssignmentId = activeAssignmentId;
+  const canSubmit =
+    submitAssignmentId &&
+    (!alreadySubmitted || (isChangesRequestedForActive && isRevisionEditingActive));
+  const submitLabel = isChangesRequestedForActive && isRevisionEditingActive ? "Resubmit" : "Submit";
+  const showResumeEditing = isChangesRequestedForActive && !isRevisionEditingActive;
   const handleResumeEditing = async () => {
-    if (!user) return;
-    const assignmentId = currentReview?.assignmentId ?? activeAssignmentId;
-    const title = assignment?.title ?? projectName;
-    if (!assignmentId) return;
+    if (!user || !activeAssignmentId) return;
+    const title = assignment?.title ?? assignmentReview?.title ?? projectName;
 
-    console.log("BUTTON CLICKED (top bar resume)", { matric: user.matricNumber, assignmentId, title });
-    await restoreSnapshot(user.matricNumber, assignmentId, title);
-    useIdeStore.getState().unlockRevisionEditing();
+    console.log("BUTTON CLICKED (top bar resume)", {
+      matric: user.matricNumber,
+      assignmentId: activeAssignmentId,
+      title,
+    });
+    await restoreSnapshot(user.matricNumber, activeAssignmentId, title);
     const state = useIdeStore.getState();
     console.log("[IdeTopBar] restoreSnapshot completed", {
       workspaceMode: state.workspaceMode,
@@ -97,6 +112,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
       activeFilePath: state.activeFilePath,
       filesCount: state.files.length,
       readOnly: state.isReadOnly(),
+      revisionSessionAssignmentId: state.revisionSessionAssignmentId,
     });
     document.getElementById("workspace-ide")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -152,12 +168,12 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
     if (!user || !submitAssignmentId || isSubmittedView || !canSubmit) return;
 
     setIsSubmitting(true);
-    addTerminalLog(isReviewChangesRequested ? "Saving revision snapshot..." : "Saving submission snapshot...");
+    addTerminalLog(isChangesRequestedForActive && isRevisionEditingActive ? "Saving revision snapshot..." : "Saving submission snapshot...");
     saveSnapshot(user.matricNumber, submitAssignmentId, projectName, files, {
       submitted: true,
     });
 
-    if (!isReviewChangesRequested) {
+    if (!isChangesRequestedForActive || !isRevisionEditingActive) {
       addTerminalLog("Submitting for AI grading...");
       await new Promise((r) => setTimeout(r, 1200));
     }
@@ -175,13 +191,21 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
           deployUrl: useIdeStore.getState().deployment.url,
         }),
       });
-      addTerminalLog(isReviewChangesRequested ? "Revision snapshot persisted to the database." : "Submission snapshot persisted to the database.");
+      addTerminalLog(
+        isChangesRequestedForActive && isRevisionEditingActive
+          ? "Revision snapshot persisted to the database."
+          : "Submission snapshot persisted to the database."
+      );
     } catch (error) {
-      addTerminalLog(isReviewChangesRequested ? "Failed to persist revision snapshot." : "Failed to persist submission snapshot.");
+      addTerminalLog(
+        isChangesRequestedForActive && isRevisionEditingActive
+          ? "Failed to persist revision snapshot."
+          : "Failed to persist submission snapshot."
+      );
     }
 
     let score: number | undefined;
-    if (!isReviewChangesRequested) {
+    if (!isChangesRequestedForActive || !isRevisionEditingActive) {
       try {
         const res = await fetch("/api/grading/evaluate", {
           method: "POST",
@@ -207,7 +231,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
       deployUrl: useIdeStore.getState().deployment.url,
     });
 
-    if (!isReviewChangesRequested) {
+    if (!isChangesRequestedForActive || !isRevisionEditingActive) {
       submitAssignment(
         submitAssignmentId,
         user.matricNumber,
@@ -231,9 +255,9 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
       addTerminalLog("Portfolio artifact sealed · added to your verified identity.");
     }
 
-    if (isReviewChangesRequested && currentReview?.id) {
+    if (isChangesRequestedForActive && isRevisionEditingActive && assignmentReview?.id) {
       try {
-        const res = await fetch(`/api/reviews/${currentReview.id}`, {
+        const res = await fetch(`/api/reviews/${assignmentReview.id}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -275,13 +299,13 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
     });
 
     addTerminalLog(
-      isReviewChangesRequested
+      isChangesRequestedForActive && isRevisionEditingActive
         ? "Revision submitted for review."
         : score != null
         ? `Submitted! Score: ${score}/100`
         : "Submitted! Awaiting lecturer review."
     );
-    if (isReviewChangesRequested) {
+    if (isChangesRequestedForActive && isRevisionEditingActive) {
       await onReviewUpdated?.();
     }
     setIsSubmitting(false);
@@ -306,7 +330,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
                   Assignment
                 </span>
               ) : null}
-              {isReviewChangesRequested ? (
+              {isRevisionEditingActive ? (
                 <span className="inline-flex items-center gap-1 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200 shrink-0">
                   <Unlock size={10} /> Resume editing
                 </span>
@@ -398,7 +422,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
               <Play size={14} />
               <span>{viewMode === "preview" ? "Refresh" : "Run"}</span>
             </Button>
-            {isReviewChangesRequested ? (
+            {showResumeEditing ? (
               <Button
                 variant="secondary"
                 size="md"

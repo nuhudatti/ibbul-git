@@ -35,6 +35,7 @@ export default function WorkspacePage() {
   const [studentReviews, setStudentReviews] = useState<ReviewRecord[]>([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [ideHydrated, setIdeHydrated] = useState(false);
 
   const loadReviews = useCallback(async () => {
     if (!user || user.role !== "STUDENT") {
@@ -90,37 +91,53 @@ export default function WorkspacePage() {
   }, [user, loadReviews]);
 
   const currentReview = useMemo(() => {
-    const changesRequested = studentReviews.find((review) => review.status === "CHANGES_REQUESTED");
-    if (changesRequested) {
-      console.log("[Workspace] currentReview (changes requested)", changesRequested);
-      return changesRequested;
+    if (!activeAssignmentId) {
+      console.log("[Workspace] currentReview computed", { activeAssignmentId, review: null });
+      return null;
     }
-    const match =
-      studentReviews.find((review) => review.assignmentId === activeAssignmentId) ?? null;
-    console.log("[Workspace] currentReview computed", { activeAssignmentId, review: match });
-    return match;
+    const forActive = studentReviews.find((review) => review.assignmentId === activeAssignmentId);
+    console.log("[Workspace] currentReview (active assignment only)", forActive ?? null);
+    return forActive ?? null;
   }, [studentReviews, activeAssignmentId]);
 
-  const pendingChangesReview = useMemo(
-    () => studentReviews.find((review) => review.status === "CHANGES_REQUESTED") ?? null,
-    [studentReviews]
-  );
+  const activeChangesRequestedReview = useMemo(() => {
+    if (!activeAssignmentId) return null;
+    const review = studentReviews.find(
+      (r) => r.assignmentId === activeAssignmentId && r.status === "CHANGES_REQUESTED"
+    );
+    return review ?? null;
+  }, [studentReviews, activeAssignmentId]);
 
   useEffect(() => {
     void loadReviews();
   }, [loadReviews]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (useIdeStore.persist.hasHydrated()) {
+      setIdeHydrated(true);
+      return;
+    }
+    return useIdeStore.persist.onFinishHydration(() => {
+      console.log("[Workspace] IDE store hydration finished — resetting auto-unlock guard");
+      lastAutoUnlockedAssignment.current = null;
+      setIdeHydrated(true);
+    });
+  }, []);
+
   const lastAutoUnlockedAssignment = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!pendingChangesReview || !user?.matricNumber) return;
+    if (!ideHydrated || !activeChangesRequestedReview || !user?.matricNumber) return;
 
-    const assignmentId = pendingChangesReview.assignmentId;
+    const assignmentId = activeChangesRequestedReview.assignmentId;
+    const revisionSessionId = useIdeStore.getState().revisionSessionAssignmentId;
     const needsRestore =
-      activeAssignmentId !== assignmentId ||
-      workspaceMode !== "edit" ||
-      files.length === 0 ||
-      useIdeStore.getState().isReadOnly();
+      revisionSessionId !== assignmentId &&
+      (activeAssignmentId !== assignmentId ||
+        workspaceMode !== "edit" ||
+        files.length === 0 ||
+        useIdeStore.getState().isReadOnly());
 
     if (!needsRestore) {
       lastAutoUnlockedAssignment.current = assignmentId;
@@ -129,26 +146,29 @@ export default function WorkspacePage() {
 
     if (lastAutoUnlockedAssignment.current === assignmentId) return;
 
-    console.log("[Workspace] auto-unlock revision editing", {
+    console.log("[Workspace] auto-restore revision session for active assignment", {
+      ideHydrated,
       assignmentId,
       activeAssignmentId,
       workspaceMode,
       filesCount: files.length,
+      readOnly: useIdeStore.getState().isReadOnly(),
     });
 
     void (async () => {
       try {
         await useProjectStore
           .getState()
-          .restoreSnapshot(user.matricNumber, assignmentId, pendingChangesReview.title);
+          .restoreSnapshot(user.matricNumber, assignmentId, activeChangesRequestedReview.title);
         lastAutoUnlockedAssignment.current = assignmentId;
       } catch (error) {
-        console.error("[Workspace] auto-unlock failed", error);
+        console.error("[Workspace] auto-restore failed", error);
         lastAutoUnlockedAssignment.current = null;
       }
     })();
   }, [
-    pendingChangesReview,
+    ideHydrated,
+    activeChangesRequestedReview,
     user?.matricNumber,
     activeAssignmentId,
     workspaceMode,
