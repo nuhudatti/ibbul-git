@@ -173,9 +173,12 @@ export const useProjectStore = create<ProjectStoreState>()(
           await Promise.all([waitForProjectHydration(), waitForIdeHydration()]);
 
           const snapshot = await get().loadSnapshot(canonicalMatric, assignmentId);
-          console.log("SNAPSHOT LOADED", {
+          console.log("[ProjectStore] snapshot loaded", {
+            assignmentId,
             snapshotId: snapshot?.assignmentId,
+            snapshotExists: !!snapshot,
             filesCount: snapshot?.files?.length ?? 0,
+            filePaths: snapshot?.files?.slice(0, 10).map((file) => file.path) ?? [],
             projectName: snapshot?.projectName,
             submittedAt: snapshot?.submittedAt,
           });
@@ -189,9 +192,10 @@ export const useProjectStore = create<ProjectStoreState>()(
 
           console.log("[ProjectStore] restoreSnapshot will load project", {
             assignmentId,
-            filesCount: files.length,
-            projectName,
             hasSnapshot: !!snapshot,
+            filesCount: files.length,
+            filePaths: files.slice(0, 10).map((file) => file.path),
+            projectName,
           });
 
           useIdeStore.getState().loadProject(projectName, files, assignmentId, {
@@ -217,13 +221,17 @@ export const useProjectStore = create<ProjectStoreState>()(
           }
           state.setDirty(false);
 
-          console.log("RESTORE COMPLETE", {
+          console.log("[ProjectStore] restore complete", {
+            assignmentId,
+            projectId: state.projectId,
+            projectName: state.projectName,
+            projectFilesCount: state.files.length,
+            activeFile: state.activeFilePath,
             workspaceMode: state.workspaceMode,
             viewMode: state.viewMode,
-            activeFile: state.activeFilePath,
-            filesCount: state.files.length,
             isExplorerOpen: state.isExplorerOpen,
-            readOnly: state.isReadOnly(),
+            revisionEditUnlocked: state.revisionEditUnlocked,
+            isReadOnly: state.isReadOnly(),
             activeAssignmentId: state.activeAssignmentId,
           });
         } catch (error) {

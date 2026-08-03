@@ -260,6 +260,16 @@ export const useIdeStore = create<IdeState>()(
       filesLength: files.length,
       firstFilePath: files[0]?.path,
     });
+    console.log("[IdeStore] loadProject before apply", {
+      assignmentId,
+      mode,
+      revisionUnlocked,
+      incomingFilesCount: files.length,
+      incomingFirstFile: files[0]?.path,
+      currentWorkspaceMode: get().workspaceMode,
+      currentRevisionUnlocked: get().revisionEditUnlocked,
+      currentViewMode: get().viewMode,
+    });
     set({
       projectId: assignmentId ?? get().projectId,
       projectName: name,
@@ -288,14 +298,17 @@ export const useIdeStore = create<IdeState>()(
         : defaultDeployment,
     });
     const state = get();
-    console.log("loadProject COMPLETE", {
+    console.log("[IdeStore] loadProject complete", {
+      assignmentId: state.activeAssignmentId,
+      projectId: state.projectId,
+      projectName: state.projectName,
       workspaceMode: state.workspaceMode,
       revisionEditUnlocked: state.revisionEditUnlocked,
-      isExplorerOpen: state.isExplorerOpen,
       viewMode: state.viewMode,
+      isExplorerOpen: state.isExplorerOpen,
       activeFilePath: state.activeFilePath,
       filesCount: state.files.length,
-      readOnly: state.isReadOnly(),
+      isReadOnly: state.isReadOnly(),
     });
   },
   beginRevisionSession: (assignmentId) => {

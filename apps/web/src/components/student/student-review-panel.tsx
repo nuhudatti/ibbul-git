@@ -123,7 +123,9 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
       console.log("[StudentReviewPanel] restoreSnapshot start", {
         matric,
         assignmentId,
-        title: review.title,
+        reviewId: review.id,
+        reviewStatus: review.status,
+        reviewTitle: review.title,
         canResumeEditing,
       });
       const startTime = performance.now();

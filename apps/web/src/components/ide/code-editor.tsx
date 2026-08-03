@@ -15,6 +15,13 @@ export function CodeEditor() {
   const revisionEditUnlocked = useIdeStore((s) => s.revisionEditUnlocked);
 
   const readOnly = workspaceMode === "submitted" && !revisionEditUnlocked;
+  console.log("[CodeEditor] readOnly decision", {
+    workspaceMode,
+    revisionEditUnlocked,
+    readOnly,
+    activeFilePath,
+    filesCount: files.length,
+  });
   const activeFile = files.find((f) => f.path === activeFilePath);
   const language = activeFile?.language ?? getLanguageFromPath(activeFilePath);
   const [clipboardSupported, setClipboardSupported] = useState(false);
