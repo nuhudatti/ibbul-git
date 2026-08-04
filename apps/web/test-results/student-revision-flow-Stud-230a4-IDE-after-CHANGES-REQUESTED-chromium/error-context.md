@@ -76,8 +76,7 @@ waiting for navigation to "**/workspace**" until "load"
                 - /url: /verified
           - paragraph [ref=e91]: No recent activity.
     - contentinfo [ref=e92]: Verified Proof-of-Work Portfolio Engine
-  - button "Open Next.js Dev Tools" [ref=e98] [cursor=pointer]
-  - alert [ref=e102]
+  - alert [ref=e93]
 ```
 
 # Test source

@@ -101,7 +101,18 @@ function mapFiles(files: ProjectFile[]) {
     language: f.language ?? getLanguageFromPath(f.path),
   }));
 }
-
+function deriveFoldersFromFiles(files: ProjectFile[]) {
+  const folders = new Set<string>();
+  for (const file of files) {
+    const segments = file.path.split("/").slice(0, -1);
+    let current = "";
+    for (const segment of segments) {
+      current = current ? `${current}/${segment}` : segment;
+      if (current) folders.add(current);
+    }
+  }
+  return Array.from(folders).sort((a, b) => a.localeCompare(b));
+}
 function normalizeWorkspacePath(path: string) {
   return path.trim().replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+/g, "/");
 }
@@ -274,7 +285,7 @@ export const useIdeStore = create<IdeState>()(
       projectId: assignmentId ?? get().projectId,
       projectName: name,
       files: mapFiles(files),
-      folders: [],
+      folders: deriveFoldersFromFiles(files),
       activeFilePath: files[0]?.path ?? get().activeFilePath ?? "index.html",
       activeAssignmentId: assignmentId ?? null,
       workspaceMode: revisionUnlocked ? "edit" : mode,
@@ -479,17 +490,6 @@ export const useIdeStore = create<IdeState>()(
           revisionSessionAssignmentId: state?.revisionSessionAssignmentId,
           activeAssignmentId: state?.activeAssignmentId,
           filesCount: state?.files?.length,
-        });
-
-        const sessionId = state?.revisionSessionAssignmentId;
-        if (!sessionId) return;
-
-        queueMicrotask(() => {
-          const live = useIdeStore.getState();
-          if (live.revisionSessionAssignmentId !== sessionId) return;
-          if (!live.isReadOnly()) return;
-          console.log("[IdeStore] re-applying revision session after hydration", { sessionId });
-          live.unlockRevisionEditing(sessionId);
         });
       },
     }

@@ -201,15 +201,7 @@ export const useProjectStore = create<ProjectStoreState>()(
           useIdeStore.getState().loadProject(projectName, files, assignmentId, {
             mode: "edit",
             revisionUnlocked: true,
-            submission: {
-              submittedAt:
-                snapshot?.submittedAt ??
-                ide.submissionMeta?.submittedAt ??
-                new Date().toISOString(),
-              score: snapshot?.score ?? ide.submissionMeta?.score,
-              deployUrl: snapshot?.deployUrl ?? ide.submissionMeta?.deployUrl,
-              assignmentTitle: fallbackTitle ?? ide.submissionMeta?.assignmentTitle,
-            },
+            submission: null,
           });
 
           console.log("[ProjectStore] restoreSnapshot calling beginRevisionSession", { assignmentId });
