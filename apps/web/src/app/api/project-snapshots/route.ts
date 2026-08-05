@@ -190,27 +190,11 @@ export async function POST(request: Request) {
     const normalizedExplorerState = explorerState ?? workspaceState?.explorerState ?? {};
     const normalizedPreviewState = normalizePreviewStatePayload(previewState, workspaceState?.previewState);
     const normalizedMetadata = metadata ?? workspaceState?.metadata ?? {};
-    const normalizedWorkspaceState = workspaceState ?? {
-      folders: normalizedFolders,
-      activeFilePath: activeFilePath ?? files[0]?.path ?? "",
-      openTabs: normalizedOpenTabs,
-      explorerState: normalizedExplorerState,
-      previewState: normalizedPreviewState,
-      metadata: normalizedMetadata,
-    };
-
     const snapshotData: Prisma.ProjectSnapshotUncheckedCreateInput = {
       studentMatric: canonicalMatric,
       assignmentId: normalizedAssignmentId,
       projectName,
       files: jsonSafeValue(normalizedFiles) as Prisma.InputJsonValue,
-      folders: jsonSafeValue(normalizedFolders) as Prisma.InputJsonValue,
-      activeFilePath: activeFilePath ?? workspaceState?.activeFilePath ?? files[0]?.path ?? "",
-      openTabs: jsonSafeValue(normalizedOpenTabs) as Prisma.InputJsonValue,
-      explorerState: jsonSafeValue(normalizedExplorerState) as Prisma.InputJsonValue,
-      previewState: normalizedPreviewState,
-      workspaceState: jsonSafeValue(normalizedWorkspaceState) as Prisma.InputJsonValue,
-      metadata: jsonSafeValue(normalizedMetadata) as Prisma.InputJsonValue,
       savedAt: new Date(),
       submittedAt: submitted ? new Date() : existing?.submittedAt ?? null,
       deployUrl: deployUrl ?? existing?.deployUrl ?? null,
@@ -306,73 +290,25 @@ export async function GET(request: Request) {
 
     console.info("[project-snapshots][GET] assignmentId-lookup", { assignmentId });
 
-    let snapshotRows: Array<{
-      id: string;
-      studentMatric: string;
-      assignmentId: string;
-      projectName: string;
-      files: Prisma.JsonValue | string | null;
-      folders: Prisma.JsonValue | string | null;
-      activeFilePath: string | null;
-      openTabs: Prisma.JsonValue | string | null;
-      explorerState: Prisma.JsonValue | string | null;
-      previewState: Prisma.JsonValue | string | null;
-      workspaceState: Prisma.JsonValue | string | null;
-      metadata: Prisma.JsonValue | string | null;
-      savedAt: Date;
-      submittedAt: Date | null;
-      deployUrl: string | null;
-      score: number | null;
-    }> = [];
+    const snapshot = await prisma.projectSnapshot.findFirst({
+      where: {
+        studentMatric: canonicalMatric,
+        assignmentId,
+      },
+      orderBy: { savedAt: "desc" },
+      select: {
+        id: true,
+        studentMatric: true,
+        assignmentId: true,
+        projectName: true,
+        files: true,
+        savedAt: true,
+        submittedAt: true,
+        deployUrl: true,
+        score: true,
+      },
+    });
 
-    try {
-      snapshotRows = await prisma.$queryRaw<Array<{
-        id: string;
-        studentMatric: string;
-        assignmentId: string;
-        projectName: string;
-        files: Prisma.JsonValue | string | null;
-        folders: Prisma.JsonValue | string | null;
-        activeFilePath: string | null;
-        openTabs: Prisma.JsonValue | string | null;
-        explorerState: Prisma.JsonValue | string | null;
-        previewState: Prisma.JsonValue | string | null;
-        workspaceState: Prisma.JsonValue | string | null;
-        metadata: Prisma.JsonValue | string | null;
-        savedAt: Date;
-        submittedAt: Date | null;
-        deployUrl: string | null;
-        score: number | null;
-      }>>`
-        SELECT
-          "id",
-          "studentMatric",
-          "assignmentId",
-          "projectName",
-          "files",
-          "folders",
-          "activeFilePath",
-          "openTabs",
-          "explorerState",
-          "previewState",
-          "workspaceState",
-          "metadata",
-          "savedAt",
-          "submittedAt",
-          "deployUrl",
-          "score"
-        FROM "ProjectSnapshot"
-        WHERE "studentMatric" = ${canonicalMatric}
-          AND "assignmentId" = ${assignmentId}
-        ORDER BY "savedAt" DESC
-        LIMIT 1
-      `;
-    } catch (queryError) {
-      console.error("[project-snapshots][GET] prisma-projectSnapshot-query", queryError);
-      throw queryError;
-    }
-
-    const snapshot = snapshotRows[0] ?? null;
     console.info("[project-snapshots][GET] projectSnapshot-query", {
       found: Boolean(snapshot),
       snapshotId: snapshot?.id ?? null,
@@ -385,21 +321,8 @@ export async function GET(request: Request) {
     }
 
     let parsedFiles: unknown = [];
-    let parsedFolders: unknown = [];
-    let parsedOpenTabs: unknown = [];
-    let parsedExplorerState: unknown = {};
-    let parsedPreviewState: unknown = {};
-    let parsedWorkspaceState: unknown = {};
-    let parsedMetadata: unknown = {};
-
     try {
       parsedFiles = parseJsonColumn(snapshot.files, "files") ?? [];
-      parsedFolders = parseJsonColumn((snapshot as any).folders, "folders") ?? [];
-      parsedOpenTabs = parseJsonColumn((snapshot as any).openTabs, "openTabs") ?? [];
-      parsedExplorerState = parseJsonColumn((snapshot as any).explorerState, "explorerState") ?? {};
-      parsedPreviewState = parseJsonColumn((snapshot as any).previewState, "previewState") ?? {};
-      parsedWorkspaceState = parseJsonColumn((snapshot as any).workspaceState, "workspaceState") ?? {};
-      parsedMetadata = parseJsonColumn((snapshot as any).metadata, "metadata") ?? {};
     } catch (jsonParseError) {
       console.error("[project-snapshots][GET] response-json-parsing", jsonParseError);
       throw jsonParseError;
@@ -411,16 +334,13 @@ export async function GET(request: Request) {
       assignmentId: snapshot.assignmentId,
       projectName: snapshot.projectName,
       files: normalizeLegacyJsonArray(parsedFiles),
-      folders: normalizeLegacyJsonArray(parsedFolders),
-      activeFilePath:
-        typeof snapshot.activeFilePath === "string" && snapshot.activeFilePath.trim().length > 0
-          ? snapshot.activeFilePath
-          : normalizeLegacyJsonObject(parsedWorkspaceState).activeFilePath ?? "",
-      openTabs: normalizeLegacyJsonArray(parsedOpenTabs),
-      explorerState: normalizeLegacyJsonObject(parsedExplorerState),
-      previewState: normalizeLegacyJsonObject(parsedPreviewState),
-      workspaceState: normalizeLegacyJsonObject(parsedWorkspaceState),
-      metadata: normalizeLegacyJsonObject(parsedMetadata),
+      folders: [],
+      activeFilePath: null,
+      openTabs: [],
+      explorerState: {},
+      previewState: {},
+      workspaceState: {},
+      metadata: {},
       savedAt: snapshot.savedAt.toISOString(),
       submittedAt: snapshot.submittedAt?.toISOString() ?? null,
       deployUrl: snapshot.deployUrl ?? undefined,
