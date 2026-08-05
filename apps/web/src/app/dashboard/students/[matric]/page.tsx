@@ -31,6 +31,10 @@ type LecturerSubmission = {
   enrollment: {
     submittedAt?: string | null;
   };
+  snapshot?: {
+    id: string;
+    projectName: string;
+  } | null;
   review: {
     id: string;
     status: Status;
@@ -144,6 +148,30 @@ export default function DashboardStudentDetailPage() {
     (submission) => submission.review && ["SUBMITTED", "UNDER_REVIEW", "CHANGES_REQUESTED", "RESUBMITTED"].includes(submission.review.status)
   ).length;
 
+  const createReviewForSubmission = async (submission: LecturerSubmission) => {
+    try {
+      const response = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentMatric: matric,
+          assignmentId: submission.assignmentId,
+          title: submission.snapshot?.projectName ?? submission.assignmentTitle,
+          projectSnapshotId: submission.snapshot?.id,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to open review");
+      }
+
+      router.push(`/dashboard/reviews/${payload.review.id}`);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
   return (
     <main className="ula-mesh-bg min-h-screen px-4 py-6 text-zinc-100 sm:px-8 lg:px-12">
       <div className="mx-auto max-w-370">
@@ -232,11 +260,17 @@ export default function DashboardStudentDetailPage() {
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
                         {submission.review ? (
-                          <Button size="sm" variant="secondary" onClick={() => router.push(`/dashboard/reviews/${submission.review?.id}`)}>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => router.push(`/dashboard/reviews/${submission.review!.id}`)}
+                          >
                             View review
                           </Button>
                         ) : (
-                          <Button size="sm" variant="secondary" onClick={() => router.push("/dashboard/reviews")}>Review Project</Button>
+                          <Button size="sm" variant="secondary" onClick={() => void createReviewForSubmission(submission)}>
+                            Review Project
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -314,7 +348,9 @@ export default function DashboardStudentDetailPage() {
                           ) : (
                             <>
                               <span>Submitted {formatDate(submission.enrollment.submittedAt)}</span>
-                              <Button size="sm" variant="secondary" onClick={() => router.push("/dashboard/reviews")}>Review Project</Button>
+                              <Button size="sm" variant="secondary" onClick={() => void createReviewForSubmission(submission)}>
+                                Review Project
+                              </Button>
                             </>
                           )}
                         </div>

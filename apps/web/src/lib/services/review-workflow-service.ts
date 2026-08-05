@@ -390,7 +390,6 @@ export async function getReviewById(reviewId: string) {
           assignmentId: true,
           projectName: true,
           files: true,
-          activeFilePath: true,
           submittedAt: true,
           deployUrl: true,
           score: true,
@@ -410,7 +409,7 @@ export async function getReviewById(reviewId: string) {
           files: Array.isArray(projectSnapshot.files)
             ? (projectSnapshot.files as Array<{ path: string; content: string; language?: string }>)
             : [],
-          activeFilePath: projectSnapshot.activeFilePath ?? undefined,
+          activeFilePath: null,
           submittedAt: projectSnapshot.submittedAt ?? null,
           deployUrl: projectSnapshot.deployUrl ?? null,
           score: projectSnapshot.score ?? null,
