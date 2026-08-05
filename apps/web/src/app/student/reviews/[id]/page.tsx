@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CheckCircle2, ExternalLink, FileCode2, FileImage, MessageSquare, RefreshCw, Send, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth-store";
+import { useProjectStore } from "@/store/project-store";
 import { cn } from "@/lib/utils";
 
 const statuses = {
@@ -68,7 +68,24 @@ export default function StudentReviewPage() {
 
   const statusText = review ? statuses[review.status as keyof typeof statuses] ?? review.status : "";
   const canEdit = review ? review.status === "CHANGES_REQUESTED" : false;
+  const [openingWorkspace, setOpeningWorkspace] = useState(false);
   const currentRevision = review?.revisions[0]?.revisionNumber ?? 1;
+
+  const openRevisionWorkspace = useCallback(async () => {
+    if (!review || !user) return;
+    const matric = user.matricNumber;
+    if (!matric) return;
+
+    setOpeningWorkspace(true);
+    try {
+      await useProjectStore
+        .getState()
+        .restoreSnapshot(matric, review.assignmentId, review.title);
+      router.push("/workspace");
+    } finally {
+      setOpeningWorkspace(false);
+    }
+  }, [review, router, user]);
 
   const commentsByFile = useMemo(() => {
     return review?.comments.reduce<Record<string, typeof review.comments>>((acc, comment) => {
@@ -215,8 +232,8 @@ export default function StudentReviewPage() {
               <h2 className="text-sm font-semibold text-white">Next actions</h2>
               <div className="mt-4 space-y-3">
                 {canEdit ? (
-                  <Button variant="secondary" className="w-full" onClick={() => router.push(`/workspace`)}>
-                    <RefreshCw size={16} /> Revise project
+                  <Button variant="secondary" className="w-full" onClick={openRevisionWorkspace} isLoading={openingWorkspace}>
+                    <RefreshCw size={16} /> Continue editing project
                   </Button>
                 ) : null}
                 {review.status === "APPROVED" ? (

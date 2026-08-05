@@ -35,7 +35,6 @@ export default function WorkspacePage() {
   const [studentReviews, setStudentReviews] = useState<ReviewRecord[]>([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
-  const [ideHydrated, setIdeHydrated] = useState(false);
 
   const loadReviews = useCallback(async () => {
     if (!user || user.role !== "STUDENT") {
@@ -148,68 +147,6 @@ export default function WorkspacePage() {
     void loadReviews();
   }, [loadReviews]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (useIdeStore.persist.hasHydrated()) {
-      setIdeHydrated(true);
-      return;
-    }
-    return useIdeStore.persist.onFinishHydration(() => {
-      console.log("[Workspace] IDE store hydration finished — resetting auto-unlock guard");
-      lastAutoUnlockedAssignment.current = null;
-      setIdeHydrated(true);
-    });
-  }, []);
-
-  const lastAutoUnlockedAssignment = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!ideHydrated || !activeChangesRequestedReview || !user?.matricNumber) return;
-
-    const assignmentId = activeChangesRequestedReview.assignmentId;
-    const revisionSessionId = useIdeStore.getState().revisionSessionAssignmentId;
-    const needsRestore =
-      revisionSessionId !== assignmentId &&
-      (activeAssignmentId !== assignmentId ||
-        workspaceMode !== "edit" ||
-        files.length === 0 ||
-        useIdeStore.getState().isReadOnly());
-
-    if (!needsRestore) {
-      lastAutoUnlockedAssignment.current = assignmentId;
-      return;
-    }
-
-    if (lastAutoUnlockedAssignment.current === assignmentId) return;
-
-    console.log("[Workspace] auto-restore revision session for active assignment", {
-      ideHydrated,
-      assignmentId,
-      activeAssignmentId,
-      workspaceMode,
-      filesCount: files.length,
-      readOnly: useIdeStore.getState().isReadOnly(),
-    });
-
-    void (async () => {
-      try {
-        await useProjectStore
-          .getState()
-          .restoreSnapshot(user.matricNumber, assignmentId, activeChangesRequestedReview.title);
-        lastAutoUnlockedAssignment.current = assignmentId;
-      } catch (error) {
-        console.error("[Workspace] auto-restore failed", error);
-        lastAutoUnlockedAssignment.current = null;
-      }
-    })();
-  }, [
-    ideHydrated,
-    activeChangesRequestedReview,
-    user?.matricNumber,
-    activeAssignmentId,
-    workspaceMode,
-    files.length,
-  ]);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "STUDENT") {
