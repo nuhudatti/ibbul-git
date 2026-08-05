@@ -278,9 +278,13 @@ export function SubmissionInbox() {
                           </a>
                         ) : null}
                         {review ? null : (
-                          <span className="rounded-full bg-white/5 px-2 py-1 text-[11px] text-zinc-400">
-                            No review yet
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => router.push("/dashboard/reviews")}
+                            className="rounded-full border border-cyan-400/20 bg-cyan-400/5 px-2 py-1 text-[11px] text-cyan-300 hover:bg-cyan-400/10"
+                          >
+                            Review Project
+                          </button>
                         )}
                         <Link
                           href={profilePath(enrollment.studentMatric)}

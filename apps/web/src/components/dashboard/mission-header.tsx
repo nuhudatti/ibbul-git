@@ -62,6 +62,7 @@ export function MissionHeader({
       </div>
 
       <div className="flex items-center gap-3">
+        <Button variant="secondary" size="sm" onClick={() => router.push("/dashboard/students")}>Student roster</Button>
         {user ? (
           <span className="text-xs text-zinc-500 hidden lg:inline">
             {user.firstName} {user.lastName}
