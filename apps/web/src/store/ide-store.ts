@@ -262,6 +262,12 @@ export const useIdeStore = create<IdeState>()(
     const mode = opts?.mode ?? "edit";
     const deployUrl = opts?.submission?.deployUrl;
     const revisionUnlocked = mode === "edit" || Boolean(opts?.revisionUnlocked);
+    console.log("[LOAD PROJECT] called", {
+      assignmentId,
+      title: name,
+      mode,
+      revisionUnlocked,
+    });
     console.log("loadProject CALLED", {
       name,
       assignmentId,
@@ -307,6 +313,11 @@ export const useIdeStore = create<IdeState>()(
             logs: ["Live deployment ready"],
           }
         : defaultDeployment,
+    });
+    console.log("[LOAD PROJECT] store after", {
+      activeAssignmentId: get().activeAssignmentId,
+      workspaceMode: get().workspaceMode,
+      viewMode: get().viewMode,
     });
     const state = get();
     console.log("[IdeStore] loadProject complete", {
