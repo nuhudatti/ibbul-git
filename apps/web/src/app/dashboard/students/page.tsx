@@ -84,29 +84,33 @@ export default function DashboardStudentListPage() {
     [roster]
   );
 
-  const visibleStudents = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return students
-      .filter((student) => {
-        if (!needle) return true;
-        return [student.matric, student.displayName, student.program]
-          .some((value) => value.toLowerCase().includes(needle));
-      })
-      .sort((a, b) => b.submissions.length - a.submissions.length);
-  }, [query, students]);
-
   const allStudents = useMemo(() => {
     const studentMap = new Map(students.map((student) => [normalizeMatric(student.matric), student]));
-    return studentsWithRoster.map((candidate) => studentMap.get(normalizeMatric(candidate.matric)) ?? {
-      matric: normalizeMatric(candidate.matric),
-      displayName: candidate.student.displayName,
-      avatar: candidate.student.avatar,
-      program: candidate.student.program,
-      submissions: [],
-    });
+    return studentsWithRoster.map((candidate) =>
+      studentMap.get(normalizeMatric(candidate.matric)) ?? {
+        matric: normalizeMatric(candidate.matric),
+        displayName: candidate.student.displayName,
+        avatar: candidate.student.avatar,
+        program: candidate.student.program,
+        submissions: [],
+      }
+    );
   }, [students, studentsWithRoster]);
 
-  const filteredStudents = query.trim() ? visibleStudents : allStudents;
+  const visibleStudents = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return allStudents;
+
+    return allStudents
+      .filter((student) =>
+        [student.matric, student.displayName, student.program].some((value) =>
+          value.toLowerCase().includes(needle)
+        )
+      )
+      .sort((a, b) => b.submissions.length - a.submissions.length);
+  }, [query, allStudents]);
+
+  const filteredStudents = visibleStudents;
 
   return (
     <main className="ula-mesh-bg min-h-screen px-4 py-6 text-zinc-100 sm:px-8 lg:px-12">

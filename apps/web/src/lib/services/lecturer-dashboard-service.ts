@@ -14,6 +14,8 @@ type ReviewStatus =
 
 export type LecturerSubmissionStatus =
   | "Awaiting review"
+  | "Submitted"
+  | "Under review"
   | "Changes requested"
   | "Approved"
   | "Rejected"
@@ -78,32 +80,33 @@ function getStatusAndAction(review: { status: ReviewStatus } | null) {
     case "CHANGES_REQUESTED":
       return {
         statusLabel: "Changes requested" as const,
-        actionLabel: "Continue Review",
-        actionType: "continue" as const,
+        actionLabel: "Open review",
+        actionType: "view" as const,
       };
     case "APPROVED":
+    case "PUBLISHED":
       return {
         statusLabel: "Approved" as const,
-        actionLabel: "View Review",
+        actionLabel: "Open review",
         actionType: "view" as const,
       };
     case "REJECTED":
       return {
         statusLabel: "Rejected" as const,
-        actionLabel: "View Review",
+        actionLabel: "Open review",
         actionType: "view" as const,
       };
     case "SUBMITTED":
     case "UNDER_REVIEW":
     case "RESUBMITTED":
       return {
-        statusLabel: "In review" as const,
-        actionLabel: "View Review",
+        statusLabel: "Under review" as const,
+        actionLabel: "Open review",
         actionType: "view" as const,
       };
     default:
       return {
-        statusLabel: "Awaiting review" as const,
+        statusLabel: "Submitted" as const,
         actionLabel: "Review Project",
         actionType: "review" as const,
       };
@@ -257,7 +260,111 @@ export async function getLecturerStudentSummaries() {
 
 export async function getLecturerStudentDetail(matric: string) {
   const normalized = normalizeMatric(matric);
-  const students = await getLecturerStudentSummaries();
-  const student = students.find((entry) => entry.matric === normalized);
-  return student ?? null;
+
+  const enrollments = await prisma.enrollment.findMany({
+    where: {
+      studentMatric: normalized,
+      status: { in: ["SUBMITTED", "GRADED"] },
+      assignment: { status: "PUBLISHED" },
+    },
+    include: {
+      assignment: true,
+    },
+    orderBy: { submittedAt: "desc" },
+  });
+
+  const assignmentIds = [...new Set(enrollments.map((enrollment) => enrollment.assignmentId))];
+
+  const snapshots = assignmentIds.length
+    ? await prisma.projectSnapshot.findMany({
+        where: {
+          studentMatric: normalized,
+          assignmentId: { in: assignmentIds },
+        },
+        orderBy: { savedAt: "desc" },
+      })
+    : [];
+
+  const snapshotMap = new Map<string, typeof snapshots[0]>();
+  for (const snapshot of snapshots) {
+    const key = submissionKey(snapshot.studentMatric, snapshot.assignmentId);
+    if (!snapshotMap.has(key)) {
+      snapshotMap.set(key, snapshot);
+    }
+  }
+
+  const reviews = assignmentIds.length
+    ? await prisma.review.findMany({
+        where: {
+          studentMatric: normalized,
+          assignmentId: { in: assignmentIds },
+        },
+        orderBy: { updatedAt: "desc" },
+      })
+    : [];
+
+  const reviewMap = new Map<string, typeof reviews[0]>();
+  for (const review of reviews) {
+    const key = submissionKey(review.studentMatric, review.assignmentId);
+    if (!reviewMap.has(key)) {
+      reviewMap.set(key, review);
+    }
+  }
+
+  const studentInfo = getStudentInfo(normalized);
+  const submissions = enrollments.map((enrollment) => {
+    const snapshot = snapshotMap.get(submissionKey(normalized, enrollment.assignmentId)) ?? null;
+    const review = reviewMap.get(submissionKey(normalized, enrollment.assignmentId)) ?? null;
+    const { statusLabel, actionLabel, actionType } = getStatusAndAction(review);
+
+    return {
+      assignmentId: enrollment.assignmentId,
+      assignmentTitle: enrollment.assignment.title,
+      assignmentStatus: enrollment.assignment.status,
+      enrollment: {
+        id: enrollment.id,
+        status: enrollment.status,
+        submittedAt: enrollment.submittedAt?.toISOString() ?? null,
+        score: enrollment.score ?? null,
+        deployUrl: enrollment.deployUrl ?? null,
+      },
+      snapshot: snapshot
+        ? {
+            id: snapshot.id,
+            projectName: snapshot.projectName,
+            files: Array.isArray(snapshot.files)
+              ? snapshot.files.map((file) => ({
+                  path: typeof file === "object" && file && "path" in file ? (file.path as string | undefined) : undefined,
+                  content:
+                    typeof file === "object" && file && "content" in file ? (file.content as string | undefined) : undefined,
+                  language:
+                    typeof file === "object" && file && "language" in file ? (file.language as string | undefined) : undefined,
+                }))
+              : [],
+            submittedAt: snapshot.submittedAt?.toISOString() ?? null,
+            deployUrl: snapshot.deployUrl ?? null,
+          }
+        : null,
+      review: review
+        ? {
+            id: review.id,
+            status: review.status,
+            submittedAt: review.submittedAt?.toISOString() ?? null,
+            updatedAt: review.updatedAt?.toISOString() ?? null,
+            title: review.title,
+            summary: review.summary ?? null,
+            reviewerName: review.reviewerName ?? null,
+            projectSnapshotId: review.projectSnapshotId,
+          }
+        : null,
+      statusLabel,
+      actionLabel,
+      actionType,
+    };
+  });
+
+  return {
+    ...studentInfo,
+    submissions,
+  };
 }
