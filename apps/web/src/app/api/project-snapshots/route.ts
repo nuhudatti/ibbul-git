@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/services/prisma";
 import { normalizeMatric } from "@/lib/matric";
 import { createReview } from "@/lib/services/review-workflow-service";
@@ -41,7 +42,68 @@ interface SnapshotPayload {
 
 const normalizedPath = (path: string) =>
   path.trim().replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$|\s+/g, "");
+const jsonSafeValue = (value: unknown): Prisma.InputJsonValue => {
+  if (value === null) {
+    return undefined as unknown as Prisma.InputJsonValue;
+  }
 
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => jsonSafeValue(item)) as Prisma.InputJsonArray;
+  }
+
+  if (typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, entry]) => [key, jsonSafeValue(entry)])
+    ) as Prisma.InputJsonObject;
+  }
+
+  return String(value);
+};
+
+const normalizeDeploymentPayload = (value: unknown): Prisma.InputJsonValue | undefined => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const deployment = value as Record<string, unknown>;
+
+  return jsonSafeValue({
+    status: typeof deployment.status === "string" ? deployment.status : "idle",
+    url: typeof deployment.url === "string" ? deployment.url : undefined,
+    logs: Array.isArray(deployment.logs)
+      ? deployment.logs.filter((entry): entry is string => typeof entry === "string")
+      : [],
+    progress: typeof deployment.progress === "number" ? deployment.progress : 0,
+  });
+};
+
+const normalizePreviewStatePayload = (
+  previewValue?: {
+    viewMode?: string;
+    previewDevice?: string;
+    previewKey?: number;
+    deployment?: unknown;
+  },
+  workspacePreviewValue?: {
+    viewMode?: string;
+    previewDevice?: string;
+    previewKey?: number;
+    deployment?: unknown;
+  }
+): Prisma.InputJsonValue => {
+  const source = previewValue ?? workspacePreviewValue ?? {};
+
+  return jsonSafeValue({
+    viewMode: source.viewMode ?? "code",
+    previewDevice: source.previewDevice ?? "desktop",
+    previewKey: typeof source.previewKey === "number" ? source.previewKey : Date.now(),
+    deployment: normalizeDeploymentPayload(source.deployment),
+  });
+};
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as SnapshotPayload;
@@ -77,25 +139,48 @@ export async function POST(request: Request) {
       orderBy: { savedAt: "desc" },
     });
 
-    const snapshotData = {
+    const normalizedFiles = files.map((file) => ({
+      path: normalizedPath(file.path),
+      content: file.content,
+      language: file.language ?? undefined,
+    }));
+
+    const normalizedFolders = Array.isArray(folders)
+      ? folders
+      : Array.isArray(workspaceState?.folders)
+        ? workspaceState.folders
+        : [];
+
+    const normalizedOpenTabs = Array.isArray(openTabs)
+      ? openTabs
+      : Array.isArray(workspaceState?.openTabs)
+        ? workspaceState.openTabs
+        : [];
+
+    const normalizedExplorerState = explorerState ?? workspaceState?.explorerState ?? {};
+    const normalizedPreviewState = normalizePreviewStatePayload(previewState, workspaceState?.previewState);
+    const normalizedMetadata = metadata ?? workspaceState?.metadata ?? {};
+    const normalizedWorkspaceState = workspaceState ?? {
+      folders: normalizedFolders,
+      activeFilePath: activeFilePath ?? files[0]?.path ?? "",
+      openTabs: normalizedOpenTabs,
+      explorerState: normalizedExplorerState,
+      previewState: normalizedPreviewState,
+      metadata: normalizedMetadata,
+    };
+
+    const snapshotData: Prisma.ProjectSnapshotUncheckedCreateInput = {
       studentMatric: canonicalMatric,
       assignmentId: normalizedAssignmentId,
       projectName,
-      files: files.map((file) => ({ path: normalizedPath(file.path), content: file.content, language: file.language ?? undefined })),
-      folders: folders ?? workspaceState?.folders ?? null,
-      activeFilePath: activeFilePath ?? workspaceState?.activeFilePath ?? files[0]?.path ?? null,
-      openTabs: openTabs ?? workspaceState?.openTabs ?? null,
-      explorerState: explorerState ?? workspaceState?.explorerState ?? null,
-      previewState: previewState ?? workspaceState?.previewState ?? null,
-      workspaceState: workspaceState ?? {
-        folders: folders ?? undefined,
-        activeFilePath: activeFilePath ?? files[0]?.path ?? undefined,
-        openTabs: openTabs ?? undefined,
-        explorerState: explorerState ?? undefined,
-        previewState: previewState ?? undefined,
-        metadata,
-      },
-      metadata: metadata ?? workspaceState?.metadata ?? null,
+      files: jsonSafeValue(normalizedFiles) as Prisma.InputJsonValue,
+      folders: jsonSafeValue(normalizedFolders) as Prisma.InputJsonValue,
+      activeFilePath: activeFilePath ?? workspaceState?.activeFilePath ?? files[0]?.path ?? "",
+      openTabs: jsonSafeValue(normalizedOpenTabs) as Prisma.InputJsonValue,
+      explorerState: jsonSafeValue(normalizedExplorerState) as Prisma.InputJsonValue,
+      previewState: normalizedPreviewState,
+      workspaceState: jsonSafeValue(normalizedWorkspaceState) as Prisma.InputJsonValue,
+      metadata: jsonSafeValue(normalizedMetadata) as Prisma.InputJsonValue,
       savedAt: new Date(),
       submittedAt: submitted ? new Date() : existing?.submittedAt ?? null,
       deployUrl: deployUrl ?? existing?.deployUrl ?? null,
