@@ -42,6 +42,36 @@ interface SnapshotPayload {
 
 const normalizedPath = (path: string) =>
   path.trim().replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$|\s+/g, "");
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const normalizeLegacyJsonArray = (value: unknown): unknown[] =>
+  Array.isArray(value) ? value : [];
+
+const normalizeLegacyJsonObject = (value: unknown): Record<string, unknown> =>
+  isPlainObject(value) ? value : {};
+
+const parseJsonColumn = (value: unknown, fieldName: string): unknown => {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch (error) {
+      console.error("[project-snapshots][GET] json-parse", {
+        fieldName,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return undefined;
+    }
+  }
+
+  return value;
+};
+
 const jsonSafeValue = (value: unknown): Prisma.InputJsonValue => {
   if (value === null) {
     return undefined as unknown as Prisma.InputJsonValue;
@@ -242,26 +272,149 @@ export async function GET(request: Request) {
     const matricNumber = url.searchParams.get("matricNumber") ?? undefined;
     const assignmentId = url.searchParams.get("assignmentId") ?? url.searchParams.get("projectId") ?? undefined;
 
+    console.info("[project-snapshots][GET] request-start", {
+      url: request.url,
+      matricNumber,
+      assignmentId,
+    });
+
     if (!matricNumber || !assignmentId) {
       return NextResponse.json({ error: "matricNumber and assignmentId are required" }, { status: 400 });
     }
 
     const canonicalMatric = normalizeMatric(matricNumber);
-    const snapshot = await prisma.projectSnapshot.findFirst({
-      where: {
-        studentMatric: canonicalMatric,
-        assignmentId,
-      },
-      orderBy: { savedAt: "desc" },
+    console.info("[project-snapshots][GET] matric-lookup", {
+      rawMatricNumber: matricNumber,
+      canonicalMatric,
+    });
+
+    let studentLookup;
+    try {
+      studentLookup = await prisma.studentProfile.findUnique({
+        where: { matric: canonicalMatric },
+        select: { matric: true },
+      });
+    } catch (studentLookupError) {
+      console.error("[project-snapshots][GET] studentMatric-lookup", studentLookupError);
+      throw studentLookupError;
+    }
+
+    console.info("[project-snapshots][GET] studentMatric-lookup", {
+      canonicalMatric,
+      found: Boolean(studentLookup),
+    });
+
+    console.info("[project-snapshots][GET] assignmentId-lookup", { assignmentId });
+
+    let snapshotRows: Array<{
+      id: string;
+      studentMatric: string;
+      assignmentId: string;
+      projectName: string;
+      files: Prisma.JsonValue | string | null;
+      savedAt: Date;
+      submittedAt: Date | null;
+      deployUrl: string | null;
+      score: number | null;
+    }> = [];
+
+    try {
+      snapshotRows = await prisma.$queryRaw<Array<{
+        id: string;
+        studentMatric: string;
+        assignmentId: string;
+        projectName: string;
+        files: Prisma.JsonValue | string | null;
+        savedAt: Date;
+        submittedAt: Date | null;
+        deployUrl: string | null;
+        score: number | null;
+      }>>`
+        SELECT
+          "id",
+          "studentMatric",
+          "assignmentId",
+          "projectName",
+          "files",
+          "savedAt",
+          "submittedAt",
+          "deployUrl",
+          "score"
+        FROM "ProjectSnapshot"
+        WHERE "studentMatric" = ${canonicalMatric}
+          AND "assignmentId" = ${assignmentId}
+        ORDER BY "savedAt" DESC
+        LIMIT 1
+      `;
+    } catch (queryError) {
+      console.error("[project-snapshots][GET] prisma-projectSnapshot-query", queryError);
+      throw queryError;
+    }
+
+    const snapshot = snapshotRows[0] ?? null;
+    console.info("[project-snapshots][GET] projectSnapshot-query", {
+      found: Boolean(snapshot),
+      snapshotId: snapshot?.id ?? null,
+      assignmentId,
+      studentMatric: canonicalMatric,
     });
 
     if (!snapshot) {
       return NextResponse.json({ error: "Snapshot not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ snapshot });
+    let parsedFiles: unknown = [];
+    let parsedFolders: unknown = [];
+    let parsedOpenTabs: unknown = [];
+    let parsedExplorerState: unknown = {};
+    let parsedPreviewState: unknown = {};
+    let parsedWorkspaceState: unknown = {};
+    let parsedMetadata: unknown = {};
+
+    try {
+      parsedFiles = parseJsonColumn(snapshot.files, "files") ?? [];
+      parsedFolders = parseJsonColumn((snapshot as any).folders, "folders") ?? [];
+      parsedOpenTabs = parseJsonColumn((snapshot as any).openTabs, "openTabs") ?? [];
+      parsedExplorerState = parseJsonColumn((snapshot as any).explorerState, "explorerState") ?? {};
+      parsedPreviewState = parseJsonColumn((snapshot as any).previewState, "previewState") ?? {};
+      parsedWorkspaceState = parseJsonColumn((snapshot as any).workspaceState, "workspaceState") ?? {};
+      parsedMetadata = parseJsonColumn((snapshot as any).metadata, "metadata") ?? {};
+    } catch (jsonParseError) {
+      console.error("[project-snapshots][GET] response-json-parsing", jsonParseError);
+      throw jsonParseError;
+    }
+
+    const normalizedSnapshot = {
+      files: normalizeLegacyJsonArray(parsedFiles),
+      folders: normalizeLegacyJsonArray(parsedFolders),
+      activeFilePath: "",
+      openTabs: normalizeLegacyJsonArray(parsedOpenTabs),
+      explorerState: normalizeLegacyJsonObject(parsedExplorerState),
+      previewState: normalizeLegacyJsonObject(parsedPreviewState),
+      workspaceState: normalizeLegacyJsonObject(parsedWorkspaceState),
+      metadata: normalizeLegacyJsonObject(parsedMetadata),
+    };
+
+    console.info("[project-snapshots][GET] response-serialization", {
+      snapshotId: snapshot.id,
+      filesCount: normalizedSnapshot.files.length,
+      foldersCount: normalizedSnapshot.folders.length,
+      openTabsCount: normalizedSnapshot.openTabs.length,
+    });
+
+    return NextResponse.json({ snapshot: normalizedSnapshot });
   } catch (error) {
-    console.error("Unable to load project snapshot:", error);
-    return NextResponse.json({ error: "Failed to load project snapshot" }, { status: 500 });
+    const devMessage = error instanceof Error ? error.message : String(error);
+    console.error("[project-snapshots][GET] unable-to-load-project-snapshot", {
+      error: devMessage,
+      url: request.url,
+    });
+
+    return NextResponse.json(
+      {
+        error: process.env.NODE_ENV !== "production" ? devMessage : "Failed to load project snapshot",
+      },
+      { status: 500 }
+    );
   }
 }
