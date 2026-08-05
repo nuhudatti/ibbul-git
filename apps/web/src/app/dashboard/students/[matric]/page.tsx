@@ -287,36 +287,40 @@ export default function DashboardStudentDetailPage() {
                 {submissions.length === 0 ? (
                   <p className="text-sm text-zinc-500">No published submissions found.</p>
                 ) : (
-                  submissions.map((submission) => (
-                    <div key={submission.assignmentId} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm text-white">{submission.assignmentTitle}</p>
-                          <p className="text-xs text-zinc-500">{submission.assignmentId}</p>
+                  submissions.map((submission) => {
+                    const review = submission.review;
+
+                    return (
+                      <div key={submission.assignmentId} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm text-white">{submission.assignmentTitle}</p>
+                            <p className="text-xs text-zinc-500">{submission.assignmentId}</p>
+                          </div>
+                          {review ? (
+                            <StatusPill status={review.status} />
+                          ) : (
+                            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-zinc-400">Awaiting review</span>
+                          )}
                         </div>
-                        {submission.review ? (
-                          <StatusPill status={submission.review.status} />
-                        ) : (
-                          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-zinc-400">Awaiting review</span>
-                        )}
+                        <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
+                          {review ? (
+                            <>
+                              <span>Updated {formatDate(review.updatedAt ?? review.submittedAt)}</span>
+                              <Button size="sm" variant="secondary" onClick={() => router.push(`/dashboard/reviews/${review.id}`)}>
+                                Open review
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <span>Submitted {formatDate(submission.enrollment.submittedAt)}</span>
+                              <Button size="sm" variant="secondary" onClick={() => router.push("/dashboard/reviews")}>Review Project</Button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
-                        {submission.review ? (
-                          <>
-                            <span>Updated {formatDate(submission.review.updatedAt ?? submission.review.submittedAt)}</span>
-                            <Button size="xs" variant="secondary" onClick={() => router.push(`/dashboard/reviews/${submission.review.id}`)}>
-                              Open review
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <span>Submitted {formatDate(submission.enrollment.submittedAt)}</span>
-                            <Button size="xs" variant="secondary" onClick={() => router.push("/dashboard/reviews")}>Review Project</Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

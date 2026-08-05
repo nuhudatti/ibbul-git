@@ -211,7 +211,15 @@ export async function getLecturerStudentSummaries() {
         ? {
             id: snapshot.id,
             projectName: snapshot.projectName,
-            files: Array.isArray(snapshot.files) ? snapshot.files : [],
+            files: Array.isArray(snapshot.files)
+              ? snapshot.files.map((file) => ({
+                  path: typeof file === "object" && file && "path" in file ? (file.path as string | undefined) : undefined,
+                  content:
+                    typeof file === "object" && file && "content" in file ? (file.content as string | undefined) : undefined,
+                  language:
+                    typeof file === "object" && file && "language" in file ? (file.language as string | undefined) : undefined,
+                }))
+              : [],
             submittedAt: snapshot.submittedAt?.toISOString() ?? null,
             deployUrl: snapshot.deployUrl ?? null,
           }
