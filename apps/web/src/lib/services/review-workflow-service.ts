@@ -165,6 +165,28 @@ export async function saveReviewDraft(reviewId: string, note?: string | null, su
   });
 }
 
+async function resolveSubmissionInfo(studentMatric: string, assignmentId: string) {
+  const student = await prisma.studentProfile.findUnique({
+    where: { matric: studentMatric },
+    select: { id: true },
+  });
+
+  const enrollment = await prisma.enrollment.findFirst({
+    where: {
+      studentMatric,
+      assignmentId,
+      status: { in: ["SUBMITTED", "GRADED"] },
+    },
+    orderBy: { submittedAt: "desc" },
+    select: { id: true },
+  });
+
+  return {
+    studentId: student?.id ?? null,
+    submissionId: enrollment?.id ?? null,
+  };
+}
+
 export async function createReview(input: CreateReviewInput) {
   const existingReview = await prisma.review.findFirst({
     where: {
@@ -184,19 +206,7 @@ export async function createReview(input: CreateReviewInput) {
         summary: input.summary ?? "Revision submitted.",
         files: input.files,
       });
-      return prisma.review.findUniqueOrThrow({
-        where: { id: existingReview.id },
-        include: {
-          comments: true,
-          revisions: {
-            orderBy: { createdAt: "desc" },
-            include: { files: true },
-          },
-          checklist: true,
-          notifications: true,
-          rating: true,
-        },
-      });
+      return getReviewById(existingReview.id);
     }
 
     await prisma.review.update({
@@ -210,19 +220,7 @@ export async function createReview(input: CreateReviewInput) {
       },
     });
 
-    return prisma.review.findUniqueOrThrow({
-      where: { id: existingReview.id },
-      include: {
-        comments: true,
-        revisions: {
-          orderBy: { createdAt: "desc" },
-          include: { files: true },
-        },
-        checklist: true,
-        notifications: true,
-        rating: true,
-      },
-    });
+    return getReviewById(existingReview.id);
   }
 
   const review = await prisma.review.create({
@@ -265,18 +263,7 @@ export async function createReview(input: CreateReviewInput) {
 
   await notifyRecipient(input.studentMatric, review.id, "Your project has been submitted and is awaiting review.", "review");
 
-  return prisma.review.findUniqueOrThrow({
-    where: { id: review.id },
-    include: {
-      comments: true,
-      revisions: {
-        orderBy: { createdAt: "desc" },
-        include: { files: true },
-      },
-      checklist: true,
-      notifications: true,
-    },
-  });
+  return getReviewById(review.id);
 }
 
 export async function addComment(input: AddCommentInput) {
@@ -366,6 +353,7 @@ export async function getReviewById(reviewId: string) {
   const student = await prisma.studentProfile.findUnique({
     where: { matric: review.studentMatric },
     select: {
+      id: true,
       matric: true,
       firstName: true,
       lastName: true,
@@ -397,9 +385,21 @@ export async function getReviewById(reviewId: string) {
       })
     : null;
 
+  const submission = await prisma.enrollment.findFirst({
+    where: {
+      studentMatric: review.studentMatric,
+      assignmentId: review.assignmentId,
+      status: { in: ["SUBMITTED", "GRADED"] },
+    },
+    orderBy: { submittedAt: "desc" },
+    select: { id: true },
+  });
+
   return {
     ...review,
     student,
+    studentId: student?.id ?? null,
+    submissionId: submission?.id ?? null,
     projectSnapshot: projectSnapshot
       ? {
           id: projectSnapshot.id,

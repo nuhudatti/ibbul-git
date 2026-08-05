@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/services/prisma";
 import { getSessionTokenFromRequest, getSession } from "@/lib/auth-session";
 import {
   createReview,
@@ -37,10 +38,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "studentMatric, assignmentId, and title are required" }, { status: 400 });
     }
 
+    const projectSnapshotIdFromLatest = projectSnapshotId ?? (
+      await prisma.projectSnapshot.findFirst({
+        where: { studentMatric, assignmentId },
+        orderBy: { savedAt: "desc" },
+        select: { id: true },
+      })
+    )?.id ?? null;
+
     const review = await createReview({
       studentMatric,
       assignmentId,
-      projectSnapshotId,
+      projectSnapshotId: projectSnapshotIdFromLatest,
       title,
       summary,
       reviewerMatric,

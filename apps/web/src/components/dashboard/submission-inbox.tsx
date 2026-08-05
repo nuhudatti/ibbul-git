@@ -280,7 +280,27 @@ export function SubmissionInbox() {
                         {review ? null : (
                           <button
                             type="button"
-                            onClick={() => router.push("/dashboard/reviews")}
+                            onClick={async () => {
+                              try {
+                                const response = await fetch("/api/reviews", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    studentMatric: enrollment.studentMatric,
+                                    assignmentId: assignment.id,
+                                    title: assignment.title,
+                                    summary: "Student submitted a project for review.",
+                                  }),
+                                });
+                                const payload = await response.json();
+                                if (!response.ok) {
+                                  throw new Error(payload.error ?? "Failed to create review");
+                                }
+                                router.push(`/dashboard/reviews/${payload.review.id}`);
+                              } catch (error) {
+                                console.error("Failed to create review from submission inbox", error);
+                              }
+                            }}
                             className="rounded-full border border-cyan-400/20 bg-cyan-400/5 px-2 py-1 text-[11px] text-cyan-300 hover:bg-cyan-400/10"
                           >
                             Review Project
