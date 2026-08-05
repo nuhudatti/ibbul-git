@@ -382,7 +382,20 @@ export async function getReviewById(reviewId: string) {
   });
 
   const projectSnapshot = review.projectSnapshotId
-    ? await prisma.projectSnapshot.findUnique({ where: { id: review.projectSnapshotId } })
+    ? await prisma.projectSnapshot.findUnique({
+        where: { id: review.projectSnapshotId },
+        select: {
+          id: true,
+          studentMatric: true,
+          assignmentId: true,
+          projectName: true,
+          files: true,
+          activeFilePath: true,
+          submittedAt: true,
+          deployUrl: true,
+          score: true,
+        },
+      })
     : null;
 
   return {
@@ -390,10 +403,22 @@ export async function getReviewById(reviewId: string) {
     student,
     projectSnapshot: projectSnapshot
       ? {
-          ...projectSnapshot,
+          id: projectSnapshot.id,
+          studentMatric: projectSnapshot.studentMatric,
+          assignmentId: projectSnapshot.assignmentId,
+          projectName: projectSnapshot.projectName,
           files: Array.isArray(projectSnapshot.files)
             ? (projectSnapshot.files as Array<{ path: string; content: string; language?: string }>)
             : [],
+          activeFilePath: projectSnapshot.activeFilePath ?? undefined,
+          submittedAt: projectSnapshot.submittedAt ?? null,
+          deployUrl: projectSnapshot.deployUrl ?? null,
+          score: projectSnapshot.score ?? null,
+          folders: [],
+          openTabs: [],
+          workspaceState: {},
+          previewState: {},
+          metadata: {},
         }
       : null,
   };
