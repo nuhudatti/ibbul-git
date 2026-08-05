@@ -63,12 +63,43 @@ export const useProjectStore = create<ProjectStoreState>()(
         const key = get().snapshotKey(matric, assignmentId);
         const existing = get().snapshots[key];
         const now = new Date().toISOString();
+        const ide = useIdeStore.getState();
 
         const snapshot: ProjectSnapshot = {
           assignmentId,
           studentMatric: normalizeMatric(matric),
           projectName,
           files: files.map((f) => ({ ...f })),
+          folders: ide.folders,
+          activeFilePath: ide.activeFilePath,
+          openTabs: ide.openTabs,
+          explorerState: { isOpen: ide.isExplorerOpen, expandedFolders: ide.expandedFolders },
+          previewState: {
+            viewMode: ide.viewMode,
+            previewDevice: ide.previewDevice,
+            previewKey: ide.previewKey,
+            deployment: ide.deployment,
+          },
+          workspaceState: {
+            folders: ide.folders,
+            activeFilePath: ide.activeFilePath,
+            openTabs: ide.openTabs,
+            explorerState: { isOpen: ide.isExplorerOpen, expandedFolders: ide.expandedFolders },
+            previewState: {
+              viewMode: ide.viewMode,
+              previewDevice: ide.previewDevice,
+              previewKey: ide.previewKey,
+              deployment: ide.deployment,
+            },
+            metadata: {
+              workspaceMode: ide.workspaceMode,
+              revisionEditUnlocked: ide.revisionEditUnlocked,
+              revisionSessionAssignmentId: ide.revisionSessionAssignmentId,
+              activeAssignmentId: ide.activeAssignmentId,
+              saveStatus: ide.saveStatus,
+              lastSaved: ide.lastSaved?.toISOString() ?? null,
+            },
+          },
           savedAt: now,
           submittedAt: opts?.submitted ? now : existing?.submittedAt,
           deployUrl: opts?.deployUrl ?? existing?.deployUrl,
@@ -169,6 +200,30 @@ export const useProjectStore = create<ProjectStoreState>()(
         }
 
         try {
+          const ide = useIdeStore.getState();
+          const alreadyRestored =
+            ide.activeAssignmentId === assignmentId &&
+            ide.workspaceMode === "edit" &&
+            ide.revisionEditUnlocked &&
+            ide.revisionSessionAssignmentId === assignmentId &&
+            ide.files.length > 0;
+
+          if (alreadyRestored) {
+            console.log("[REVISION RESTORE] already restored in current session", {
+              assignmentId,
+              snapshotId: assignmentId,
+              filesCount: ide.files.length,
+              foldersCount: ide.folders.length,
+              activeFile: ide.activeFilePath,
+              openTabs: ide.openTabs,
+              explorerState: { isOpen: ide.isExplorerOpen, expandedFolders: ide.expandedFolders },
+              previewState: { viewMode: ide.viewMode, previewDevice: ide.previewDevice, previewKey: ide.previewKey },
+              workspaceMode: ide.workspaceMode,
+              revisionSession: ide.revisionSessionAssignmentId,
+            });
+            return;
+          }
+
           console.log("[ProjectStore] waiting for project and ide hydration before restore");
           await Promise.all([waitForProjectHydration(), waitForIdeHydration()]);
 
@@ -183,12 +238,24 @@ export const useProjectStore = create<ProjectStoreState>()(
             submittedAt: snapshot?.submittedAt,
           });
 
-          const ide = useIdeStore.getState();
+          const restoredIde = useIdeStore.getState();
           const fallbackFiles =
-            ide.files?.length && ide.activeAssignmentId === assignmentId ? ide.files : [];
+            restoredIde.files?.length && restoredIde.activeAssignmentId === assignmentId ? restoredIde.files : [];
           const files = snapshot?.files?.length ? snapshot.files : fallbackFiles;
           const projectName =
-            snapshot?.projectName ?? ide.projectName ?? fallbackTitle ?? "Restored Project";
+            snapshot?.projectName ?? restoredIde.projectName ?? fallbackTitle ?? "Restored Project";
+
+          console.log("[REVISION RESTORE]", {
+            snapshotId: snapshot?.assignmentId ?? assignmentId,
+            filesCount: files.length,
+            foldersCount: snapshot?.folders?.length ?? 0,
+            activeFile: snapshot?.activeFilePath ?? files[0]?.path ?? null,
+            openTabs: snapshot?.openTabs ?? [files[0]?.path ?? null],
+            explorerState: snapshot?.explorerState ?? snapshot?.workspaceState?.explorerState ?? null,
+            previewState: snapshot?.previewState ?? snapshot?.workspaceState?.previewState ?? null,
+            workspaceMode: "edit",
+            revisionSession: assignmentId,
+          });
 
           console.log("[ProjectStore] restoreSnapshot will load project", {
             assignmentId,
@@ -202,6 +269,14 @@ export const useProjectStore = create<ProjectStoreState>()(
             mode: "edit",
             revisionUnlocked: true,
             submission: null,
+            workspaceState: {
+              folders: snapshot?.folders?.length ? snapshot.folders : undefined,
+              activeFilePath: snapshot?.activeFilePath ?? files[0]?.path,
+              openTabs: snapshot?.openTabs?.length ? snapshot.openTabs : undefined,
+              explorerState: snapshot?.explorerState ?? (snapshot?.workspaceState?.explorerState ?? undefined),
+              previewState: snapshot?.previewState ?? (snapshot?.workspaceState?.previewState ?? undefined),
+              metadata: snapshot?.workspaceState?.metadata ?? (snapshot?.metadata ?? undefined),
+            },
           });
 
           console.log("[ProjectStore] restoreSnapshot calling beginRevisionSession", { assignmentId });
@@ -212,6 +287,20 @@ export const useProjectStore = create<ProjectStoreState>()(
             state.setActiveFile(files[0].path);
           }
           state.setDirty(false);
+
+          console.log("[REVISION READY]", {
+            workspaceRestored: true,
+            assignmentId,
+            projectId: state.projectId,
+            projectName: state.projectName,
+            projectFilesCount: state.files.length,
+            activeFile: state.activeFilePath,
+            openTabs: state.openTabs,
+            explorerState: { isOpen: state.isExplorerOpen, expandedFolders: state.expandedFolders },
+            previewState: { viewMode: state.viewMode, previewDevice: state.previewDevice, previewKey: state.previewKey },
+            workspaceMode: state.workspaceMode,
+            revisionSession: state.revisionSessionAssignmentId,
+          });
 
           console.log("[ProjectStore] restore complete", {
             assignmentId,

@@ -22,6 +22,8 @@ interface IdeState {
   projectName: string;
   files: ProjectFile[];
   folders: string[];
+  openTabs: string[];
+  expandedFolders: string[];
   activeFilePath: string;
   isExplorerOpen: boolean;
   isAiPanelOpen: boolean;
@@ -51,6 +53,7 @@ interface IdeState {
   closeDeployModal: () => void;
 
   setActiveFile: (path: string) => void;
+  setExpandedFolders: (folders: string[]) => void;
   createFile: (path: string, content?: string) => boolean;
   createFolder: (path: string) => boolean;
   renamePath: (oldPath: string, newPath: string) => boolean;
@@ -69,7 +72,24 @@ interface IdeState {
     name: string,
     files: ProjectFile[],
     assignmentId?: string,
-    opts?: { mode?: WorkspaceMode; submission?: SubmissionMeta | null; revisionUnlocked?: boolean }
+    opts?: {
+      mode?: WorkspaceMode;
+      submission?: SubmissionMeta | null;
+      revisionUnlocked?: boolean;
+      workspaceState?: {
+        folders?: string[];
+        activeFilePath?: string;
+        openTabs?: string[];
+        explorerState?: { isOpen?: boolean; expandedFolders?: string[] };
+        previewState?: {
+          viewMode?: WorkspaceView;
+          previewDevice?: PreviewDevice;
+          previewKey?: number;
+          deployment?: DeploymentState;
+        };
+        metadata?: Record<string, unknown>;
+      };
+    }
   ) => void;
   exitSubmittedView: () => void;
   updateSubmissionMeta: (partial: Partial<SubmissionMeta>) => void;
@@ -124,6 +144,8 @@ export const useIdeStore = create<IdeState>()(
       projectName: "My Dream Project",
       files: mapFiles(STARTER_FILES),
       folders: [],
+      openTabs: ["index.html"],
+      expandedFolders: [],
       activeFilePath: "index.html",
       isExplorerOpen: true,
       isAiPanelOpen: false,
@@ -154,6 +176,7 @@ export const useIdeStore = create<IdeState>()(
       isDirty: false,
 
       setActiveFile: (path) => set({ activeFilePath: path, viewMode: "code" }),
+      setExpandedFolders: (folders) => set({ expandedFolders: folders }),
   createFile: (path, content = "") => {
     const normalized = normalizeWorkspacePath(path);
     if (!normalized || get().files.some((file) => file.path === normalized)) return false;
@@ -262,6 +285,25 @@ export const useIdeStore = create<IdeState>()(
     const mode = opts?.mode ?? "edit";
     const deployUrl = opts?.submission?.deployUrl;
     const revisionUnlocked = mode === "edit" || Boolean(opts?.revisionUnlocked);
+    const workspaceState = opts?.workspaceState;
+    const derivedFolders = workspaceState?.folders?.length ? workspaceState.folders : deriveFoldersFromFiles(files);
+    const derivedActiveFile = workspaceState?.activeFilePath ?? files[0]?.path ?? get().activeFilePath ?? "index.html";
+    const derivedOpenTabs = workspaceState?.openTabs?.length ? workspaceState.openTabs : [derivedActiveFile];
+    const derivedExpandedFolders = workspaceState?.explorerState?.expandedFolders?.length
+      ? workspaceState.explorerState.expandedFolders
+      : derivedFolders;
+    const derivedExplorerOpen = workspaceState?.explorerState?.isOpen ?? true;
+    const derivedViewMode = workspaceState?.previewState?.viewMode ?? (revisionUnlocked ? "code" : "preview");
+    const derivedPreviewDevice = workspaceState?.previewState?.previewDevice ?? get().previewDevice;
+    const derivedPreviewKey = workspaceState?.previewState?.previewKey ?? Date.now();
+    const derivedDeployment = workspaceState?.previewState?.deployment ?? (deployUrl
+      ? {
+          status: "success",
+          url: deployUrl,
+          progress: 100,
+          logs: ["Live deployment ready"],
+        }
+      : defaultDeployment);
     console.log("[LOAD PROJECT] called", {
       assignmentId,
       title: name,
@@ -276,6 +318,7 @@ export const useIdeStore = create<IdeState>()(
       revisionUnlockedOpt: opts?.revisionUnlocked,
       filesLength: files.length,
       firstFilePath: files[0]?.path,
+      workspaceState,
     });
     console.log("[IdeStore] loadProject before apply", {
       assignmentId,
@@ -286,13 +329,17 @@ export const useIdeStore = create<IdeState>()(
       currentWorkspaceMode: get().workspaceMode,
       currentRevisionUnlocked: get().revisionEditUnlocked,
       currentViewMode: get().viewMode,
+      restoredFolders: derivedFolders.length,
+      restoredOpenTabs: derivedOpenTabs.length,
     });
     set({
       projectId: assignmentId ?? get().projectId,
       projectName: name,
       files: mapFiles(files),
-      folders: deriveFoldersFromFiles(files),
-      activeFilePath: files[0]?.path ?? get().activeFilePath ?? "index.html",
+      folders: derivedFolders,
+      openTabs: derivedOpenTabs,
+      expandedFolders: derivedExpandedFolders,
+      activeFilePath: derivedActiveFile,
       activeAssignmentId: assignmentId ?? null,
       workspaceMode: revisionUnlocked ? "edit" : mode,
       revisionEditUnlocked: revisionUnlocked,
@@ -301,18 +348,12 @@ export const useIdeStore = create<IdeState>()(
         : null,
       submissionMeta: opts?.submission ?? null,
       isDirty: false,
-      previewKey: Date.now(),
-      viewMode: revisionUnlocked ? "code" : "preview",
+      previewKey: derivedPreviewKey,
+      viewMode: derivedViewMode,
+      previewDevice: derivedPreviewDevice,
       isTerminalOpen: false,
-      isExplorerOpen: revisionUnlocked ? true : get().isExplorerOpen,
-      deployment: deployUrl
-        ? {
-            status: "success",
-            url: deployUrl,
-            progress: 100,
-            logs: ["Live deployment ready"],
-          }
-        : defaultDeployment,
+      isExplorerOpen: revisionUnlocked ? derivedExplorerOpen : get().isExplorerOpen,
+      deployment: derivedDeployment,
     });
     console.log("[LOAD PROJECT] store after", {
       activeAssignmentId: get().activeAssignmentId,

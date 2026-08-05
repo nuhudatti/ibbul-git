@@ -222,8 +222,8 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
 
           {workspaceOpened ? (
             <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-3 text-sm text-cyan-100">
-              <p className="font-semibold">Workspace opened</p>
-              <p className="mt-1 text-cyan-50/90">Explorer and code view are now active for this assignment.</p>
+              <p className="font-semibold">Revision workspace restored</p>
+              <p className="mt-1 text-cyan-50/90">Your submitted project has been reopened. You can now update files and resubmit for review.</p>
             </div>
           ) : null}
 

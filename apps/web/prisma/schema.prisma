@@ -46,6 +46,13 @@ model ProjectSnapshot {
   assignmentId   String
   projectName    String
   files          Json
+  folders        Json?
+  activeFilePath String?
+  openTabs       Json?
+  explorerState  Json?
+  previewState   Json?
+  workspaceState Json?
+  metadata       Json?
   savedAt        DateTime @default(now())
   submittedAt    DateTime?
   deployUrl      String?

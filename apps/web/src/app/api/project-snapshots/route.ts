@@ -10,6 +10,30 @@ interface SnapshotPayload {
   matricNumber: string;
   projectName: string;
   files: ProjectFile[];
+  folders?: string[];
+  activeFilePath?: string;
+  openTabs?: string[];
+  explorerState?: { isOpen?: boolean; expandedFolders?: string[] };
+  previewState?: {
+    viewMode?: string;
+    previewDevice?: string;
+    previewKey?: number;
+    deployment?: unknown;
+  };
+  workspaceState?: {
+    folders?: string[];
+    activeFilePath?: string;
+    openTabs?: string[];
+    explorerState?: { isOpen?: boolean; expandedFolders?: string[] };
+    previewState?: {
+      viewMode?: string;
+      previewDevice?: string;
+      previewKey?: number;
+      deployment?: unknown;
+    };
+    metadata?: Record<string, unknown>;
+  };
+  metadata?: Record<string, unknown>;
   submitted?: boolean;
   deployUrl?: string;
   score?: number;
@@ -21,7 +45,23 @@ const normalizedPath = (path: string) =>
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as SnapshotPayload;
-    const { matricNumber, projectId, assignmentId, projectName, files, submitted, deployUrl, score } = body;
+    const {
+      matricNumber,
+      projectId,
+      assignmentId,
+      projectName,
+      files,
+      folders,
+      activeFilePath,
+      openTabs,
+      explorerState,
+      previewState,
+      workspaceState,
+      metadata,
+      submitted,
+      deployUrl,
+      score,
+    } = body;
 
     if (!matricNumber || !files || !Array.isArray(files) || !projectName) {
       return NextResponse.json({ error: "Missing required snapshot data" }, { status: 400 });
@@ -42,6 +82,20 @@ export async function POST(request: Request) {
       assignmentId: normalizedAssignmentId,
       projectName,
       files: files.map((file) => ({ path: normalizedPath(file.path), content: file.content, language: file.language ?? undefined })),
+      folders: folders ?? workspaceState?.folders ?? null,
+      activeFilePath: activeFilePath ?? workspaceState?.activeFilePath ?? files[0]?.path ?? null,
+      openTabs: openTabs ?? workspaceState?.openTabs ?? null,
+      explorerState: explorerState ?? workspaceState?.explorerState ?? null,
+      previewState: previewState ?? workspaceState?.previewState ?? null,
+      workspaceState: workspaceState ?? {
+        folders: folders ?? undefined,
+        activeFilePath: activeFilePath ?? files[0]?.path ?? undefined,
+        openTabs: openTabs ?? undefined,
+        explorerState: explorerState ?? undefined,
+        previewState: previewState ?? undefined,
+        metadata,
+      },
+      metadata: metadata ?? workspaceState?.metadata ?? null,
       savedAt: new Date(),
       submittedAt: submitted ? new Date() : existing?.submittedAt ?? null,
       deployUrl: deployUrl ?? existing?.deployUrl ?? null,

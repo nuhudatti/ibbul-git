@@ -120,11 +120,42 @@ export interface StudentEnrollment {
   deployUrl?: string;
 }
 
+export type WorkspaceView = "code" | "preview";
+export type PreviewDevice = "desktop" | "tablet" | "mobile";
+
+export interface ExplorerSnapshotState {
+  isOpen?: boolean;
+  expandedFolders?: string[];
+}
+
+export interface PreviewSnapshotState {
+  viewMode?: WorkspaceView;
+  previewDevice?: PreviewDevice;
+  previewKey?: number;
+  deployment?: DeploymentState;
+}
+
+export interface WorkspaceSnapshotState {
+  folders?: string[];
+  activeFilePath?: string;
+  openTabs?: string[];
+  explorerState?: ExplorerSnapshotState;
+  previewState?: PreviewSnapshotState;
+  metadata?: Record<string, unknown>;
+}
+
 export interface ProjectSnapshot {
   assignmentId: string;
   studentMatric: string;
   projectName: string;
   files: ProjectFile[];
+  folders?: string[];
+  activeFilePath?: string;
+  openTabs?: string[];
+  explorerState?: ExplorerSnapshotState;
+  previewState?: PreviewSnapshotState;
+  workspaceState?: WorkspaceSnapshotState;
+  metadata?: Record<string, unknown>;
   savedAt: string;
   submittedAt?: string;
   deployUrl?: string;

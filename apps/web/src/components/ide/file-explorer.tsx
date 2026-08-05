@@ -86,8 +86,10 @@ function buildExplorerTree(files: ExplorerInput[], folders: string[]) {
 export function FileExplorer() {
   const files = useIdeStore((s) => s.files);
   const folders = useIdeStore((s) => s.folders);
+  const expandedFolders = useIdeStore((s) => s.expandedFolders);
   const activeFilePath = useIdeStore((s) => s.activeFilePath);
   const setActiveFile = useIdeStore((s) => s.setActiveFile);
+  const setExpandedFolders = useIdeStore((s) => s.setExpandedFolders);
   const createFile = useIdeStore((s) => s.createFile);
   const createFolder = useIdeStore((s) => s.createFolder);
   const renamePath = useIdeStore((s) => s.renamePath);
@@ -96,8 +98,8 @@ export function FileExplorer() {
   const importAsset = useIdeStore((s) => s.importAsset);
   const toggleExplorer = useIdeStore((s) => s.toggleExplorer);
   const isOpen = useIdeStore((s) => s.isExplorerOpen);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selectedFolderPath, setSelectedFolderPath] = useState<string | null>(null);
+  const expanded = useMemo(() => Object.fromEntries(expandedFolders.map((folder) => [folder, true])), [expandedFolders]);
   const uploadRef = useRef<HTMLInputElement>(null);
 
   const tree = useMemo(() => buildExplorerTree(files, folders), [files, folders]);
@@ -148,8 +150,12 @@ export function FileExplorer() {
     if (nextPath && !renamePath(path, nextPath)) notify("That path is invalid or already exists.");
   };
 
-  const toggleFolder = (id: string) =>
-    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleFolder = (id: string) => {
+    const next = expandedFolders.includes(id)
+      ? expandedFolders.filter((folder) => folder !== id)
+      : [...expandedFolders, id];
+    setExpandedFolders(next);
+  };
 
   const renderNode = (node: ExplorerNode, depth = 0) => {
     const indent = 12 + depth * 14;
