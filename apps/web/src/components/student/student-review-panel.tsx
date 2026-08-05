@@ -18,6 +18,7 @@ export type ReviewRecord = {
   summary?: string | null;
   reviewerName?: string | null;
   submittedAt?: string | null;
+  updatedAt?: string | null;
   comments: Array<{
     id: string;
     message: string;

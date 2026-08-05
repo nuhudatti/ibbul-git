@@ -312,6 +312,13 @@ export async function GET(request: Request) {
       assignmentId: string;
       projectName: string;
       files: Prisma.JsonValue | string | null;
+      folders: Prisma.JsonValue | string | null;
+      activeFilePath: string | null;
+      openTabs: Prisma.JsonValue | string | null;
+      explorerState: Prisma.JsonValue | string | null;
+      previewState: Prisma.JsonValue | string | null;
+      workspaceState: Prisma.JsonValue | string | null;
+      metadata: Prisma.JsonValue | string | null;
       savedAt: Date;
       submittedAt: Date | null;
       deployUrl: string | null;
@@ -325,6 +332,13 @@ export async function GET(request: Request) {
         assignmentId: string;
         projectName: string;
         files: Prisma.JsonValue | string | null;
+        folders: Prisma.JsonValue | string | null;
+        activeFilePath: string | null;
+        openTabs: Prisma.JsonValue | string | null;
+        explorerState: Prisma.JsonValue | string | null;
+        previewState: Prisma.JsonValue | string | null;
+        workspaceState: Prisma.JsonValue | string | null;
+        metadata: Prisma.JsonValue | string | null;
         savedAt: Date;
         submittedAt: Date | null;
         deployUrl: string | null;
@@ -336,6 +350,13 @@ export async function GET(request: Request) {
           "assignmentId",
           "projectName",
           "files",
+          "folders",
+          "activeFilePath",
+          "openTabs",
+          "explorerState",
+          "previewState",
+          "workspaceState",
+          "metadata",
           "savedAt",
           "submittedAt",
           "deployUrl",
@@ -385,14 +406,25 @@ export async function GET(request: Request) {
     }
 
     const normalizedSnapshot = {
+      id: snapshot.id,
+      studentMatric: snapshot.studentMatric,
+      assignmentId: snapshot.assignmentId,
+      projectName: snapshot.projectName,
       files: normalizeLegacyJsonArray(parsedFiles),
       folders: normalizeLegacyJsonArray(parsedFolders),
-      activeFilePath: "",
+      activeFilePath:
+        typeof snapshot.activeFilePath === "string" && snapshot.activeFilePath.trim().length > 0
+          ? snapshot.activeFilePath
+          : normalizeLegacyJsonObject(parsedWorkspaceState).activeFilePath ?? "",
       openTabs: normalizeLegacyJsonArray(parsedOpenTabs),
       explorerState: normalizeLegacyJsonObject(parsedExplorerState),
       previewState: normalizeLegacyJsonObject(parsedPreviewState),
       workspaceState: normalizeLegacyJsonObject(parsedWorkspaceState),
       metadata: normalizeLegacyJsonObject(parsedMetadata),
+      savedAt: snapshot.savedAt.toISOString(),
+      submittedAt: snapshot.submittedAt?.toISOString() ?? null,
+      deployUrl: snapshot.deployUrl ?? undefined,
+      score: snapshot.score ?? undefined,
     };
 
     console.info("[project-snapshots][GET] response-serialization", {

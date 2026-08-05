@@ -35,6 +35,7 @@ type Review = {
   studentMatric: string;
   assignmentId: string;
   status: Status;
+  updatedAt?: string | null;
 };
 
 const statusLabel: Record<Status, string> = {
@@ -102,7 +103,14 @@ export function SubmissionInbox() {
 
   const reviewMap = useMemo(() => {
     return reviews.reduce<Record<string, Review>>((map, review) => {
-      map[`${normalizeMatric(review.studentMatric)}:${review.assignmentId}`] = review;
+      const key = `${normalizeMatric(review.studentMatric)}:${review.assignmentId}`;
+      const existing = map[key];
+      const incomingTime = review.updatedAt ? new Date(review.updatedAt).getTime() : Number.NEGATIVE_INFINITY;
+      const existingTime = existing?.updatedAt ? new Date(existing.updatedAt).getTime() : Number.NEGATIVE_INFINITY;
+
+      if (!existing || incomingTime >= existingTime) {
+        map[key] = review;
+      }
       return map;
     }, {});
   }, [reviews]);

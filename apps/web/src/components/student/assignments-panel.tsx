@@ -208,6 +208,16 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
     setOpen(false);
   };
 
+  const latestReviewByAssignment = studentReviews.reduce<Record<string, ReviewRecord>>((map, review) => {
+    const existing = map[review.assignmentId];
+    const incomingTimestamp = review.updatedAt ? new Date(review.updatedAt).getTime() : 0;
+    const existingTimestamp = existing?.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+    if (!existing || incomingTimestamp >= existingTimestamp) {
+      map[review.assignmentId] = review;
+    }
+    return map;
+  }, {});
+
   const renderCard = (a: (typeof assignments)[0], i: number) => {
     const status = a.enrollment?.status ?? "NOT_STARTED";
     const cfg = STATUS_CONFIG[status];
@@ -216,7 +226,7 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
     const isViewing =
       activeAssignmentId === a.id && workspaceMode === "submitted";
     const snapshot = getSnapshot(matric, a.id);
-    const reviewForAssignment = studentReviews.find((r) => r.assignmentId === a.id);
+    const reviewForAssignment = latestReviewByAssignment[a.id];
     const needsChanges = reviewForAssignment?.status === "CHANGES_REQUESTED";
     const isSubmitted = status === "SUBMITTED" || status === "GRADED";
     const liveUrl = snapshot?.deployUrl ?? a.enrollment?.deployUrl;

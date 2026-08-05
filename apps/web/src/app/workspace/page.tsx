@@ -90,20 +90,46 @@ export default function WorkspacePage() {
     };
   }, [user, loadReviews]);
 
+  const latestReviewByAssignment = useMemo(() => {
+    return studentReviews.reduce<Record<string, ReviewRecord>>((map, review) => {
+      const existing = map[review.assignmentId];
+      const incomingTimestamp = review.updatedAt ? new Date(review.updatedAt).getTime() : 0;
+      const existingTimestamp = existing?.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+      if (!existing || incomingTimestamp >= existingTimestamp) {
+        map[review.assignmentId] = review;
+      }
+      return map;
+    }, {});
+  }, [studentReviews]);
+
   const currentReview = useMemo(() => {
     if (!activeAssignmentId) {
       console.log("[Workspace] currentReview computed", { activeAssignmentId, review: null });
       return null;
     }
 
-    const review = studentReviews.find((item) => item.assignmentId === activeAssignmentId);
+    const review = latestReviewByAssignment[activeAssignmentId] ?? null;
+    const revisionWorkspaceActive =
+      workspaceMode === "edit" &&
+      useIdeStore.getState().revisionEditUnlocked &&
+      useIdeStore.getState().revisionSessionAssignmentId === activeAssignmentId;
+
+    if (revisionWorkspaceActive) {
+      console.log("[Workspace] currentReview suppressed while revision workspace is active", {
+        activeAssignmentId,
+        workspaceMode,
+        revisionSessionAssignmentId: useIdeStore.getState().revisionSessionAssignmentId,
+      });
+      return null;
+    }
+
     console.log("[Workspace] currentReview computed", {
       activeAssignmentId,
       review: review ?? null,
       studentReviewCount: studentReviews.length,
     });
-    return review ?? null;
-  }, [studentReviews, activeAssignmentId]);
+    return review;
+  }, [latestReviewByAssignment, activeAssignmentId, workspaceMode, studentReviews.length]);
 
   const activeChangesRequestedReview = useMemo(() => {
     if (!activeAssignmentId) return null;
