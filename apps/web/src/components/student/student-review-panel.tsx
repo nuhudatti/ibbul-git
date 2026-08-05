@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ArrowRight, CheckCircle2, Clock, ExternalLink, Sparkles, Unlock } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,7 @@ function formatDate(value?: string | null) {
 export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
   const user = useAuthStore((s) => s.user);
   const activeAssignmentId = useIdeStore((s) => s.activeAssignmentId);
+  const [workspaceOpened, setWorkspaceOpened] = useState(false);
   const completedChecklist = review.checklist.filter((item) => item.checked).length;
   const statusLabel = review.status.replace(/_/g, " ");
   const isAwaitingChanges = review.status === "CHANGES_REQUESTED";
@@ -145,6 +147,19 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
         readOnly: ideState.isReadOnly(),
       });
 
+      setWorkspaceOpened(true);
+      ideState.setViewMode("code");
+      if (!ideState.isExplorerOpen) ideState.toggleExplorer();
+
+      console.log("[REVIEW PANEL] post-restore UI transition", {
+        workspaceOpened: true,
+        activeAssignmentId: ideState.activeAssignmentId,
+        workspaceMode: ideState.workspaceMode,
+        viewMode: ideState.viewMode,
+        isExplorerOpen: ideState.isExplorerOpen,
+        readOnly: ideState.isReadOnly(),
+      });
+
       document.getElementById("workspace-ide")?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
       console.error("[REVIEW PANEL] ERROR in openFullProject:", error);
@@ -165,7 +180,7 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
             <span className={cn("inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em]", statusStyles[review.status] ?? "border-white/10 bg-white/5 text-zinc-300")}> <Clock size={14} /> {formatDate(review.submittedAt)} </span>
           </div>
 
-          {canResumeEditing ? (
+          {canResumeEditing && !workspaceOpened ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -203,6 +218,13 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
                 </div>
               </div>
             </motion.div>
+          ) : null}
+
+          {workspaceOpened ? (
+            <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-3 text-sm text-cyan-100">
+              <p className="font-semibold">Workspace opened</p>
+              <p className="mt-1 text-cyan-50/90">Explorer and code view are now active for this assignment.</p>
+            </div>
           ) : null}
 
           {isApproved ? (
