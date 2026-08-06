@@ -126,41 +126,11 @@ function toResolvedProfile(record: {
   };
 }
 
-export async function getProfileRecordByMatric(matric: string): Promise<StudentProfileRecord | null> {
+export function getDemoStudentProfileRecord(matric: string): StudentProfileRecord | null {
   const norm = normalizeMatric(matric);
-  const record = await prisma.studentProfile.findUnique({ where: { matric: norm } });
-  if (record) {
-    // The Prisma record already has status as AccountStatus, which is now the same as StudentAccountStatus
-    return {
-      id: record.id,
-      matric: record.matric,
-      firstName: record.firstName,
-      lastName: record.lastName,
-      program: record.program,
-      headline: record.headline,
-      email: record.email,
-      avatarInitials: record.avatarInitials,
-      avatarUrl: record.avatarUrl,
-      passwordHash: record.passwordHash,
-      accountRole: record.accountRole as "STUDENT" | "LECTURER" | "ADMIN",
-      status: record.status, // Now status is directly compatible with StudentAccountStatus (which is AccountStatus from Prisma)
-      mustChangePassword: record.mustChangePassword,
-      notifyAssignments: record.notifyAssignments,
-      notifyGrades: record.notifyGrades,
-      notifyPortfolio: record.notifyPortfolio,
-      publicProfile: record.publicProfile,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-      lastLoginAt: record.lastLoginAt,
-    };
-  }
-
-  // Fallback to seeded in-memory demo student profile when database has no matching record.
   const demo = DEMO_USERS[norm] ?? DEMO_USERS[matric];
   if (!demo) return null;
 
-  const hashed = hashPassword(demo.password);
-  const status: StudentAccountStatus = "active"; // Explicitly type the status literal as StudentAccountStatus
   const now = new Date();
   return {
     id: `demo-${norm}`,
@@ -172,9 +142,9 @@ export async function getProfileRecordByMatric(matric: string): Promise<StudentP
     email: `${demo.matricNumber.replace(/\//g, "-").toLowerCase()}@student.ula.edu`,
     avatarInitials: `${demo.firstName.charAt(0)}${demo.lastName.charAt(0)}`.toUpperCase(),
     avatarUrl: null,
-    passwordHash: hashed,
+    passwordHash: hashPassword(demo.password),
     accountRole: "STUDENT",
-    status, // Now status is explicitly typed as StudentAccountStatus
+    status: "active",
     mustChangePassword: false,
     notifyAssignments: true,
     notifyGrades: true,
@@ -184,6 +154,46 @@ export async function getProfileRecordByMatric(matric: string): Promise<StudentP
     updatedAt: now,
     lastLoginAt: now,
   };
+}
+
+export async function getProfileRecordByMatric(matric: string): Promise<StudentProfileRecord | null> {
+  const norm = normalizeMatric(matric);
+
+  try {
+    const record = await prisma.studentProfile.findUnique({ where: { matric: norm } });
+    if (record) {
+      // The Prisma record already has status as AccountStatus, which is now the same as StudentAccountStatus
+      return {
+        id: record.id,
+        matric: record.matric,
+        firstName: record.firstName,
+        lastName: record.lastName,
+        program: record.program,
+        headline: record.headline,
+        email: record.email,
+        avatarInitials: record.avatarInitials,
+        avatarUrl: record.avatarUrl,
+        passwordHash: record.passwordHash,
+        accountRole: record.accountRole as "STUDENT" | "LECTURER" | "ADMIN",
+        status: record.status,
+        mustChangePassword: record.mustChangePassword,
+        notifyAssignments: record.notifyAssignments,
+        notifyGrades: record.notifyGrades,
+        notifyPortfolio: record.notifyPortfolio,
+        publicProfile: record.publicProfile,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        lastLoginAt: record.lastLoginAt,
+      };
+    }
+  } catch (error) {
+    console.warn("[StudentProfileService] Prisma lookup failed, falling back to demo profile", {
+      matric: norm,
+      error,
+    });
+  }
+
+  return getDemoStudentProfileRecord(norm);
 }
 
 export async function listStudentProfilesForAdmin(): Promise<AdminStudentRecord[]> {
@@ -381,18 +391,54 @@ export async function getResolvedProfileRecord(matric: string) {
 
 export async function authenticateStudent(matric: string, password: string) {
   const norm = normalizeMatric(matric);
-  const dbRecord = await prisma.studentProfile.findUnique({ where: { matric: norm } });
+  const demoRecord = getDemoStudentProfileRecord(norm);
+  if (demoRecord && verifyPassword(password, demoRecord.passwordHash)) {
+    return {
+      id: `user-${norm}`,
+      matricNumber: norm,
+      firstName: demoRecord.firstName,
+      lastName: demoRecord.lastName,
+      role: demoRecord.accountRole,
+      institutionId: "inst-1",
+      avatarUrl: demoRecord.avatarUrl ?? undefined,
+      program: demoRecord.program,
+      headline: demoRecord.headline,
+      mustChangePassword: demoRecord.mustChangePassword,
+    };
+  }
+
+  let dbRecord;
+  try {
+    dbRecord = await prisma.studentProfile.findUnique({ where: { matric: norm } });
+  } catch (error) {
+    console.warn("[StudentProfileService] Prisma auth lookup failed; continuing without persistence", {
+      matric: norm,
+      error,
+    });
+  }
+
   const record = dbRecord ?? (await getProfileRecordByMatric(norm));
   if (!record || !verifyPassword(password, record.passwordHash)) return null;
   if (record.status === "suspended") return null;
 
   const now = new Date();
-  const persisted = dbRecord
-    ? await prisma.studentProfile.update({
+  let persisted = record;
+
+  if (dbRecord) {
+    try {
+      persisted = await prisma.studentProfile.update({
         where: { matric: norm },
         data: { lastLoginAt: now, updatedAt: now },
-      })
-    : await prisma.studentProfile.create({
+      });
+    } catch (error) {
+      console.warn("[StudentProfileService] Prisma auth update failed; using fallback profile", {
+        matric: norm,
+        error,
+      });
+    }
+  } else if (!record.id.startsWith("demo-")) {
+    try {
+      persisted = await prisma.studentProfile.create({
         data: {
           matric: norm,
           firstName: record.firstName,
@@ -415,6 +461,13 @@ export async function authenticateStudent(matric: string, password: string) {
           lastLoginAt: now,
         },
       });
+    } catch (error) {
+      console.warn("[StudentProfileService] Prisma auth create failed; using fallback profile", {
+        matric: norm,
+        error,
+      });
+    }
+  }
 
   return {
     id: `user-${norm}`,

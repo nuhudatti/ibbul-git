@@ -73,9 +73,11 @@ export function getStudentSubmissionLifecycle(input: StudentSubmissionLifecycleI
   }
 
   if (enrollmentStatus === "IN_PROGRESS") {
+    const isExistingDraft = context === "card" && !input.isNewAssignment;
+
     return {
       state: "DRAFT",
-      primaryButton: context === "card" ? "Open Project" : "Submit Project",
+      primaryButton: isExistingDraft ? "Continue Project" : context === "card" ? "Open Project" : "Submit Project",
       secondaryButton: null,
       canEdit: true,
       canSubmit: context !== "card",

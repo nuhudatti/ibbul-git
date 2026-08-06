@@ -228,15 +228,17 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
       activeAssignmentId === a.id && workspaceMode === "submitted";
     const snapshot = getSnapshot(matric, a.id);
     const reviewForAssignment = latestReviewByAssignment[a.id];
+    const hasExistingProject = Boolean(snapshot?.files?.length || a.enrollment?.status === "IN_PROGRESS" || a.enrollment?.status === "SUBMITTED" || a.enrollment?.status === "GRADED");
     const lifecycleState = getStudentSubmissionLifecycle({
       enrollmentStatus: status,
       reviewStatus: reviewForAssignment?.status,
       isRevisionEditingActive: false,
-      isNewAssignment: !a.enrollment,
+      isNewAssignment: !hasExistingProject && !a.enrollment,
       context: "card",
     });
     const needsChanges = reviewForAssignment?.status === "CHANGES_REQUESTED";
     const isSubmitted = status === "SUBMITTED" || status === "GRADED";
+    const shouldResumeChanges = lifecycleState.state === "CHANGES_REQUESTED";
     const liveUrl = snapshot?.deployUrl ?? a.enrollment?.deployUrl;
 
     return (
@@ -307,7 +309,21 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
         </div>
 
         <div className="mt-3 flex flex-col gap-2">
-          {!isSubmitted ? (
+          {shouldResumeChanges ? (
+            <Button
+              size="sm"
+              className="flex-1"
+              variant="primary"
+              onClick={() =>
+                void handleViewSubmitted(a.id, a.title, a.starterFiles, a.enrollment ?? undefined, {
+                  forceEdit: true,
+                })
+              }
+            >
+              <ChevronRight size={14} />
+              {lifecycleState.primaryButton}
+            </Button>
+          ) : !isSubmitted ? (
             <Button
               size="sm"
               className="flex-1"
@@ -332,33 +348,13 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
                 variant={needsChanges ? "primary" : isViewing ? "primary" : "secondary"}
                 onClick={() =>
                   handleViewSubmitted(a.id, a.title, a.starterFiles, a.enrollment ?? undefined, {
-                    forceEdit: needsChanges,
+                    forceEdit: false,
                   })
                 }
               >
                 <Eye size={14} />
                 {lifecycleState.primaryButton}
               </Button>
-                {needsChanges ? (
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    variant="primary"
-                    onClick={() => {
-                      void useProjectStore
-                        .getState()
-                        .restoreSnapshot(matric, a.id, a.title)
-                        .then(() => {
-                          setOpen(false);
-                          document
-                            .getElementById("workspace-ide")
-                            ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                        });
-                    }}
-                  >
-                    <ChevronRight size={14} /> Make changes
-                  </Button>
-                ) : null}
               {liveUrl ? (
                 <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-cyan-400/5 border border-cyan-400/15">
                   <span className="text-[10px] font-mono text-cyan-300/80 truncate flex-1">

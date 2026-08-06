@@ -20,6 +20,15 @@ test("draft projects show submit project in the IDE", () => {
   assert.equal(state.canSubmit, true);
 });
 
+test("draft projects on the card use continue project when the assignment already exists", () => {
+  const state = getStudentSubmissionLifecycle({ enrollmentStatus: "IN_PROGRESS", context: "card", isNewAssignment: false });
+
+  assert.equal(state.state, "DRAFT");
+  assert.equal(state.primaryButton, "Continue Project");
+  assert.equal(state.canEdit, true);
+  assert.equal(state.canSubmit, false);
+});
+
 test("submitted assignments show awaiting review and lock editing", () => {
   const state = getStudentSubmissionLifecycle({ enrollmentStatus: "SUBMITTED" });
 
