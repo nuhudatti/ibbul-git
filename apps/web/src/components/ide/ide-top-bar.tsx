@@ -26,6 +26,7 @@ import { cn, formatRelativeTime } from "@/lib/utils";
 import { DeployModal } from "./deploy-modal";
 import { LiveDeployStrip } from "./live-deploy-strip";
 import { SubmissionSealedToast } from "@/components/portfolio/submission-sealed-toast";
+import { getStudentSubmissionLifecycle } from "@/lib/student-submission-lifecycle";
 
 type ReviewRecord = {
   id: string;
@@ -90,11 +91,15 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
     assignment?.enrollment?.status === "SUBMITTED" ||
     assignment?.enrollment?.status === "GRADED";
   const submitAssignmentId = activeAssignmentId;
-  const canSubmit =
-    submitAssignmentId &&
-    (!alreadySubmitted || (isChangesRequestedForActive && isRevisionEditingActive));
-  const submitLabel = isChangesRequestedForActive && isRevisionEditingActive ? "Resubmit" : "Submit";
-  const showResumeEditing = isChangesRequestedForActive && !isRevisionEditingActive;
+  const lifecycleState = getStudentSubmissionLifecycle({
+    enrollmentStatus: assignment?.enrollment?.status,
+    reviewStatus: assignmentReview?.status,
+    isRevisionEditingActive,
+    context: "ide",
+  });
+  const canSubmit = submitAssignmentId && lifecycleState.canSubmit;
+  const submitLabel = lifecycleState.primaryButton;
+  const showResumeEditing = lifecycleState.state === "CHANGES_REQUESTED" && !isRevisionEditingActive;
   const handleResumeEditing = async () => {
     if (!user || !activeAssignmentId) return;
     const title = assignment?.title ?? assignmentReview?.title ?? projectName;

@@ -25,6 +25,7 @@ import { normalizeMatric } from "@/lib/matric";
 import { CopyLinkButton } from "@/components/ui/copy-link-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getStudentSubmissionLifecycle } from "@/lib/student-submission-lifecycle";
 import type { EnrollmentStatus } from "@/types";
 
 const STATUS_CONFIG: Record<
@@ -227,6 +228,13 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
       activeAssignmentId === a.id && workspaceMode === "submitted";
     const snapshot = getSnapshot(matric, a.id);
     const reviewForAssignment = latestReviewByAssignment[a.id];
+    const lifecycleState = getStudentSubmissionLifecycle({
+      enrollmentStatus: status,
+      reviewStatus: reviewForAssignment?.status,
+      isRevisionEditingActive: false,
+      isNewAssignment: !a.enrollment,
+      context: "card",
+    });
     const needsChanges = reviewForAssignment?.status === "CHANGES_REQUESTED";
     const isSubmitted = status === "SUBMITTED" || status === "GRADED";
     const liveUrl = snapshot?.deployUrl ?? a.enrollment?.deployUrl;
@@ -306,13 +314,13 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
               variant={status === "IN_PROGRESS" ? "secondary" : "primary"}
               onClick={() => handleStart(a.id, a.title, a.starterFiles)}
             >
-              {status === "IN_PROGRESS" ? (
+              {status === "NOT_STARTED" ? (
                 <>
-                  <Play size={14} /> Continue
+                  <ChevronRight size={14} /> {lifecycleState.primaryButton}
                 </>
               ) : (
                 <>
-                  <ChevronRight size={14} /> Start
+                  <Play size={14} /> {lifecycleState.primaryButton}
                 </>
               )}
             </Button>
@@ -329,7 +337,7 @@ export function AssignmentsPanel({ studentReviews = [] }: { studentReviews?: Rev
                 }
               >
                 <Eye size={14} />
-                {needsChanges ? "Open to edit" : isViewing ? "Viewing snapshot" : "View submission"}
+                {lifecycleState.primaryButton}
               </Button>
                 {needsChanges ? (
                   <Button

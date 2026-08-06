@@ -5,6 +5,7 @@ import { ArrowRight, CheckCircle2, Clock, ExternalLink, Sparkles, Unlock } from 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { normalizeMatric } from "@/lib/matric";
+import { getStudentSubmissionLifecycle } from "@/lib/student-submission-lifecycle";
 import { useProjectStore } from "@/store/project-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useIdeStore } from "@/store/ide-store";
@@ -72,6 +73,12 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
   const canResumeEditing = isAwaitingChanges && isCurrentAssignment && isCurrentStudent;
   const resumeAssignmentId = activeAssignmentId ?? review.assignmentId;
   const isApproved = review.status === "APPROVED" || review.status === "PUBLISHED";
+  const lifecycleState = getStudentSubmissionLifecycle({
+    enrollmentStatus: "SUBMITTED",
+    reviewStatus: review.status,
+    isRevisionEditingActive: false,
+    context: "review",
+  });
 
   console.log("[StudentReviewPanel] review audit", {
     review,
@@ -90,7 +97,7 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
     assignmentId: review.assignmentId,
     activeAssignmentId,
   });
-  const heroTitle = canResumeEditing ? "Resume editing" : statusLabel;
+  const heroTitle = canResumeEditing ? lifecycleState.primaryButton : statusLabel;
   const heroDescription = canResumeEditing
     ? "Your instructor requested changes — full project access restored."
     : `Review for "${review.title}" by ${review.reviewerName ?? "your instructor"}`;
@@ -206,7 +213,7 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
                     className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20"
                   >
                     <Unlock size={14} />
-                    <span>Open full project</span>
+                    <span>{lifecycleState.secondaryButton ?? lifecycleState.primaryButton}</span>
                   </button>
                   <button
                     type="button"
