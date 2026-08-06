@@ -114,6 +114,7 @@ export default function DashboardReviewQueuePage() {
   const [filter, setFilter] = useState<"ALL" | string>("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openingSubmissionId, setOpeningSubmissionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -141,6 +142,37 @@ export default function DashboardReviewQueuePage() {
 
     void loadReviews();
   }, [user, router]);
+
+  const openSubmission = async (submission: SubmissionItem) => {
+    if (openingSubmissionId) return;
+    if (submission.review?.id) {
+      router.push(`/dashboard/reviews/${submission.review.id}`);
+      return;
+    }
+
+    setOpeningSubmissionId(`${submission.studentMatric}:${submission.assignmentId}`);
+    try {
+      const response = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentMatric: submission.studentMatric,
+          assignmentId: submission.assignmentId,
+          title: submission.snapshot?.projectName ?? submission.assignmentTitle,
+          projectSnapshotId: submission.snapshot?.id,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to open review workspace");
+      }
+      router.push(`/dashboard/reviews/${payload.review.id}`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setOpeningSubmissionId(null);
+    }
+  };
 
   const filteredReviews = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -236,12 +268,12 @@ export default function DashboardReviewQueuePage() {
             {filteredReviews.map((submission) => {
               const studentName = submission.student?.displayName ?? "Unknown student";
               const revision = submission.review?.revisions?.[0]?.revisionNumber ?? 1;
-              const reviewId = submission.review?.id ?? null;
+              const reviewStatus = submission.review ? (statusLabel[submission.review.status as Status] ?? submission.review.status) : "Awaiting review";
               return (
                 <button
                   key={`${submission.studentMatric}-${submission.assignmentId}`}
                   type="button"
-                  onClick={() => router.push(reviewId ? `/dashboard/reviews/${reviewId}` : `/dashboard/students/${encodeURIComponent(submission.studentMatric)}`)}
+                  onClick={() => void openSubmission(submission)}
                   className="grid w-full gap-3 border-b border-white/8 px-5 py-4 text-left transition-colors last:border-0 hover:bg-white/4.5 md:grid-cols-[minmax(260px,1.5fr)_1fr_150px_110px_150px_36px] md:items-center md:gap-4"
                 >
                   <div className="min-w-0">
@@ -260,7 +292,7 @@ export default function DashboardReviewQueuePage() {
                   <div className="text-sm text-zinc-400">{formatDate(submission.enrollment.submittedAt ?? submission.review?.createdAt ?? null)}</div>
                   <div className="text-sm text-zinc-400">R{revision}</div>
                   <div>
-                    <StatusPill status={(submission.review?.status ?? "SUBMITTED") as Status} />
+                    <span className={cn("inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium", submission.review ? "border-cyan-400/25 bg-cyan-400/10 text-cyan-300" : "border-white/10 bg-white/5 text-zinc-400")}>{reviewStatus}</span>
                   </div>
                   <ChevronRight size={17} className="hidden text-zinc-600 md:block" />
                 </button>

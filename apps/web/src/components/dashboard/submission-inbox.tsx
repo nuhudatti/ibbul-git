@@ -273,7 +273,7 @@ export function SubmissionInbox() {
                             onClick={() => router.push(`/dashboard/reviews/${review.review?.id ?? ""}`)}
                             className="rounded-full border border-cyan-400/20 bg-cyan-400/5 px-2 py-1 text-cyan-300 hover:bg-cyan-400/10"
                           >
-                            {statusLabel[review.review?.status ?? "SUBMITTED"]}
+                            Continue Review
                           </button>
                         ) : null}
                         {submission.enrollment.deployUrl ? (
@@ -313,7 +313,7 @@ export function SubmissionInbox() {
                             }}
                             className="rounded-full border border-cyan-400/20 bg-cyan-400/5 px-2 py-1 text-[11px] text-cyan-300 hover:bg-cyan-400/10"
                           >
-                            Review Project
+                            Start Review
                           </button>
                         )}
                         <Link
