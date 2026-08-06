@@ -11,11 +11,7 @@ import {
   CheckCircle2,
   Filter,
 } from "lucide-react";
-import { useAssignmentStore } from "@/store/assignment-store";
-import { usePortfolioStore } from "@/store/portfolio-store";
-import { buildSubmissionRows } from "@/lib/lecturer-data";
 import { normalizeMatric, profilePath } from "@/lib/matric";
-import { formatProofHash } from "@/lib/portfolio-hash";
 import { cn, resolveDeployUrl } from "@/lib/utils";
 
 type InboxFilter = "all" | "pending" | "verified";
@@ -30,12 +26,41 @@ type Status =
   | "PUBLISHED"
   | "REJECTED";
 
-type Review = {
-  id: string;
+type SubmissionItem = {
   studentMatric: string;
+  student: { matric: string; displayName: string; avatar: string; program: string } | null;
   assignmentId: string;
-  status: Status;
-  updatedAt?: string | null;
+  assignmentTitle: string;
+  assignmentStatus: string;
+  enrollment: {
+    id?: string;
+    status: string;
+    submittedAt?: string | null;
+    score?: number | null;
+    deployUrl?: string | null;
+  };
+  snapshot: {
+    id: string;
+    projectName: string;
+    files: Array<{ path?: string; content?: string; language?: string }>;
+    submittedAt?: string | null;
+    deployUrl?: string | null;
+  } | null;
+  review: {
+    id: string;
+    status: Status;
+    submittedAt?: string | null;
+    updatedAt?: string | null;
+    createdAt?: string | null;
+    title: string;
+    summary: string | null;
+    reviewerName: string | null;
+    projectSnapshotId: string | null;
+    revisions?: Array<{ revisionNumber: number }>;
+  } | null;
+  statusLabel: string;
+  actionLabel: string;
+  actionType: "review" | "view" | "continue";
 };
 
 const statusLabel: Record<Status, string> = {
@@ -50,34 +75,24 @@ const statusLabel: Record<Status, string> = {
 };
 
 export function SubmissionInbox() {
-  const assignments = useAssignmentStore((s) => s.assignments);
-  const enrollments = useAssignmentStore((s) => s.enrollments);
-  const artifacts = usePortfolioStore((s) => s.artifacts);
-  const activityFeed = useAssignmentStore((s) => s.activityFeed);
-
   const [filter, setFilter] = useState<InboxFilter>("all");
   const [assignmentFilter, setAssignmentFilter] = useState<string | "all">("all");
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const router = useRouter();
-
-  const rows = useMemo(
-    () => buildSubmissionRows(assignments, enrollments, artifacts),
-    [assignments, enrollments, artifacts]
-  );
 
   useEffect(() => {
     const loadReviews = async () => {
       setReviewLoading(true);
       setReviewError(null);
       try {
-        const response = await fetch("/api/reviews");
+        const response = await fetch("/api/dashboard/submissions");
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error ?? "Unable to load reviews");
+          throw new Error(payload.error ?? "Unable to load submissions");
         }
-        setReviews(Array.isArray(payload.reviews) ? payload.reviews : []);
+        setSubmissions(Array.isArray(payload.submissions) ? payload.submissions : []);
       } catch (error) {
         setReviewError((error as Error).message);
       } finally {
@@ -89,33 +104,36 @@ export function SubmissionInbox() {
   }, []);
 
   const filtered = useMemo(() => {
-    let list = rows;
+    let list = submissions;
     if (assignmentFilter !== "all") {
-      list = list.filter((r) => r.assignment.id === assignmentFilter);
+      list = list.filter((submission) => submission.assignmentId === assignmentFilter);
     }
     if (filter === "pending") {
-      list = list.filter((r) => !r.artifact?.verified);
+      list = list.filter((submission) => !submission.review || submission.review.status === "SUBMITTED" || submission.review.status === "CHANGES_REQUESTED");
     } else if (filter === "verified") {
-      list = list.filter((r) => r.artifact?.verified);
+      list = list.filter((submission) => submission.review?.status === "APPROVED" || submission.review?.status === "PUBLISHED");
     }
     return list;
-  }, [rows, filter, assignmentFilter]);
+  }, [submissions, filter, assignmentFilter]);
 
   const reviewMap = useMemo(() => {
-    return reviews.reduce<Record<string, Review>>((map, review) => {
-      const key = `${normalizeMatric(review.studentMatric)}:${review.assignmentId}`;
+    return submissions.reduce<Record<string, SubmissionItem>>((map, submission) => {
+      const key = `${normalizeMatric(submission.studentMatric)}:${submission.assignmentId}`;
       const existing = map[key];
-      const incomingTime = review.updatedAt ? new Date(review.updatedAt).getTime() : Number.NEGATIVE_INFINITY;
-      const existingTime = existing?.updatedAt ? new Date(existing.updatedAt).getTime() : Number.NEGATIVE_INFINITY;
+      const incomingTime = submission.review?.updatedAt ? new Date(submission.review.updatedAt).getTime() : Number.NEGATIVE_INFINITY;
+      const existingTime = existing?.review?.updatedAt ? new Date(existing.review.updatedAt).getTime() : Number.NEGATIVE_INFINITY;
 
       if (!existing || incomingTime >= existingTime) {
-        map[key] = review;
+        map[key] = submission;
       }
       return map;
     }, {});
-  }, [reviews]);
+  }, [submissions]);
 
-  const published = assignments.filter((a) => a.status === "PUBLISHED");
+  const published = Array.from(new Set(submissions.map((submission) => submission.assignmentId))).map((assignmentId) => ({
+    id: assignmentId,
+    title: submissions.find((submission) => submission.assignmentId === assignmentId)?.assignmentTitle ?? assignmentId,
+  }));
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -150,7 +168,7 @@ export function SubmissionInbox() {
               {label}
               {id === "pending" ? (
                 <span className="ml-1 text-amber-400">
-                  ({rows.filter((r) => !r.artifact?.verified).length})
+                  ({submissions.filter((submission) => !submission.review || submission.review.status === "SUBMITTED" || submission.review.status === "CHANGES_REQUESTED").length})
                 </span>
               ) : null}
             </button>
@@ -194,24 +212,21 @@ export function SubmissionInbox() {
         </div>
       ) : (
           <div className="space-y-2">
-            {filtered.map((row, i) => {
-              const { enrollment, assignment, artifact, studentName, avatar } = row;
-              const review = reviewMap[`${normalizeMatric(enrollment.studentMatric)}:${assignment.id}`];
-              const rowState = review
-                ? review.status === "CHANGES_REQUESTED" || review.status === "SUBMITTED"
+            {filtered.map((submission, i) => {
+              const review = reviewMap[`${normalizeMatric(submission.studentMatric)}:${submission.assignmentId}`];
+              const rowState = review?.review
+                ? review.review.status === "CHANGES_REQUESTED" || review.review.status === "SUBMITTED"
                   ? "border-amber-400/20 bg-amber-500/3"
-                  : review.status === "UNDER_REVIEW" || review.status === "RESUBMITTED"
+                  : review.review.status === "UNDER_REVIEW" || review.review.status === "RESUBMITTED"
                   ? "border-cyan-400/20 bg-cyan-500/5"
-                  : review.status === "APPROVED" || review.status === "PUBLISHED"
+                  : review.review.status === "APPROVED" || review.review.status === "PUBLISHED"
                   ? "border-emerald-400/15 bg-emerald-500/5"
                   : "border-white/6 bg-white/2"
-                : artifact && !artifact.verified
-                ? "border-amber-400/20 bg-amber-500/3"
-                : "border-white/6 bg-white/2";
+                : "border-amber-400/20 bg-amber-500/3";
 
               return (
                 <motion.div
-                  key={`${enrollment.studentMatric}-${enrollment.assignmentId}`}
+                  key={`${submission.studentMatric}-${submission.assignmentId}`}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: Math.min(i * 0.04, 0.2) }}
@@ -219,56 +234,51 @@ export function SubmissionInbox() {
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-sm font-bold text-zinc-300 shrink-0">
-                      {avatar}
+                      {submission.student?.avatar ?? "U"}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-medium text-zinc-200">{studentName}</p>
+                        <p className="text-sm font-medium text-zinc-200">{submission.student?.displayName ?? submission.studentMatric}</p>
                         <span className="text-[10px] font-mono text-zinc-600">
-                          {enrollment.studentMatric}
+                          {submission.studentMatric}
                         </span>
-                        {artifact?.verified ? (
+                        {review?.review?.status === "APPROVED" || review?.review?.status === "PUBLISHED" ? (
                           <span className="text-[10px] text-emerald-400 flex items-center gap-0.5">
                             <CheckCircle2 size={10} /> Verified
                           </span>
-                        ) : review ? (
-                          <span className="text-[10px] text-amber-400">Review: {statusLabel[review.status]}</span>
+                        ) : review?.review ? (
+                          <span className="text-[10px] text-amber-400">Review: {statusLabel[review.review.status]}</span>
                         ) : (
                           <span className="text-[10px] text-amber-400">Awaiting review</span>
                         )}
                       </div>
-                      <p className="text-xs text-zinc-400 mt-0.5">{assignment.title}</p>
+                      <p className="text-xs text-zinc-400 mt-0.5">{submission.assignmentTitle}</p>
                       <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-zinc-500">
-                        {enrollment.score != null ? (
+                        {submission.enrollment.score != null ? (
                           <span className="text-cyan-300/90 font-medium">
-                            Score {enrollment.score}/{assignment.maxScore}
+                            Score {submission.enrollment.score}
                           </span>
                         ) : null}
-                        {enrollment.submittedAt ? (
+                        {submission.enrollment.submittedAt ? (
                           <span className="flex items-center gap-1">
                             <Clock size={10} />
-                            {new Date(enrollment.submittedAt).toLocaleString()}
-                          </span>
-                        ) : null}
-                        {artifact ? (
-                          <span className="font-mono text-violet-400/80">
-                            {formatProofHash(artifact.hash)}
+                            {new Date(submission.enrollment.submittedAt).toLocaleString()}
                           </span>
                         ) : null}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 mt-3 text-[11px] text-zinc-500">
-                        {review ? (
+                        {review?.review ? (
                           <button
                             type="button"
-                            onClick={() => router.push(`/dashboard/reviews/${review.id}`)}
+                            onClick={() => router.push(`/dashboard/reviews/${review.review?.id ?? ""}`)}
                             className="rounded-full border border-cyan-400/20 bg-cyan-400/5 px-2 py-1 text-cyan-300 hover:bg-cyan-400/10"
                           >
-                            {statusLabel[review.status]}
+                            {statusLabel[review.review?.status ?? "SUBMITTED"]}
                           </button>
                         ) : null}
-                        {enrollment.deployUrl ? (
+                        {submission.enrollment.deployUrl ? (
                           <a
-                            href={resolveDeployUrl(enrollment.deployUrl, typeof window !== "undefined" ? window.location.origin : undefined) ?? enrollment.deployUrl}
+                            href={resolveDeployUrl(submission.enrollment.deployUrl, typeof window !== "undefined" ? window.location.origin : undefined) ?? submission.enrollment.deployUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-[11px] text-cyan-400 px-2 py-1 rounded-lg bg-cyan-400/10 border border-cyan-400/20"
@@ -277,7 +287,7 @@ export function SubmissionInbox() {
                             Live project
                           </a>
                         ) : null}
-                        {review ? null : (
+                        {review?.review ? null : (
                           <button
                             type="button"
                             onClick={async () => {
@@ -286,9 +296,9 @@ export function SubmissionInbox() {
                                   method: "POST",
                                   headers: { "Content-Type": "application/json" },
                                   body: JSON.stringify({
-                                    studentMatric: enrollment.studentMatric,
-                                    assignmentId: assignment.id,
-                                    title: assignment.title,
+                                    studentMatric: submission.studentMatric,
+                                    assignmentId: submission.assignmentId,
+                                    title: submission.snapshot?.projectName ?? submission.assignmentTitle,
                                     summary: "Student submitted a project for review.",
                                   }),
                                 });
@@ -307,7 +317,7 @@ export function SubmissionInbox() {
                           </button>
                         )}
                         <Link
-                          href={profilePath(enrollment.studentMatric)}
+                          href={profilePath(submission.studentMatric)}
                           target="_blank"
                           className="inline-flex items-center gap-1 text-[11px] text-zinc-400 px-2 py-1 rounded-lg border border-white/8 hover:text-white"
                         >
@@ -323,16 +333,6 @@ export function SubmissionInbox() {
         )}
       </div>
 
-      {activityFeed.length > 0 ? (
-        <div className="shrink-0 border-t border-white/6 px-5 py-3 max-h-35 overflow-y-auto ula-scrollbar">
-          <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-2">Recent class activity</p>
-          {activityFeed.slice(0, 6).map((e) => (
-            <p key={e.id} className="text-[11px] text-zinc-500 py-1 border-b border-white/3 last:border-0">
-              <span className="text-zinc-400">{e.student}</span> · {e.message}
-            </p>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }

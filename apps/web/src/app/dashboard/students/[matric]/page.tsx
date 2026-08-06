@@ -25,24 +25,39 @@ type Status =
   | "REJECTED";
 
 type LecturerSubmission = {
+  studentMatric: string;
   assignmentId: string;
   assignmentTitle: string;
   assignmentStatus: string;
   enrollment: {
+    id?: string;
+    status: string;
     submittedAt?: string | null;
+    score?: number | null;
+    deployUrl?: string | null;
   };
   snapshot?: {
     id: string;
     projectName: string;
+    files: Array<{ path?: string; content?: string; language?: string }>;
+    submittedAt?: string | null;
+    deployUrl?: string | null;
   } | null;
   review: {
     id: string;
     status: Status;
     submittedAt?: string | null;
     updatedAt?: string | null;
+    createdAt?: string | null;
     title: string;
-    revisions: Array<{ revisionNumber: number }>;
+    summary: string | null;
+    reviewerName: string | null;
+    projectSnapshotId: string | null;
+    revisions?: Array<{ revisionNumber: number }>;
   } | null;
+  statusLabel: string;
+  actionLabel: string;
+  actionType: "review" | "view" | "continue";
 };
 
 type LecturerStudentDetail = {
@@ -116,12 +131,12 @@ export default function DashboardStudentDetailPage() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/dashboard/students/${encodeURIComponent(matric)}`);
+        const response = await fetch(`/api/dashboard/submissions/${encodeURIComponent(matric)}`);
         const payload = await response.json();
         if (!response.ok) {
           throw new Error(payload.error ?? "Failed to load student detail");
         }
-        setStudent(payload.student ?? null);
+        setStudent(payload.submissions ? { matric, displayName: payload.submissions[0]?.student?.displayName ?? matric, avatar: payload.submissions[0]?.student?.avatar ?? "U", program: payload.submissions[0]?.student?.program ?? "", submissions: payload.submissions } : null);
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -154,7 +169,7 @@ export default function DashboardStudentDetailPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          studentMatric: matric,
+          studentMatric: submission.studentMatric ?? matric,
           assignmentId: submission.assignmentId,
           title: submission.snapshot?.projectName ?? submission.assignmentTitle,
           projectSnapshotId: submission.snapshot?.id,

@@ -49,10 +49,12 @@ export interface LecturerStudentSubmissionEntry {
     status: ReviewStatus;
     submittedAt?: string | null;
     updatedAt?: string | null;
+    createdAt?: string | null;
     title: string;
     summary: string | null;
     reviewerName: string | null;
     projectSnapshotId: string | null;
+    revisions?: Array<{ revisionNumber: number }>;
   } | null;
   statusLabel: LecturerSubmissionStatus;
   actionLabel: string;
@@ -65,9 +67,28 @@ export interface LecturerStudentSummary {
   avatar: string;
   program: string;
   submissions: LecturerStudentSubmissionEntry[];
+  activeReviewsCount: number;
+  latestReviewId: string | null;
+  latestReviewStatus: ReviewStatus | null;
+  latestReviewUpdatedAt: string | null;
+  latestReviewSubmittedAt: string | null;
 }
 
-function getStatusAndAction(review: { status: ReviewStatus } | null) {
+export type LecturerStudentDetail = LecturerStudentSummary;
+
+export interface LecturerSubmissionStudent {
+  matric: string;
+  displayName: string;
+  avatar: string;
+  program: string;
+}
+
+export interface LecturerSubmissionEntry extends LecturerStudentSubmissionEntry {
+  studentMatric: string;
+  student: LecturerSubmissionStudent;
+}
+
+export function resolveSubmissionStatus(review: { status: ReviewStatus | string } | null) {
   if (!review) {
     return {
       statusLabel: "Awaiting review" as const,
@@ -128,78 +149,74 @@ function submissionKey(studentMatric: string, assignmentId: string) {
   return `${normalizeMatric(studentMatric)}:${assignmentId}`;
 }
 
-export async function getLecturerStudentSummaries() {
-  const enrollments = await prisma.enrollment.findMany({
-    where: {
-      status: { in: ["SUBMITTED", "GRADED"] },
-      assignment: { status: "PUBLISHED" },
-    },
-    include: {
-      assignment: true,
-      student: {
-        select: {
-          matric: true,
-          firstName: true,
-          lastName: true,
-          program: true,
-          avatarInitials: true,
-        },
-      },
-    },
-    orderBy: { submittedAt: "desc" },
-  });
-
-  const snapshotKeys = enrollments.map((enrollment) => ({
-    studentMatric: normalizeMatric(enrollment.studentMatric),
-    assignmentId: enrollment.assignmentId,
-  }));
-  const studentMatricList = [...new Set(snapshotKeys.map((item) => item.studentMatric))];
-  const assignmentIds = [...new Set(snapshotKeys.map((item) => item.assignmentId))];
-
-  const snapshots = await prisma.projectSnapshot.findMany({
-    where: {
-      studentMatric: { in: studentMatricList },
-      assignmentId: { in: assignmentIds },
-    },
-    orderBy: { savedAt: "desc" },
-  });
-
-  const snapshotMap = new Map<string, typeof snapshots[0]>();
-  for (const snapshot of snapshots) {
-    const key = submissionKey(snapshot.studentMatric, snapshot.assignmentId);
-    if (!snapshotMap.has(key)) {
-      snapshotMap.set(key, snapshot);
+function buildSubmissionMap<T extends { studentMatric: string; assignmentId: string }>(items: T[]) {
+  const map = new Map<string, T>();
+  for (const item of items) {
+    const key = submissionKey(item.studentMatric, item.assignmentId);
+    if (!map.has(key)) {
+      map.set(key, item);
     }
   }
+  return map;
+}
 
-  const reviews = await prisma.review.findMany({
-    where: {
-      studentMatric: { in: studentMatricList },
-      assignmentId: { in: assignmentIds },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+type LecturerSubmissionEntryWithMatric = LecturerStudentSubmissionEntry & {
+  studentMatric: string;
+};
 
-  const reviewMap = new Map<string, typeof reviews[0]>();
-  for (const review of reviews) {
-    const key = submissionKey(review.studentMatric, review.assignmentId);
-    if (!reviewMap.has(key)) {
-      reviewMap.set(key, review);
-    }
-  }
+function buildSubmissionEntries(
+  enrollments: Array<{
+    assignmentId: string;
+    studentMatric: string;
+    status: string;
+    submittedAt?: Date | null;
+    score?: number | null;
+    deployUrl?: string | null;
+    assignment: { id: string; title: string; status: string };
+    id: string;
+  }>,
+  snapshots: Array<{
+    id: string;
+    studentMatric: string;
+    assignmentId: string;
+    projectName: string;
+    files: unknown;
+    submittedAt?: Date | null;
+    deployUrl?: string | null;
+  }>,
+  reviews: Array<{
+    id: string;
+    studentMatric: string;
+    assignmentId: string;
+    status: string;
+    submittedAt?: Date | null;
+    updatedAt?: Date | null;
+    createdAt?: Date | null;
+    title: string;
+    summary?: string | null;
+    reviewerName?: string | null;
+    projectSnapshotId: string | null;
+    revisions?: Array<{ revisionNumber: number }>;
+  }>
+): LecturerSubmissionEntry[] {
+  const snapshotMap = buildSubmissionMap(snapshots);
+  const reviewMap = buildSubmissionMap(reviews);
 
-  const studentsByMatric = new Map<string, LecturerStudentSummary>();
-
-  for (const enrollment of enrollments) {
-    const studentMatric = normalizeMatric(enrollment.studentMatric);
-    const key = submissionKey(studentMatric, enrollment.assignmentId);
+  return enrollments.map((enrollment) => {
+    const key = submissionKey(enrollment.studentMatric, enrollment.assignmentId);
     const snapshot = snapshotMap.get(key) ?? null;
     const review = reviewMap.get(key) ?? null;
-    const { statusLabel, actionLabel, actionType } = getStatusAndAction(review);
+    const { statusLabel, actionLabel, actionType } = resolveSubmissionStatus(review);
+    const student = resolveStudent(normalizeMatric(enrollment.studentMatric));
 
-    const studentInfo = getStudentInfo(studentMatric);
-
-    const entry: LecturerStudentSubmissionEntry = {
+    return {
+      studentMatric: enrollment.studentMatric,
+      student: {
+        matric: normalizeMatric(enrollment.studentMatric),
+        displayName: student.displayName,
+        avatar: student.avatar,
+        program: student.program,
+      },
       assignmentId: enrollment.assignmentId,
       assignmentTitle: enrollment.assignment.title,
       assignmentStatus: enrollment.assignment.status,
@@ -230,40 +247,50 @@ export async function getLecturerStudentSummaries() {
       review: review
         ? {
             id: review.id,
-            status: review.status,
+            status: review.status as ReviewStatus,
             submittedAt: review.submittedAt?.toISOString() ?? null,
             updatedAt: review.updatedAt?.toISOString() ?? null,
+            createdAt: review.createdAt?.toISOString() ?? null,
             title: review.title,
             summary: review.summary ?? null,
             reviewerName: review.reviewerName ?? null,
             projectSnapshotId: review.projectSnapshotId,
+            revisions: Array.isArray(review.revisions)
+              ? review.revisions.map((revision) => ({ revisionNumber: revision.revisionNumber }))
+              : [],
           }
         : null,
       statusLabel,
       actionLabel,
       actionType,
     };
-
-    const existing = studentsByMatric.get(studentMatric);
-    if (existing) {
-      existing.submissions.push(entry);
-    } else {
-      studentsByMatric.set(studentMatric, {
-        ...studentInfo,
-        submissions: [entry],
-      });
-    }
-  }
-
-  return Array.from(studentsByMatric.values());
+  });
 }
 
-export async function getLecturerStudentDetail(matric: string) {
-  const normalized = normalizeMatric(matric);
+function isReviewActive(review: { status: ReviewStatus } | null) {
+  return Boolean(
+    review &&
+      ["SUBMITTED", "UNDER_REVIEW", "CHANGES_REQUESTED", "RESUBMITTED"].includes(review.status)
+  );
+}
+
+function getLatestReview(submissions: LecturerStudentSubmissionEntry[]) {
+  return submissions
+    .map((submission) => submission.review)
+    .filter((review): review is NonNullable<typeof review> => Boolean(review))
+    .sort((a, b) => {
+      const aTime = new Date(a.updatedAt ?? a.submittedAt ?? 0).getTime();
+      const bTime = new Date(b.updatedAt ?? b.submittedAt ?? 0).getTime();
+      return bTime - aTime;
+    })[0] ?? null;
+}
+
+export async function getLecturerSubmissionEntries(studentMatric?: string) {
+  const normalizedMatric = studentMatric ? normalizeMatric(studentMatric) : undefined;
 
   const enrollments = await prisma.enrollment.findMany({
     where: {
-      studentMatric: normalized,
+      studentMatric: normalizedMatric,
       status: { in: ["SUBMITTED", "GRADED"] },
       assignment: { status: "PUBLISHED" },
     },
@@ -273,98 +300,95 @@ export async function getLecturerStudentDetail(matric: string) {
     orderBy: { submittedAt: "desc" },
   });
 
+  const studentMatricList = normalizedMatric
+    ? [normalizedMatric]
+    : [...new Set(enrollments.map((enrollment) => normalizeMatric(enrollment.studentMatric)))];
   const assignmentIds = [...new Set(enrollments.map((enrollment) => enrollment.assignmentId))];
 
-  const snapshots = assignmentIds.length
+  const snapshots = assignmentIds.length && studentMatricList.length
     ? await prisma.projectSnapshot.findMany({
         where: {
-          studentMatric: normalized,
+          studentMatric: { in: studentMatricList },
           assignmentId: { in: assignmentIds },
         },
         orderBy: { savedAt: "desc" },
       })
     : [];
 
-  const snapshotMap = new Map<string, typeof snapshots[0]>();
-  for (const snapshot of snapshots) {
-    const key = submissionKey(snapshot.studentMatric, snapshot.assignmentId);
-    if (!snapshotMap.has(key)) {
-      snapshotMap.set(key, snapshot);
-    }
-  }
-
-  const reviews = assignmentIds.length
+  const reviews = assignmentIds.length && studentMatricList.length
     ? await prisma.review.findMany({
         where: {
-          studentMatric: normalized,
+          studentMatric: { in: studentMatricList },
           assignmentId: { in: assignmentIds },
         },
         orderBy: { updatedAt: "desc" },
       })
     : [];
 
-  const reviewMap = new Map<string, typeof reviews[0]>();
-  for (const review of reviews) {
-    const key = submissionKey(review.studentMatric, review.assignmentId);
-    if (!reviewMap.has(key)) {
-      reviewMap.set(key, review);
+  return buildSubmissionEntries(enrollments, snapshots, reviews);
+}
+
+export async function getLecturerStudentSummaries() {
+  const entries = await getLecturerSubmissionEntries();
+
+  const studentsByMatric = new Map<string, { info: ReturnType<typeof getStudentInfo>; submissions: LecturerStudentSubmissionEntry[] }>();
+
+  for (const entry of entries) {
+    const studentMatric = normalizeMatric(entry.studentMatric);
+    const existing = studentsByMatric.get(studentMatric);
+    if (existing) {
+      existing.submissions.push(entry);
+    } else {
+      studentsByMatric.set(studentMatric, {
+        info: getStudentInfo(studentMatric),
+        submissions: [entry],
+      });
     }
   }
 
-  const studentInfo = getStudentInfo(normalized);
-  const submissions = enrollments.map((enrollment) => {
-    const snapshot = snapshotMap.get(submissionKey(normalized, enrollment.assignmentId)) ?? null;
-    const review = reviewMap.get(submissionKey(normalized, enrollment.assignmentId)) ?? null;
-    const { statusLabel, actionLabel, actionType } = getStatusAndAction(review);
-
+  const summaries: LecturerStudentSummary[] = Array.from(studentsByMatric.values()).map(({ info, submissions }) => {
+    const latestReview = getLatestReview(submissions);
     return {
-      assignmentId: enrollment.assignmentId,
-      assignmentTitle: enrollment.assignment.title,
-      assignmentStatus: enrollment.assignment.status,
-      enrollment: {
-        id: enrollment.id,
-        status: enrollment.status,
-        submittedAt: enrollment.submittedAt?.toISOString() ?? null,
-        score: enrollment.score ?? null,
-        deployUrl: enrollment.deployUrl ?? null,
-      },
-      snapshot: snapshot
-        ? {
-            id: snapshot.id,
-            projectName: snapshot.projectName,
-            files: Array.isArray(snapshot.files)
-              ? snapshot.files.map((file) => ({
-                  path: typeof file === "object" && file && "path" in file ? (file.path as string | undefined) : undefined,
-                  content:
-                    typeof file === "object" && file && "content" in file ? (file.content as string | undefined) : undefined,
-                  language:
-                    typeof file === "object" && file && "language" in file ? (file.language as string | undefined) : undefined,
-                }))
-              : [],
-            submittedAt: snapshot.submittedAt?.toISOString() ?? null,
-            deployUrl: snapshot.deployUrl ?? null,
-          }
-        : null,
-      review: review
-        ? {
-            id: review.id,
-            status: review.status,
-            submittedAt: review.submittedAt?.toISOString() ?? null,
-            updatedAt: review.updatedAt?.toISOString() ?? null,
-            title: review.title,
-            summary: review.summary ?? null,
-            reviewerName: review.reviewerName ?? null,
-            projectSnapshotId: review.projectSnapshotId,
-          }
-        : null,
-      statusLabel,
-      actionLabel,
-      actionType,
+      ...info,
+      submissions,
+      activeReviewsCount: submissions.filter((submission) => isReviewActive(submission.review)).length,
+      latestReviewId: latestReview?.id ?? null,
+      latestReviewStatus: latestReview?.status ?? null,
+      latestReviewUpdatedAt: latestReview?.updatedAt ?? latestReview?.submittedAt ?? null,
+      latestReviewSubmittedAt: latestReview?.submittedAt ?? null,
     };
   });
+
+  return summaries;
+}
+
+export async function getLecturerStudentDetail(matric: string) {
+  const normalized = normalizeMatric(matric);
+  const entries = await getLecturerSubmissionEntries(normalized);
+  const studentInfo = getStudentInfo(normalized);
+
+  const submissions = entries.map(({ studentMatric: _studentMatric, student: _student, ...entry }) => entry);
 
   return {
     ...studentInfo,
     submissions,
   };
+}
+
+export async function getLecturerSubmissionPayload(studentMatric?: string) {
+  const entries = await getLecturerSubmissionEntries(studentMatric);
+
+  return entries.map((entry) => ({
+    studentMatric: entry.studentMatric,
+    student: entry.student,
+    assignmentId: entry.assignmentId,
+    assignmentTitle: entry.assignmentTitle,
+    assignmentStatus: entry.assignmentStatus,
+    enrollment: entry.enrollment,
+    snapshot: entry.snapshot,
+    review: entry.review,
+    statusLabel: entry.statusLabel,
+    actionLabel: entry.actionLabel,
+    actionType: entry.actionType,
+  }));
 }

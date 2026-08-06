@@ -217,6 +217,9 @@ export async function createReview(input: CreateReviewInput) {
         reviewStartedAt: existingReview.reviewStartedAt ?? new Date(),
         reviewerMatric: input.reviewerMatric ?? existingReview.reviewerMatric,
         reviewerName: input.reviewerName ?? existingReview.reviewerName,
+        projectSnapshotId: input.projectSnapshotId ?? existingReview.projectSnapshotId,
+        title: input.title ?? existingReview.title,
+        summary: input.summary ?? existingReview.summary,
       },
     });
 

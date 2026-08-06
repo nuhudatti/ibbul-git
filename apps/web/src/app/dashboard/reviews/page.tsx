@@ -17,28 +17,52 @@ type Status =
   | "PUBLISHED"
   | "REJECTED";
 
-type Review = {
-  id: string;
-  title: string;
-  assignmentId: string;
+type SubmissionItem = {
   studentMatric: string;
-  status: Status;
-  submittedAt: string | null;
-  updatedAt: string;
-  createdAt: string;
-  revisions: Array<{ revisionNumber: number }>;
-  student: { firstName: string; lastName: string; email: string } | null;
+  student: { matric: string; displayName: string; avatar: string; program: string } | null;
+  assignmentId: string;
+  assignmentTitle: string;
+  assignmentStatus: string;
+  enrollment: {
+    id?: string;
+    status: string;
+    submittedAt?: string | null;
+    score?: number | null;
+    deployUrl?: string | null;
+  };
+  snapshot: {
+    id: string;
+    projectName: string;
+    files: Array<{ path?: string; content?: string; language?: string }>;
+    submittedAt?: string | null;
+    deployUrl?: string | null;
+  } | null;
+  review: {
+    id: string;
+    status: Status;
+    submittedAt?: string | null;
+    updatedAt?: string | null;
+    createdAt?: string | null;
+    title: string;
+    summary: string | null;
+    reviewerName: string | null;
+    projectSnapshotId: string | null;
+    revisions?: Array<{ revisionNumber: number }>;
+  } | null;
+  statusLabel: string;
+  actionLabel: string;
+  actionType: "review" | "view" | "continue";
 };
 
-const statuses: Array<{ value: "ALL" | Status; label: string }> = [
-  { value: "ALL", label: "All reviews" },
-  { value: "SUBMITTED", label: "Submitted" },
-  { value: "UNDER_REVIEW", label: "Under review" },
-  { value: "RESUBMITTED", label: "Resubmitted" },
-  { value: "CHANGES_REQUESTED", label: "Changes requested" },
-  { value: "APPROVED", label: "Approved" },
-  { value: "REJECTED", label: "Rejected" },
-  { value: "PUBLISHED", label: "Published" },
+const statuses: Array<{ value: "ALL" | string; label: string }> = [
+  { value: "ALL", label: "All submissions" },
+  { value: "Awaiting review", label: "Awaiting review" },
+  { value: "Submitted", label: "Submitted" },
+  { value: "Under review", label: "Under review" },
+  { value: "Changes requested", label: "Changes requested" },
+  { value: "Approved", label: "Approved" },
+  { value: "Rejected", label: "Rejected" },
+  { value: "In review", label: "In review" },
 ];
 
 const statusLabel: Record<Status, string> = {
@@ -85,9 +109,9 @@ function StatusPill({ status }: { status: Status }) {
 export default function DashboardReviewQueuePage() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"ALL" | Status>("ALL");
+  const [filter, setFilter] = useState<"ALL" | string>("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -102,12 +126,12 @@ export default function DashboardReviewQueuePage() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch("/api/reviews");
+        const response = await fetch("/api/dashboard/submissions");
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error ?? "Failed to load reviews");
+          throw new Error(payload.error ?? "Failed to load submissions");
         }
-        setReviews(Array.isArray(payload.reviews) ? payload.reviews : []);
+        setSubmissions(Array.isArray(payload.submissions) ? payload.submissions : []);
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -120,15 +144,16 @@ export default function DashboardReviewQueuePage() {
 
   const filteredReviews = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return reviews.filter((review) => {
-      if (filter !== "ALL" && review.status !== filter) return false;
+    return submissions.filter((submission) => {
+      const effectiveStatus = submission.statusLabel;
+      if (filter !== "ALL" && effectiveStatus !== filter) return false;
       if (!needle) return true;
-      const name = review.student ? `${review.student.firstName} ${review.student.lastName}` : "";
-      return [review.title, review.studentMatric, name].some((field) =>
+      const name = submission.student?.displayName ?? "";
+      return [submission.assignmentTitle, submission.studentMatric, name].some((field) =>
         field.toLowerCase().includes(needle)
       );
     });
-  }, [filter, query, reviews]);
+  }, [filter, query, submissions]);
 
   return (
     <main className="ula-mesh-bg min-h-screen px-4 py-6 text-zinc-100 sm:px-8 lg:px-12">
@@ -162,7 +187,7 @@ export default function DashboardReviewQueuePage() {
             <select
               aria-label="Filter reviews by status"
               value={filter}
-              onChange={(event) => setFilter(event.target.value as "ALL" | Status)}
+              onChange={(event) => setFilter(event.target.value as "ALL" | string)}
               className="h-11 w-full appearance-none rounded-xl border border-white/10 bg-white/4 pl-9 pr-3 text-sm text-zinc-200 outline-none focus:border-cyan-400/50"
             >
               {statuses.map((item) => (
@@ -208,33 +233,34 @@ export default function DashboardReviewQueuePage() {
               <span>Status</span>
               <span />
             </div>
-            {filteredReviews.map((review) => {
-              const studentName = review.student ? `${review.student.firstName} ${review.student.lastName}` : "Unknown student";
-              const revision = review.revisions[0]?.revisionNumber ?? 1;
+            {filteredReviews.map((submission) => {
+              const studentName = submission.student?.displayName ?? "Unknown student";
+              const revision = submission.review?.revisions?.[0]?.revisionNumber ?? 1;
+              const reviewId = submission.review?.id ?? null;
               return (
                 <button
-                  key={review.id}
+                  key={`${submission.studentMatric}-${submission.assignmentId}`}
                   type="button"
-                  onClick={() => router.push(`/dashboard/reviews/${review.id}`)}
+                  onClick={() => router.push(reviewId ? `/dashboard/reviews/${reviewId}` : `/dashboard/students/${encodeURIComponent(submission.studentMatric)}`)}
                   className="grid w-full gap-3 border-b border-white/8 px-5 py-4 text-left transition-colors last:border-0 hover:bg-white/4.5 md:grid-cols-[minmax(260px,1.5fr)_1fr_150px_110px_150px_36px] md:items-center md:gap-4"
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <ClipboardCheck size={15} className="shrink-0 text-cyan-300" />
-                      <span className="truncate font-medium text-white">{review.title}</span>
+                      <span className="truncate font-medium text-white">{submission.assignmentTitle}</span>
                     </div>
                     <div className="mt-1 pl-6 text-xs text-zinc-500">
-                      {review.assignmentId} · active {formatDate(review.updatedAt)}
+                      {submission.assignmentId} · active {formatDate(submission.review?.updatedAt ?? submission.enrollment.submittedAt ?? null)}
                     </div>
                   </div>
                   <div>
                     <p className="text-sm text-zinc-200">{studentName}</p>
-                    <p className="mt-1 text-xs text-zinc-500">{review.studentMatric}</p>
+                    <p className="mt-1 text-xs text-zinc-500">{submission.studentMatric}</p>
                   </div>
-                  <div className="text-sm text-zinc-400">{formatDate(review.submittedAt ?? review.createdAt)}</div>
+                  <div className="text-sm text-zinc-400">{formatDate(submission.enrollment.submittedAt ?? submission.review?.createdAt ?? null)}</div>
                   <div className="text-sm text-zinc-400">R{revision}</div>
                   <div>
-                    <StatusPill status={review.status} />
+                    <StatusPill status={(submission.review?.status ?? "SUBMITTED") as Status} />
                   </div>
                   <ChevronRight size={17} className="hidden text-zinc-600 md:block" />
                 </button>
