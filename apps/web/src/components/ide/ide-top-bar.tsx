@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Settings,
   Unlock,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
@@ -24,6 +25,7 @@ import { useProjectStore } from "@/store/project-store";
 import { usePortfolioStore } from "@/store/portfolio-store";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { DeployModal } from "./deploy-modal";
+import { FeedbackModal } from "./feedback-modal";
 import { LiveDeployStrip } from "./live-deploy-strip";
 import { SubmissionSealedToast } from "@/components/portfolio/submission-sealed-toast";
 import { getStudentSubmissionLifecycle } from "@/lib/student-submission-lifecycle";
@@ -67,6 +69,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
   const activeClassId = useAssignmentStore((s) => s.activeClassId);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [sealedToast, setSealedToast] = useState<{ hash: string } | null>(null);
   const [showSaveToast, setShowSaveToast] = useState(false);
   const initialToast = useRef(true);
@@ -437,10 +440,18 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
               <span>{isSubmittedView ? "Redeploy" : "Deploy"}</span>
             </Button>
             {!isSubmittedView && canSubmit ? (
-              <Button variant="success" size="md" onClick={handleSubmit} isLoading={isSubmitting} className="w-full sm:w-auto justify-center">
-                <Send size={14} />
-                <span>{submitLabel}</span>
-              </Button>
+                <div className="flex items-center gap-2">
+                  {isRevisionEditingActive ? (
+                    <Button variant="secondary" size="md" onClick={() => setIsFeedbackOpen(true)} className="w-full sm:w-auto justify-center">
+                      <ArrowRight size={14} />
+                      <span>View Feedback</span>
+                    </Button>
+                  ) : null}
+                  <Button variant="success" size="md" onClick={handleSubmit} isLoading={isSubmitting} className="w-full sm:w-auto justify-center">
+                    <Send size={14} />
+                    <span>{submitLabel}</span>
+                  </Button>
+                </div>
             ) : null}
           </div>
 
@@ -492,6 +503,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
       ) : null}
 
       <DeployModal open={isDeployModalOpen} onClose={closeDeployModal} />
+      <FeedbackModal open={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} comments={((assignmentReview as any)?.comments ?? [])} />
       {user ? (
         <SubmissionSealedToast
           show={!!sealedToast}

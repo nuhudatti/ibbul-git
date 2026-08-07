@@ -97,10 +97,11 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
     assignmentId: review.assignmentId,
     activeAssignmentId,
   });
-  const heroTitle = canResumeEditing ? lifecycleState.primaryButton : statusLabel;
-  const heroDescription = canResumeEditing
-    ? "Your instructor requested changes — full project access restored."
-    : `Review for "${review.title}" by ${review.reviewerName ?? "your instructor"}`;
+  const lecturerComments = review.comments.filter((c) => (c.authorRole ?? "LECTURER") !== "STUDENT");
+  const primaryFeedback = lecturerComments.length ? lecturerComments[lecturerComments.length - 1].message : review.summary ?? "Your instructor requested changes. See feedback below.";
+
+  const heroTitle = isAwaitingChanges ? "Changes Requested" : statusLabel;
+  const heroDescription = isAwaitingChanges ? primaryFeedback : `Review for "${review.title}" by ${review.reviewerName ?? "your instructor"}`;
 
   const openFullProject = async () => {
     const assignmentId = resumeAssignmentId;
@@ -176,7 +177,7 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
   };
 
   return (
-    <section className="px-4 py-5 border-b border-white/10 bg-[#08090f] text-zinc-100 overflow-auto">
+    <section id="review-panel" className="px-4 py-5 border-b border-white/10 bg-[#08090f] text-zinc-100 overflow-auto">
       <div className="mx-auto max-w-370 space-y-5">
         <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/20">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -187,41 +188,32 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
             </div>
             <span className={cn("inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em]", statusStyles[review.status] ?? "border-white/10 bg-white/5 text-zinc-300")}> <Clock size={14} /> {formatDate(review.submittedAt)} </span>
           </div>
-
           {canResumeEditing && !workspaceOpened ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
-              className="mt-4 rounded-3xl border border-cyan-400/25 bg-linear-to-br from-cyan-500/15 via-violet-500/10 to-amber-500/10 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_18px_45px_rgba(34,211,238,0.15)]"
+              className="mt-4 rounded-3xl border border-amber-400/25 bg-linear-to-br from-amber-500/10 p-4"
             >
-              <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-4">
                 <div className="max-w-2xl">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-linear-to-br from-cyan-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-cyan-200">
-                    <Sparkles size={12} />
-                    Resume editing
-                  </div>
-                  <p className="mt-3 text-lg font-semibold text-white">Your instructor requested changes — full project access restored.</p>
-                  <p className="mt-2 text-sm text-zinc-200">
-                    You can now reopen the workspace, inspect every file and folder, revise your project, and resubmit with confidence.
-                  </p>
+                  {isAwaitingChanges ? (
+                    <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-amber-200">
+                      <Sparkles size={12} />
+                      Changes Requested
+                    </div>
+                  ) : null}
+                  <p className="mt-3 text-lg font-semibold text-white">{heroDescription}</p>
+                  <p className="mt-2 text-sm text-zinc-200">{isAwaitingChanges ? "Read the feedback below, then click Start Changes to restore and edit your project." : `Review for "${review.title}"`}</p>
                 </div>
                 <div className="flex flex-col gap-2">
                   <button
                     type="button"
                     onClick={openFullProject}
-                    className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20"
+                    className="inline-flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3.5 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-400/20"
                   >
                     <Unlock size={14} />
-                    <span>{lifecycleState.secondaryButton ?? lifecycleState.primaryButton}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={openFullProject}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-                  >
-                    <ArrowRight size={14} />
-                    <span>Restore editable workspace</span>
+                    <span>Start Changes</span>
                   </button>
                 </div>
               </div>
@@ -267,83 +259,75 @@ export function StudentReviewPanel({ review }: { review: ReviewRecord }) {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-white">Revision history</p>
-                  <p className="mt-1 text-xs text-zinc-500">Track every resubmission and review update</p>
+            <details className="rounded-3xl border border-white/10 bg-white/5 p-0">
+              <summary className="px-5 py-4 cursor-pointer text-sm font-semibold text-white">Revision history <span className="ml-2 text-xs text-zinc-500">Track every resubmission and review update</span></summary>
+              <div className="p-5 mt-0">
+                <div className="mt-4 space-y-3">
+                  {review.revisions.length === 0 ? (
+                    <div className="rounded-2xl border border-white/10 bg-black/50 p-4 text-sm text-zinc-400">Your original submission is attached to this review.</div>
+                  ) : (
+                    review.revisions.map((revision) => (
+                      <div key={revision.id} className="rounded-2xl border border-white/10 bg-black/50 p-4">
+                        <div className="flex items-center justify-between gap-2 text-sm text-white">
+                          <span>Revision {revision.revisionNumber}</span>
+                          <span className="text-xs text-zinc-400">{revision.status}</span>
+                        </div>
+                        <p className="mt-2 text-sm text-zinc-300">{revision.summary ?? "No summary provided."}</p>
+                        {revision.deploymentUrl ? (
+                          <a href={revision.deploymentUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 text-xs text-cyan-300 hover:text-cyan-200">
+                            <ExternalLink size={12} /> View revision deployment
+                          </a>
+                        ) : null}
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
-              <div className="mt-4 space-y-3">
-                {review.revisions.length === 0 ? (
-                  <div className="rounded-2xl border border-white/10 bg-black/50 p-4 text-sm text-zinc-400">Your original submission is attached to this review.</div>
-                ) : (
-                  review.revisions.map((revision) => (
-                    <div key={revision.id} className="rounded-2xl border border-white/10 bg-black/50 p-4">
-                      <div className="flex items-center justify-between gap-2 text-sm text-white">
-                        <span>Revision {revision.revisionNumber}</span>
-                        <span className="text-xs text-zinc-400">{revision.status}</span>
-                      </div>
-                      <p className="mt-2 text-sm text-zinc-300">{revision.summary ?? "No summary provided."}</p>
-                      {revision.deploymentUrl ? (
-                        <a href={revision.deploymentUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 text-xs text-cyan-300 hover:text-cyan-200">
-                          <ExternalLink size={12} /> View revision deployment
-                        </a>
-                      ) : null}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+            </details>
           </div>
 
           <aside className="space-y-4">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <details className="rounded-3xl border border-white/10 bg-white/5 p-0">
               <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-white">Checklist</p>
-                  <p className="mt-1 text-xs text-zinc-500">Complete these review goals</p>
-                </div>
-                <span className="text-xs text-zinc-400">{completedChecklist}/{review.checklist.length}</span>
+                <summary className="px-5 py-4 cursor-pointer text-sm font-semibold text-white">Checklist <span className="ml-2 text-xs text-zinc-500">Complete these review goals</span></summary>
               </div>
-              <div className="mt-4 space-y-2">
-                {review.checklist.map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-white/10 bg-black/50 p-3 text-sm text-zinc-200">
-                    <div className="flex items-center gap-2">
-                      <span className={cn("inline-flex h-6 w-6 items-center justify-center rounded-full border", item.checked ? "border-emerald-300 bg-emerald-300 text-black" : "border-white/10 text-zinc-400")}>
-                        {item.checked ? <CheckCircle2 size={14} /> : <span className="text-[10px]">?</span>}
-                      </span>
-                      <span>{item.title}</span>
+              <div className="p-5 mt-0">
+                <div className="mt-4 space-y-2">
+                  <div className="text-xs text-zinc-400">{completedChecklist}/{review.checklist.length}</div>
+                  {review.checklist.map((item) => (
+                    <div key={item.id} className="rounded-2xl border border-white/10 bg-black/50 p-3 text-sm text-zinc-200">
+                      <div className="flex items-center gap-2">
+                        <span className={cn("inline-flex h-6 w-6 items-center justify-center rounded-full border", item.checked ? "border-emerald-300 bg-emerald-300 text-black" : "border-white/10 text-zinc-400")}>
+                          {item.checked ? <CheckCircle2 size={14} /> : <span className="text-[10px]">?</span>}
+                        </span>
+                        <span>{item.title}</span>
+                      </div>
+                      {item.notes ? <p className="mt-2 text-xs text-zinc-500">{item.notes}</p> : null}
                     </div>
-                    {item.notes ? <p className="mt-2 text-xs text-zinc-500">{item.notes}</p> : null}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            </details>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-white">Notifications</p>
-                  <p className="mt-1 text-xs text-zinc-500">Latest review events</p>
-                </div>
-                <span className="text-xs text-zinc-400">{review.notifications.length}</span>
-              </div>
-              <div className="mt-4 space-y-2">
-                {review.notifications.slice(0, 4).map((note) => (
-                  <div key={note.id} className="rounded-2xl border border-white/10 bg-black/50 p-3 text-sm text-zinc-200">
-                    <div className="flex items-center gap-2 text-xs text-zinc-500">
-                      <span>{note.type}</span>
-                      <span>· {formatDate(note.createdAt)}</span>
+            <details className="rounded-3xl border border-white/10 bg-white/5 p-0">
+              <summary className="px-5 py-4 cursor-pointer text-sm font-semibold text-white">Notifications <span className="ml-2 text-xs text-zinc-500">Latest review events</span></summary>
+              <div className="p-5 mt-0">
+                <div className="mt-4 space-y-2">
+                  {review.notifications.slice(0, 4).map((note) => (
+                    <div key={note.id} className="rounded-2xl border border-white/10 bg-black/50 p-3 text-sm text-zinc-200">
+                      <div className="flex items-center gap-2 text-xs text-zinc-500">
+                        <span>{note.type}</span>
+                        <span>· {formatDate(note.createdAt)}</span>
+                      </div>
+                      <p className="mt-2">{note.message}</p>
                     </div>
-                    <p className="mt-2">{note.message}</p>
-                  </div>
-                ))}
-                {review.notifications.length === 0 ? (
-                  <div className="rounded-2xl border border-white/10 bg-black/50 p-4 text-sm text-zinc-500">No review notifications yet.</div>
-                ) : null}
+                  ))}
+                  {review.notifications.length === 0 ? (
+                    <div className="rounded-2xl border border-white/10 bg-black/50 p-4 text-sm text-zinc-500">No review notifications yet.</div>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            </details>
           </aside>
         </div>
       </div>

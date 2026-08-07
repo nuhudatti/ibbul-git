@@ -207,7 +207,7 @@ export default function WorkspacePage() {
       <IdeTopBar currentReview={currentReviewForTopBar} onReviewUpdated={loadReviews} />
       <PortfolioIdentityStrip />
       <SubmittedBanner />
-      {currentReview ? <StudentReviewPanel review={currentReview} /> : null}
+      {currentReviewForTopBar ? <StudentReviewPanel review={currentReviewForTopBar} /> : null}
       <AssignmentsPanel studentReviews={studentReviews} />
 
       <motion.div
