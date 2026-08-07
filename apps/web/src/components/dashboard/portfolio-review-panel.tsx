@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { SearchInput } from "@/components/ui/search-input";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -37,6 +38,21 @@ export function PortfolioReviewPanel() {
 
   const lecturerName = user ? `${user.firstName} ${user.lastName}` : "Lecturer";
 
+  const [query, setQuery] = useState("");
+
+  const pendingFiltered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return pending;
+    return pending.filter((a) => {
+      return (
+        (a.studentName ?? "").toLowerCase().includes(q) ||
+        (a.studentMatric ?? "").toLowerCase().includes(q) ||
+        (a.title ?? "").toLowerCase().includes(q) ||
+        (a.hash ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [pending, query]);
+
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="shrink-0 mb-4">
@@ -63,18 +79,23 @@ export function PortfolioReviewPanel() {
           <p className="text-[10px] text-zinc-600">On public /u pages</p>
         </div>
       </div>
-
       <p className="text-[10px] uppercase tracking-widest text-zinc-600 mb-2">
         Verify & publish
       </p>
 
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex-1 min-w-0 mr-2">
+          <SearchInput value={query} onChange={setQuery} placeholder="Search student, matric, project, or ULA ID..." />
+        </div>
+      </div>
+
       <div className="flex-1 overflow-y-auto ula-scrollbar space-y-2 min-h-0">
-        {pending.length === 0 ? (
+        {pendingFiltered.length === 0 ? (
           <p className="text-xs text-zinc-600 py-8 text-center leading-relaxed">
-            When students submit assignments, portfolio artifacts appear here for verification.
+            No portfolio artifacts match your search or there are none awaiting verification.
           </p>
         ) : (
-          pending.map((a, i) => (
+          pendingFiltered.map((a, i) => (
             <motion.div
               key={a.id}
               initial={{ opacity: 0, x: 8 }}

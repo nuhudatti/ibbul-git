@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { normalizeMatric, profilePath } from "@/lib/matric";
 import { cn, resolveDeployUrl } from "@/lib/utils";
+import { SearchInput } from "@/components/ui/search-input";
 
 type InboxFilter = "all" | "pending" | "verified";
 
@@ -77,6 +78,7 @@ const statusLabel: Record<Status, string> = {
 export function SubmissionInbox() {
   const [filter, setFilter] = useState<InboxFilter>("all");
   const [assignmentFilter, setAssignmentFilter] = useState<string | "all">("all");
+  const [query, setQuery] = useState("");
   const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
@@ -104,6 +106,7 @@ export function SubmissionInbox() {
   }, []);
 
   const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
     let list = submissions;
     if (assignmentFilter !== "all") {
       list = list.filter((submission) => submission.assignmentId === assignmentFilter);
@@ -113,8 +116,27 @@ export function SubmissionInbox() {
     } else if (filter === "verified") {
       list = list.filter((submission) => submission.review?.status === "APPROVED" || submission.review?.status === "PUBLISHED");
     }
-    return list;
-  }, [submissions, filter, assignmentFilter]);
+
+    if (!q) return list;
+
+    return list.filter((submission) => {
+      const name = (submission.student?.displayName ?? "").toLowerCase();
+      const matric = (submission.studentMatric ?? "").toLowerCase();
+      const title = (submission.assignmentTitle ?? "").toLowerCase();
+      const ula = (submission.snapshot?.id ?? "").toLowerCase();
+      const projectName = (submission.snapshot?.projectName ?? "").toLowerCase();
+      const status = (submission.review?.status ?? "").toLowerCase();
+
+      return (
+        name.includes(q) ||
+        matric.includes(q) ||
+        title.includes(q) ||
+        ula.includes(q) ||
+        projectName.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [submissions, filter, assignmentFilter, query]);
 
   const reviewMap = useMemo(() => {
     return submissions.reduce<Record<string, SubmissionItem>>((map, submission) => {
@@ -175,20 +197,25 @@ export function SubmissionInbox() {
           ))}
         </div>
 
-        <div className="flex items-center gap-2 mt-2">
-          <Filter size={12} className="text-zinc-600" />
-          <select
-            value={assignmentFilter}
-            onChange={(e) => setAssignmentFilter(e.target.value)}
-            className="flex-1 h-8 px-2 rounded-lg bg-white/5 border border-white/8 text-xs text-zinc-300 outline-none"
-          >
-            <option value="all">All assignments</option>
-            {published.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.title}
-              </option>
-            ))}
-          </select>
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          <div className="flex-1 min-w-0 mr-2">
+            <SearchInput value={query} onChange={setQuery} placeholder="Search student, matric, assignment, or ULA ID..." />
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter size={12} className="text-zinc-600" />
+            <select
+              value={assignmentFilter}
+              onChange={(e) => setAssignmentFilter(e.target.value)}
+              className="flex-1 h-8 px-2 rounded-lg bg-white/5 border border-white/8 text-xs text-zinc-300 outline-none"
+            >
+              <option value="all">All assignments</option>
+              {published.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.title}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
