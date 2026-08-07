@@ -101,6 +101,14 @@ export default function WorkspacePage() {
     }, {});
   }, [studentReviews]);
 
+  const currentReviewForTopBar = useMemo(() => {
+    if (!activeAssignmentId) {
+      return null;
+    }
+
+    return latestReviewByAssignment[activeAssignmentId] ?? null;
+  }, [latestReviewByAssignment, activeAssignmentId]);
+
   const currentReview = useMemo(() => {
     if (!activeAssignmentId) {
       console.log("[Workspace] currentReview computed", { activeAssignmentId, review: null });
@@ -196,7 +204,7 @@ export default function WorkspacePage() {
 
   return (
     <div className="h-[100dvh] min-h-screen flex flex-col bg-[#050508] overflow-auto">
-      <IdeTopBar currentReview={currentReview} onReviewUpdated={loadReviews} />
+      <IdeTopBar currentReview={currentReviewForTopBar} onReviewUpdated={loadReviews} />
       <PortfolioIdentityStrip />
       <SubmittedBanner />
       {currentReview ? <StudentReviewPanel review={currentReview} /> : null}

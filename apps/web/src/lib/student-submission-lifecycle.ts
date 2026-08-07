@@ -46,7 +46,7 @@ export function getStudentSubmissionLifecycle(input: StudentSubmissionLifecycleI
     if (isRevisionEditingActive) {
       return {
         state: "CHANGES_REQUESTED",
-        primaryButton: "Resubmit Project",
+        primaryButton: "Submit Changes",
         secondaryButton: context === "review" ? "Open Full Project" : null,
         canEdit: true,
         canSubmit: true,

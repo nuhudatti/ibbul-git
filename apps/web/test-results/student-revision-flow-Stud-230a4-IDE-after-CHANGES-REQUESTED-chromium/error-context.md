@@ -12,71 +12,53 @@
 # Error details
 
 ```
-TimeoutError: page.waitForURL: Timeout 30000ms exceeded.
-=========================== logs ===========================
-waiting for navigation to "**/workspace**" until "load"
-============================================================
+Error: expect(locator).toBeVisible() failed
+
+Locator: getByText(/resume editing|changes requested/i).first()
+Expected: visible
+Timeout: 30000ms
+Error: element(s) not found
+
+Call log:
+  - Expect "toBeVisible" with timeout 30000ms
+  - waiting for getByText(/resume editing|changes requested/i).first()
+
 ```
 
-# Page snapshot
-
 ```yaml
-- generic [active] [ref=e1]:
-  - generic [ref=e2]:
-    - banner [ref=e3]:
-      - generic [ref=e4]:
-        - generic [ref=e5]:
-          - img "IBBUL logo" [ref=e6]
-          - generic [ref=e7]: Project ULA
-        - link "Verified artifacts" [ref=e16] [cursor=pointer]:
-          - /url: /verified
-    - main [ref=e17]:
-      - generic [ref=e18]:
-        - generic [ref=e19]:
-          - img "IBBUL logo" [ref=e21]
-          - heading "Verified proof-of-work for every student." [level=1] [ref=e22]: Verified proof-of-workfor every student.
-        - generic [ref=e23]:
-          - generic [ref=e24]:
-            - heading "Enter workspace" [level=2] [ref=e25]
-            - paragraph [ref=e26]: Sign in with your matric to open the IDE, deployments, and your portfolio.
-            - generic [ref=e27]:
-              - generic [ref=e28]:
-                - generic [ref=e29]: Matric number
-                - textbox "Matric number" [ref=e30]:
-                  - /placeholder: U22/FNS/CSC/1105
-                  - text: U22/FNS/CSC/1101
-              - generic [ref=e31]:
-                - generic [ref=e32]: Password
-                - textbox "Password" [ref=e33]:
-                  - /placeholder: Your password
-                  - text: student123
-              - alert [ref=e34]: Login failed
-              - button "Enter workspace" [ref=e35]
-            - generic [ref=e38]: Institution-grade · Matric-bound identity
-          - generic [ref=e42]:
-            - generic [ref=e43]:
-              - generic [ref=e44]: Live
-              - heading "Verified artifacts" [level=2] [ref=e56]
-              - paragraph [ref=e57]: Lecturer-sealed proof-of-work — public, hashed, and deployable.
-            - generic [ref=e58]:
-              - generic: ULA
-              - generic [ref=e59]: Loading artifacts…
-            - generic [ref=e60]:
-              - link "Open artifact registry" [ref=e61] [cursor=pointer]:
-                - /url: /verified
-              - paragraph [ref=e64]: Drag the preview card · tap names to switch
-        - generic [ref=e66]:
-          - generic [ref=e67]:
-            - generic [ref=e76]:
-              - heading "Recent network activity" [level=3] [ref=e77]
-              - paragraph [ref=e78]: Loading live feed…
-            - generic [ref=e79]:
-              - button "Refresh activity" [ref=e80]
-              - link "Registry" [ref=e86] [cursor=pointer]:
-                - /url: /verified
-          - paragraph [ref=e91]: No recent activity.
-    - contentinfo [ref=e92]: Verified Proof-of-Work Portfolio Engine
-  - alert [ref=e93]
+- alert
+- banner:
+  - text: My Dream Project
+  - button "Explorer"
+  - button "Terminal"
+  - button "AI Mentor"
+  - button "Run"
+  - button "Deploy"
+  - link "Settings":
+    - /url: /workspace/settings
+- paragraph: VPE · Verified identity
+- paragraph: 0 artifacts
+- link "Global registry":
+  - /url: /verified
+- link "My portfolio":
+  - /url: /u/U22-FNS-CSC-1101
+- button "My Projects 1"
+- complementary:
+  - text: Explorer
+  - button "New file"
+  - button "New folder"
+  - button "Import image"
+  - button "🌐 index.html"
+  - button "🎨 styles.css"
+  - button "⚡ script.js"
+- main:
+  - button "Code"
+  - button "Preview"
+  - text: Editable workspace
+  - button "Select all"
+  - button "Copy"
+  - button "Paste"
+  - textbox
 ```
 
 # Test source
@@ -100,10 +82,10 @@ waiting for navigation to "**/workspace**" until "load"
   16 |     await page.getByLabel(/matric number/i).fill(STUDENT_MATRIC);
   17 |     await page.getByLabel(/^password$/i).fill(STUDENT_PASSWORD);
   18 |     await page.getByRole("button", { name: /enter workspace/i }).click();
-> 19 |     await page.waitForURL("**/workspace**", { timeout: 30_000 });
-     |                ^ TimeoutError: page.waitForURL: Timeout 30000ms exceeded.
+  19 |     await page.waitForURL("**/workspace**", { timeout: 30_000 });
   20 | 
-  21 |     await expect(page.getByText(/resume editing|changes requested/i).first()).toBeVisible({
+> 21 |     await expect(page.getByText(/resume editing|changes requested/i).first()).toBeVisible({
+     |                                                                               ^ Error: expect(locator).toBeVisible() failed
   22 |       timeout: 30_000,
   23 |     });
   24 | 

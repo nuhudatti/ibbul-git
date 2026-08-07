@@ -47,11 +47,11 @@ test("changes requested unlock editing and show continue changes", () => {
   assert.equal(state.canSubmit, false);
 });
 
-test("revision editing shows resubmit project", () => {
+test("revision editing shows submit changes", () => {
   const state = getStudentSubmissionLifecycle({ enrollmentStatus: "SUBMITTED", reviewStatus: "CHANGES_REQUESTED", isRevisionEditingActive: true });
 
   assert.equal(state.state, "CHANGES_REQUESTED");
-  assert.equal(state.primaryButton, "Resubmit Project");
+  assert.equal(state.primaryButton, "Submit Changes");
   assert.equal(state.canEdit, true);
   assert.equal(state.canSubmit, true);
 });

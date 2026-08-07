@@ -170,7 +170,7 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
   };
 
   const handleSubmit = async () => {
-    if (!user || !submitAssignmentId || isSubmittedView || !canSubmit) return;
+    if (!user || !submitAssignmentId || isSubmittedView || !canSubmit || isSubmitting) return;
 
     setIsSubmitting(true);
     addTerminalLog(isChangesRequestedForActive && isRevisionEditingActive ? "Saving revision snapshot..." : "Saving submission snapshot...");
@@ -183,8 +183,9 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
       await new Promise((r) => setTimeout(r, 1200));
     }
 
+    let submissionSaved = false;
     try {
-      await fetch("/api/project-snapshots", {
+      const res = await fetch("/api/project-snapshots", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -196,6 +197,19 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
           deployUrl: useIdeStore.getState().deployment.url,
         }),
       });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        addTerminalLog(
+          isChangesRequestedForActive && isRevisionEditingActive
+            ? `Revision snapshot failed: ${errorText || res.status}`
+            : `Submission snapshot failed: ${errorText || res.status}`
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      submissionSaved = true;
       addTerminalLog(
         isChangesRequestedForActive && isRevisionEditingActive
           ? "Revision snapshot persisted to the database."
@@ -207,6 +221,13 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
           ? "Failed to persist revision snapshot."
           : "Failed to persist submission snapshot."
       );
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!submissionSaved) {
+      setIsSubmitting(false);
+      return;
     }
 
     let score: number | undefined;
@@ -258,38 +279,6 @@ export function IdeTopBar({ currentReview, onReviewUpdated }: { currentReview?: 
 
       setSealedToast({ hash: artifact.hash });
       addTerminalLog("Portfolio artifact sealed · added to your verified identity.");
-    }
-
-    if (isChangesRequestedForActive && isRevisionEditingActive && assignmentReview?.id) {
-      try {
-        const res = await fetch(`/api/reviews/${assignmentReview.id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "resubmit",
-            summary: "Revision submitted.",
-            files: files.map((file) => ({
-              fileName: file.path,
-              fileUrl: null,
-              fileType: file.language ?? null,
-              sizeBytes: file.content?.length ?? null,
-            })),
-            deploymentUrl: useIdeStore.getState().deployment.url,
-          }),
-        });
-        if (!res.ok) {
-          const text = await res.text();
-          addTerminalLog(`Revision API failed: ${text || res.status}`);
-          setIsSubmitting(false);
-          return;
-        }
-        console.log("Revision request API succeeded");
-        addTerminalLog("Revision submitted for lecturer review.");
-      } catch (error) {
-        addTerminalLog("Failed to submit revision for review.");
-        setIsSubmitting(false);
-        return;
-      }
     }
 
     loadProject(projectName, files, submitAssignmentId, {
