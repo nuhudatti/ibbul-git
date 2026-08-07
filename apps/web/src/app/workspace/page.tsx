@@ -19,6 +19,7 @@ import { useIdeStore } from "@/store/ide-store";
 import { usePortfolioStore } from "@/store/portfolio-store";
 import { useAssignmentStore } from "@/store/assignment-store";
 import { useProjectStore } from "@/store/project-store";
+import { useProjectStore as _useProjectStore } from "@/store/project-store";
 
 export default function WorkspacePage() {
   const router = useRouter();
@@ -151,6 +152,28 @@ export default function WorkspacePage() {
     return review ?? null;
   }, [studentReviews, activeAssignmentId]);
 
+  const restoreSnapshot = _useProjectStore((s) => s.restoreSnapshot);
+  const lastAutoRestored = useRef<string | null>(null);
+
+  // If lecturer requested changes, immediately restore the full project into the IDE for editing.
+  useEffect(() => {
+    if (!user || user.role !== "STUDENT" || !activeChangesRequestedReview || !activeAssignmentId) return;
+
+    const state = useIdeStore.getState();
+    const revisionActive = state.revisionEditUnlocked && state.revisionSessionAssignmentId === activeAssignmentId;
+    if (revisionActive) return;
+
+    if (lastAutoRestored.current === activeAssignmentId) return;
+
+    lastAutoRestored.current = activeAssignmentId;
+
+    const title = activeChangesRequestedReview.title ?? projectName ?? "Project";
+    void restoreSnapshot(user.matricNumber, activeAssignmentId, title).then(() => {
+      // scroll to IDE once restored
+      document.getElementById("workspace-ide")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [activeChangesRequestedReview, user, activeAssignmentId, projectName, restoreSnapshot]);
+
   useEffect(() => {
     void loadReviews();
   }, [loadReviews]);
@@ -207,7 +230,9 @@ export default function WorkspacePage() {
       <IdeTopBar currentReview={currentReviewForTopBar} onReviewUpdated={loadReviews} />
       <PortfolioIdentityStrip />
       <SubmittedBanner />
-      {currentReviewForTopBar ? <StudentReviewPanel review={currentReviewForTopBar} /> : null}
+      {currentReviewForTopBar && currentReviewForTopBar.status !== "CHANGES_REQUESTED" ? (
+        <StudentReviewPanel review={currentReviewForTopBar} />
+      ) : null}
       <AssignmentsPanel studentReviews={studentReviews} />
 
       <motion.div
