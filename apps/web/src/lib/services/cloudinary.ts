@@ -1,11 +1,20 @@
 import { v2 as cloudinary } from "cloudinary";
 
-function getCloudinaryConfig() {
-  const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, CLOUDINARY_URL } = process.env;
+function normalizeEnvValue(value: string | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  return trimmed.replace(/^['"]|['"]$/g, "");
+}
 
-  if (CLOUDINARY_URL?.trim()) {
+function getCloudinaryConfig() {
+  const CLOUDINARY_URL = normalizeEnvValue(process.env.CLOUDINARY_URL);
+  const CLOUDINARY_CLOUD_NAME = normalizeEnvValue(process.env.CLOUDINARY_CLOUD_NAME);
+  const CLOUDINARY_API_KEY = normalizeEnvValue(process.env.CLOUDINARY_API_KEY);
+  const CLOUDINARY_API_SECRET = normalizeEnvValue(process.env.CLOUDINARY_API_SECRET);
+
+  if (CLOUDINARY_URL) {
     return {
-      cloudinary_url: CLOUDINARY_URL.trim(),
+      cloudinary_url: CLOUDINARY_URL,
       secure: true,
     };
   }
@@ -21,7 +30,7 @@ function getCloudinaryConfig() {
 function ensureCloudinaryConfig() {
   const config = getCloudinaryConfig();
   const hasExplicitKeys = Boolean(config.cloud_name && config.api_key && config.api_secret);
-  const hasUrl = Boolean(process.env.CLOUDINARY_URL?.trim());
+  const hasUrl = Boolean((config as { cloudinary_url?: string }).cloudinary_url);
 
   if (!hasExplicitKeys && !hasUrl) {
     throw new Error(
