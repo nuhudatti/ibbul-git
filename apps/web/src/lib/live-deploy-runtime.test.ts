@@ -94,6 +94,16 @@ describe("live deploy runtime", () => {
     assert.match(response.body.toString(), /blog/);
   });
 
+  it("rewrites relative local assets correctly for folder index routes", () => {
+    const files = makeFiles([
+      { path: "blog/index.html", content: '<html><head></head><body><img src="logo.png"></body></html>' },
+      { path: "blog/logo.png", content: "PNGDATA" },
+    ]);
+    const response = buildLiveDeployResponse(files, "blog", deployUrl);
+    assert.equal(response.status, 200);
+    assert.match(response.body.toString(), /src="\/live\/test-matric\/test-project\/blog\/logo.png"/);
+  });
+
   it("preserves external CDN URLs without rewriting", () => {
     const files = makeFiles([
       { path: "index.html", content: '<html><head><script src="https://cdn.example.com/lib.js"></script></head><body></body></html>' },

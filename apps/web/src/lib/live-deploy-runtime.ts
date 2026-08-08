@@ -42,11 +42,13 @@ export function buildLiveDeployResponse(
     "Cache-Control": "no-cache",
   };
 
+  const rewriteRequestPath = file.path;
+
   if (contentType.startsWith("text/html")) {
     return {
       status: 200,
       headers,
-      body: rewriteHtmlLocalPaths(file.content, deployUrl, requestPath),
+      body: rewriteHtmlLocalPaths(file.content, deployUrl, rewriteRequestPath),
     };
   }
 
@@ -54,7 +56,7 @@ export function buildLiveDeployResponse(
     return {
       status: 200,
       headers,
-      body: rewriteCssLocalPaths(file.content, deployUrl, requestPath),
+      body: rewriteCssLocalPaths(file.content, deployUrl, rewriteRequestPath),
     };
   }
 
@@ -62,7 +64,7 @@ export function buildLiveDeployResponse(
     return {
       status: 200,
       headers,
-      body: rewriteJsLocalPaths(file.content, deployUrl, requestPath),
+      body: rewriteJsLocalPaths(file.content, deployUrl, rewriteRequestPath),
     };
   }
 
