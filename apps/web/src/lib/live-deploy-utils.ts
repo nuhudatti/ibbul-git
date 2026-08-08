@@ -163,6 +163,12 @@ const rewriteLocalReference = (value: string, deployUrl: string, requestPath = "
   return `${resolved.pathname}${resolved.search}${resolved.hash}`;
 };
 
+const rewriteLocalCssUrl = (value: string, deployUrl: string, requestPath = "") => {
+  const cleaned = value.trim();
+  const rewritten = rewriteLocalReference(cleaned, deployUrl, requestPath);
+  return rewritten ? rewritten : null;
+};
+
 export const rewriteHtmlLocalPaths = (html: string, deployUrl: string, requestPath = ""): string => {
   let output = html;
 
@@ -191,14 +197,14 @@ export const rewriteHtmlLocalPaths = (html: string, deployUrl: string, requestPa
     return `srcset=${quote}${updated}${quote}`;
   });
 
-  output = output.replace(/url\((['"]?)([^)'"\s]+)\1\)/gi, (_, quote, value) => {
-    const rewritten = rewriteLocalReference(value, deployUrl, requestPath);
+  output = output.replace(/url\(\s*(['"]?)([^)]*?)\1\s*\)/gi, (_, quote, value) => {
+    const rewritten = rewriteLocalCssUrl(value, deployUrl, requestPath);
     return rewritten ? `url(${quote}${rewritten}${quote})` : `url(${quote}${value}${quote})`;
   });
 
   output = output.replace(/(<[^>]+style=)(['"])(.*?)\2/gi, (match: string, prefix: string, quote: string, value: string) => {
-    const rewritten = value.replace(/url\((['"]?)([^)'"\s]+)\1\)/gi, (_: string, q: string, path: string) => {
-      const rewrittenPath = rewriteLocalReference(path, deployUrl, requestPath);
+    const rewritten = value.replace(/url\(\s*(['"]?)([^)]*?)\1\s*\)/gi, (_: string, q: string, path: string) => {
+      const rewrittenPath = rewriteLocalCssUrl(path, deployUrl, requestPath);
       return rewrittenPath ? `url(${q}${rewrittenPath}${q})` : `url(${q}${path}${q})`;
     });
     return `${prefix}${quote}${rewritten}${quote}`;
@@ -209,13 +215,25 @@ export const rewriteHtmlLocalPaths = (html: string, deployUrl: string, requestPa
 
 export const rewriteCssLocalPaths = (css: string, deployUrl: string, requestPath = ""): string => {
   let output = css;
-  output = output.replace(/@import\s+(['"])(\/(?!\/)[^'"]+)\1/gi, (_, quote, path) => `@import ${quote}${normalizeDeployRoot(deployUrl)}${path}${quote}`);
-  output = output.replace(/@import\s+url\((['"]?)([^)'"\s]+)\1\)/gi, (_, quote, path) => {
-    const rewritten = rewriteLocalReference(path, deployUrl, requestPath);
-    return rewritten ? `@import url(${quote}${rewritten}${quote})` : `@import url(${quote}${path}${quote})`;
+  output = output.replace(/@import\s+(['"])([^'"\s]+)\1([^;]*);/gi, (_, quote, path, suffix) => {
+    const cleaned = path.trim();
+    if (isExternalOrSpecialUrl(cleaned)) {
+      return `@import ${quote}${path}${quote}${suffix};`;
+    }
+    const rewritten = rewriteLocalReference(cleaned, deployUrl, requestPath);
+    return rewritten ? `@import ${quote}${rewritten}${quote}${suffix};` : `@import ${quote}${path}${quote}${suffix};`;
   });
-  output = output.replace(/url\((['"]?)([^)'"\s]+)\1\)/gi, (_, quote, path) => {
-    const rewritten = rewriteLocalReference(path, deployUrl, requestPath);
+  output = output.replace(/@import\s+url\(\s*(['"]?)([^)]*?)\1\s*\)([^;]*);/gi, (_, quote, path, suffix) => {
+    const cleaned = path.trim();
+    if (isExternalOrSpecialUrl(cleaned)) {
+      return `@import url(${quote}${path}${quote})${suffix};`;
+    }
+    const rewritten = rewriteLocalReference(cleaned, deployUrl, requestPath);
+    return rewritten ? `@import url(${quote}${rewritten}${quote})${suffix};` : `@import url(${quote}${path}${quote})${suffix};`;
+  });
+  output = output.replace(/url\(\s*(['"]?)([^)]*?)\1\s*\)/gi, (_, quote, path) => {
+    const cleaned = path.trim();
+    const rewritten = rewriteLocalReference(cleaned, deployUrl, requestPath);
     return rewritten ? `url(${quote}${rewritten}${quote})` : `url(${quote}${path}${quote})`;
   });
 

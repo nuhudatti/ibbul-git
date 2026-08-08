@@ -300,6 +300,83 @@ const run = async () => {
         assert.equal(image.status, 200);
       },
     },
+    {
+      name: "rewrites CSS @import relative paths and preserves external URLs",
+      fn: () => {
+        const files: ProjectFile[] = [
+          { path: "styles/main.css", content: '@import "fonts.css"; body { background: url("../images/bg.png"); }' },
+          { path: "styles/fonts.css", content: '@font-face { src: url("https://example.com/test.woff2"); }' },
+          { path: "images/bg.png", content: "PNGDATA" },
+        ];
+
+        const response = buildLiveDeployResponse(files, "styles/main.css", deployUrl);
+        assert.equal(response.status, 200);
+        assert.match(response.body.toString(), /@import "\/live\/test-matric\/test-project\/styles\/fonts\.css";/);
+        assert.match(response.body.toString(), /url\("\/live\/test-matric\/test-project\/images\/bg\.png"\)/);
+
+        const fontsResponse = buildLiveDeployResponse(files, "styles/fonts.css", deployUrl);
+        assert.equal(fontsResponse.status, 200);
+        assert.match(fontsResponse.body.toString(), /url\("https:\/\/example\.com\/test\.woff2"\)/);
+      },
+    },
+    {
+      name: "preserves external HTTP and protocol-relative image URLs",
+      fn: () => {
+        const files: ProjectFile[] = [
+          {
+            path: "index.html",
+            content: '<html><head></head><body><img src="http://example.com/image.jpg"><img src="//example.com/image2.jpg"></body></html>',
+          },
+        ];
+        const response = buildLiveDeployResponse(files, "index.html", deployUrl);
+        assert.equal(response.status, 200);
+        assert.match(response.body.toString(), /src="http:\/\/example\.com\/image\.jpg"/);
+        assert.match(response.body.toString(), /src="\/\/example\.com\/image2\.jpg"/);
+      },
+    },
+    {
+      name: "resolves nested relative asset paths correctly",
+      fn: () => {
+        const files: ProjectFile[] = [
+          { path: "blog/index.html", content: '<img src="logo.png">' },
+          { path: "blog/pages/about.html", content: '<img src="../logo.png">' },
+          { path: "blog/logo.png", content: "PNGDATA" },
+        ];
+
+        const rootResponse = buildLiveDeployResponse(files, "blog/index.html", deployUrl);
+        assert.equal(rootResponse.status, 200);
+        assert.match(rootResponse.body.toString(), /src="\/live\/test-matric\/test-project\/blog\/logo\.png"/);
+
+        const nestedResponse = buildLiveDeployResponse(files, "blog/pages/about.html", deployUrl);
+        assert.equal(nestedResponse.status, 200);
+        assert.match(nestedResponse.body.toString(), /src="\/live\/test-matric\/test-project\/blog\/logo\.png"/);
+      },
+    },
+    {
+      name: "handles spaces and encoded characters in asset paths",
+      fn: () => {
+        const files: ProjectFile[] = [
+          { path: "blog/index.html", content: '<img src="images/my%20logo.png">' },
+          { path: "blog/images/my logo.png", content: "PNGDATA" },
+        ];
+        const response = buildLiveDeployResponse(files, "blog/index.html", deployUrl);
+        assert.equal(response.status, 200);
+        assert.match(response.body.toString(), /src="\/live\/test-matric\/test-project\/blog\/images\/my%20logo\.png"/);
+      },
+    },
+    {
+      name: "returns correct MIME type for images",
+      fn: () => {
+        const files: ProjectFile[] = [
+          { path: "images/logo.png", content: "PNGDATA" },
+          { path: "images/photo.jpg", content: "JPGDATA" },
+          { path: "images/graphic.svg", content: "<svg></svg>" },
+        ];
+        assert.equal(buildLiveDeployResponse(files, "images/logo.png", deployUrl).headers["Content-Type"], "image/png");
+        assert.equal(buildLiveDeployResponse(files, "images/photo.jpg", deployUrl).headers["Content-Type"], "image/jpeg");
+        assert.equal(buildLiveDeployResponse(files, "images/graphic.svg", deployUrl).headers["Content-Type"], "image/svg+xml");
+      },
+    },
   ];
 
   let passed = 0;
