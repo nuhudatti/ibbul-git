@@ -1,11 +1,36 @@
 import { v2 as cloudinary } from "cloudinary";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true,
-});
+function getCloudinaryConfig() {
+  const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, CLOUDINARY_URL } = process.env;
+
+  if (CLOUDINARY_URL?.trim()) {
+    return {
+      cloudinary_url: CLOUDINARY_URL.trim(),
+      secure: true,
+    };
+  }
+
+  return {
+    cloud_name: CLOUDINARY_CLOUD_NAME,
+    api_key: CLOUDINARY_API_KEY,
+    api_secret: CLOUDINARY_API_SECRET,
+    secure: true,
+  };
+}
+
+function ensureCloudinaryConfig() {
+  const config = getCloudinaryConfig();
+  const hasExplicitKeys = Boolean(config.cloud_name && config.api_key && config.api_secret);
+  const hasUrl = Boolean(process.env.CLOUDINARY_URL?.trim());
+
+  if (!hasExplicitKeys && !hasUrl) {
+    throw new Error(
+      "Missing Cloudinary configuration. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET or CLOUDINARY_URL in the server environment."
+    );
+  }
+
+  cloudinary.config(config);
+}
 
 export type CloudinaryUploadResult = {
   secure_url: string;
@@ -19,6 +44,8 @@ export type CloudinaryUploadResult = {
 };
 
 export async function uploadToCloudinary(buffer: Buffer, fileName: string, folder = "ula") {
+  ensureCloudinaryConfig();
+
   const result = await new Promise<CloudinaryUploadResult>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {

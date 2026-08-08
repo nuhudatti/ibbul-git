@@ -83,8 +83,8 @@ export function RegistryLiveHero({
   return (
     <section className="relative overflow-hidden border-b border-white/6 min-h-[min(92vh,920px)]">
       <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 via-[#050508] to-[#050508] pointer-events-none" />
-      <div className="absolute top-20 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-10 right-1/4 w-80 h-80 bg-violet-600/15 rounded-full blur-[90px] pointer-events-none" />
+      <div className="hidden sm:block absolute top-20 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="hidden sm:block absolute bottom-10 right-1/4 w-80 h-80 bg-violet-600/15 rounded-full blur-[90px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 py-12 md:py-16 relative">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-6 items-center">

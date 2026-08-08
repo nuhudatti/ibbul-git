@@ -314,7 +314,7 @@ export function ArtifactOrbitStage({
   return (
     <div
       className={cn(
-        "relative w-full max-w-[420px] mx-auto aspect-square",
+        "relative w-full max-w-[420px] mx-auto aspect-square overflow-hidden",
         cfg.minHeight,
         className
       )}

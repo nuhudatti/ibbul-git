@@ -509,8 +509,10 @@ export function StudentSettingsPage() {
                       </p>
                       <div className="flex justify-center gap-3 mt-4">
                         <Button
+                          type="button"
                           variant="secondary"
                           size="sm"
+                          className="relative z-20"
                           onClick={() => router.push(profilePath(user.matricNumber))}
                         >
                           <ExternalLink size={14} />
