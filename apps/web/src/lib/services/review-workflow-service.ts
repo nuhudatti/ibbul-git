@@ -485,7 +485,7 @@ export async function applyReviewAction(input: ReviewActionInput, status: Review
       reviewStartedAt: review.reviewStartedAt ?? new Date(),
       reviewerMatric: input.actorMatric,
       outcomeNote: input.note ?? input.message ?? null,
-      title: input.note ?? review.title,
+      title: review.title,
       summary: input.message ?? review.summary,
       priority: input.priority ?? review.priority,
       deadline: input.deadline ? new Date(input.deadline) : review.deadline,

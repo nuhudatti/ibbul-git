@@ -22,7 +22,8 @@ import { useAuthStore } from "@/store/auth-store";
 import { usePortfolioStore } from "@/store/portfolio-store";
 import type { PortfolioArtifact } from "@/types";
 import { cn, resolveDeployUrl } from "@/lib/utils";
-import { profilePath } from "@/lib/matric";
+import { normalizeMatric, profilePath } from "@/lib/matric";
+import { formatProofHash } from "@/lib/portfolio-hash";
 type ReviewFile = { path?: string; fileName?: string; fileUrl?: string | null; content?: string; language?: string };
 
 type Review = {
@@ -88,6 +89,13 @@ function getFileName(file: ReviewFile) {
   return file.path ?? file.fileName ?? "Untitled file";
 }
 
+function normalizeDeployUrl(value?: string | null) {
+  if (!value) return null;
+  const cleaned = value.trim().replace(/\/+$|^\/+/g, "");
+  if (!cleaned) return null;
+  return cleaned.toLowerCase();
+}
+
 export default function DashboardReviewDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -132,14 +140,31 @@ export default function DashboardReviewDetailPage() {
   const loadStudentArtifacts = usePortfolioStore((s) => s.loadStudentArtifacts);
   const verifyArtifact = usePortfolioStore((s) => s.verifyArtifact);
   const artifact = useMemo<PortfolioArtifact | null>(() => {
-    if (!review?.projectSnapshot?.deployUrl) return null;
-    return (
-      Object.values(portfolioArtifacts).find(
-        (artifact) =>
-          artifact.studentMatric === review.studentMatric &&
-          artifact.deployUrl === review.projectSnapshot?.deployUrl
-      ) ?? null
+    if (!review) return null;
+    const normalizedMatric = normalizeMatric(review.studentMatric);
+    const candidates = Object.values(portfolioArtifacts).filter(
+      (artifact) =>
+        normalizeMatric(artifact.studentMatric) === normalizedMatric &&
+        artifact.assignmentId === review.assignmentId
     );
+
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    const snapshotUrl = normalizeDeployUrl(review.projectSnapshot?.deployUrl);
+    if (snapshotUrl) {
+      const exactMatch = candidates.find(
+        (artifact) => normalizeDeployUrl(artifact.deployUrl) === snapshotUrl
+      );
+      if (exactMatch) {
+        return exactMatch;
+      }
+    }
+
+    return candidates.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    )[0] ?? null;
   }, [portfolioArtifacts, review]);
 
   const publicPortfolioUrl = artifact ? profilePath(artifact.studentMatric) : null;
@@ -151,19 +176,24 @@ export default function DashboardReviewDetailPage() {
   const canVerifyArtifact = Boolean(artifact && review?.status === "APPROVED" && !artifact.verified);
 
   const canAction = review ? !["APPROVED", "PUBLISHED", "REJECTED"].includes(review.status) : false;
+  const projectTitle = artifact?.title ?? review?.projectSnapshot?.projectName ?? review?.title ?? "Unnamed project";
+  const projectIdLabel = artifact ? formatProofHash(artifact.hash) : review?.projectSnapshotId ?? "Not linked";
+  const aiScoreLabel = artifact?.score != null ? `AI score: ${artifact.score}/${artifact.maxScore}` : null;
   const currentRevision = review?.revisions[0]?.revisionNumber ?? 1;
   const selectedStudentName = review?.student ? `${review.student.firstName} ${review.student.lastName}` : review?.studentMatric;
   const snapshotFiles = review?.projectSnapshot?.files ?? [];
   const latestComment = review?.comments.at(-1) ?? null;
   const latestFeedback = latestComment?.message ?? review?.outcomeNote ?? "No feedback has been posted yet.";
-  const liveProjectUrl = review?.projectSnapshot?.deployUrl
+  const liveProjectUrl = artifact?.deployUrl
+    ? resolveDeployUrl(artifact.deployUrl, typeof window !== "undefined" ? window.location.origin : undefined)
+    : review?.projectSnapshot?.deployUrl
     ? resolveDeployUrl(review.projectSnapshot.deployUrl, typeof window !== "undefined" ? window.location.origin : undefined)
     : null;
+  const artifactPreviewUrl = artifact?.deployUrl ? resolveDeployUrl(artifact.deployUrl, typeof window !== "undefined" ? window.location.origin : undefined) : undefined;
   const canStartReview = review ? ["SUBMITTED", "RESUBMITTED"].includes(review.status) : false;
   const canContinueReview = review ? ["UNDER_REVIEW", "CHANGES_REQUESTED"].includes(review.status) : false;
   const canApprove = review ? ["SUBMITTED", "UNDER_REVIEW", "RESUBMITTED", "CHANGES_REQUESTED"].includes(review.status) : false;
   const canRequestChanges = review ? ["SUBMITTED", "UNDER_REVIEW", "RESUBMITTED", "CHANGES_REQUESTED"].includes(review.status) : false;
-  const canPublish = review ? review.status === "APPROVED" : false;
   const isApproved = review?.status === "APPROVED";
 
   const reviewMetrics = useMemo(() => {
@@ -291,8 +321,9 @@ export default function DashboardReviewDetailPage() {
                 <div className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">{statusLabel[review.status] ?? review.status}</div>
                 <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300">Revision {currentRevision}</div>
               </div>
-              <h1 className="mt-4 text-3xl font-semibold text-white">{review.title}</h1>
+              <h1 className="mt-4 text-3xl font-semibold text-white">{projectTitle}</h1>
               <p className="mt-2 text-sm text-zinc-400">{selectedStudentName} · {review.studentMatric} · {review.assignmentId}</p>
+              {aiScoreLabel ? <p className="mt-1 text-sm text-emerald-300">{aiScoreLabel}</p> : null}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-white/3 p-4">
@@ -318,7 +349,7 @@ export default function DashboardReviewDetailPage() {
                       </div>
                       <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                         <p className="text-[11px] uppercase tracking-[0.35em] text-zinc-500">Live project</p>
-                        <p className="mt-3 text-sm text-zinc-200">{liveProjectUrl ? "Open the student's deployed project and verify it after review." : "No live deploy URL is available for this snapshot."}</p>
+                        <p className="mt-3 text-sm text-zinc-200">{liveProjectUrl ? "Open the student's deployed project." : "No live deployment available."}</p>
                         {liveProjectUrl ? (
                           <a href={liveProjectUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-200">
                             <Play size={16} /> Open Live Project
@@ -346,14 +377,9 @@ export default function DashboardReviewDetailPage() {
                       <div className="mt-4 space-y-2">
                         <p className="text-sm text-zinc-200">{artifact.title}</p>
                         <p className="text-xs text-zinc-500">{artifact.studentName} · {artifact.assignmentId}</p>
-                        <div className="flex flex-wrap gap-2">
-                          <Button size="sm" variant="secondary" disabled={busy || !canVerifyArtifact} onClick={() => void handleVerifyArtifact()}>
-                            <BadgeCheck size={14} /> Verify artifact
-                          </Button>
-                          {artifact.verified ? (
-                            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">Verified</span>
-                          ) : null}
-                        </div>
+                        {artifact.verified ? (
+                          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">Verified</span>
+                        ) : null}
                       </div>
                     ) : (
                       <p className="mt-4 text-sm text-zinc-400">No portfolio artifact found for this review snapshot.</p>
@@ -374,12 +400,6 @@ export default function DashboardReviewDetailPage() {
                 </Button>
                 <Button size="sm" variant="danger" disabled={busy || !canAction} onClick={() => void action("reject", { message: "Rejected" })}>
                   <X size={14} /> Reject
-                </Button>
-                <Button size="sm" variant="secondary" disabled={busy || !canVerifyArtifact} onClick={() => void handleVerifyArtifact()}>
-                  <BadgeCheck size={14} /> Verify artifact
-                </Button>
-                <Button size="sm" disabled={busy || !canPublish} onClick={() => void action("publish", { note: "Published by lecturer" })}>
-                  <ExternalLink size={14} /> Publish
                 </Button>
               </div>
             </div>
@@ -409,9 +429,12 @@ export default function DashboardReviewDetailPage() {
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-sm font-semibold text-white">Snapshot metadata</p>
                   <div className="mt-4 space-y-3 text-sm text-zinc-400">
-                    <div className="flex items-center justify-between gap-3"><span>Project</span><span className="text-zinc-200">{review.projectSnapshot?.projectName ?? review.title}</span></div>
+                    <div className="flex items-center justify-between gap-3"><span>Project</span><span className="text-zinc-200">{projectTitle}</span></div>
                     <div className="flex items-center justify-between gap-3"><span>Student email</span><span className="text-zinc-200">{review.student?.email ?? review.studentMatric}</span></div>
-                    <div className="flex items-center justify-between gap-3"><span>Snapshot id</span><span className="text-zinc-200">{review.projectSnapshotId ?? "Not linked"}</span></div>
+                    <div className="flex items-center justify-between gap-3"><span>Snapshot / ULA</span><span className="text-zinc-200">{projectIdLabel}</span></div>
+                    {artifact?.score != null ? (
+                      <div className="flex items-center justify-between gap-3"><span>AI score</span><span className="text-zinc-200">{artifact.score}/{artifact.maxScore}</span></div>
+                    ) : null}
                     <div className="flex items-center justify-between gap-3"><span>Submitted</span><span className="text-zinc-200">{formatDate(review.projectSnapshot?.submittedAt ?? review.submittedAt)}</span></div>
                   </div>
                 </div>
@@ -509,7 +532,7 @@ export default function DashboardReviewDetailPage() {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/70">Portfolio verification</p>
-                  <p className="mt-2 text-sm text-zinc-300">Verify the live portfolio artifact directly from this review.</p>
+                  <p className="mt-2 text-sm text-zinc-300">Verify → publishes to student public profile.</p>
                 </div>
                 <span className={cn(
                   "rounded-full px-3 py-1 text-xs font-medium",
@@ -525,29 +548,37 @@ export default function DashboardReviewDetailPage() {
                 {artifact ? (
                   <>
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-200">
-                      <p className="font-semibold">{artifact.title}</p>
-                      <p className="text-xs text-zinc-500">{artifact.studentName} · {artifact.assignmentId}</p>
-                      {artifact.deployUrl ? (
-                        <a href={artifact.deployUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-cyan-300 text-sm">
-                          <ExternalLink size={12} /> View live portfolio
+                      <p className="text-sm font-semibold text-white">{artifact.title}</p>
+                      <p className="text-xs text-zinc-500 mt-1">{artifact.studentName} · {artifact.assignmentId}</p>
+                      <p className="text-[10px] text-zinc-500 mt-1 font-mono">{formatProofHash(artifact.hash)}</p>
+                      {artifactPreviewUrl ? (
+                        <a href={artifactPreviewUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-cyan-300 text-sm">
+                          <ExternalLink size={12} /> Preview deploy
                         </a>
                       ) : null}
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="secondary" disabled={busy || !canVerifyArtifact} onClick={() => void handleVerifyArtifact()}>
-                        <BadgeCheck size={14} /> Verify artifact
-                      </Button>
+                    <div className="flex flex-wrap gap-2">
+                      {review.status === "APPROVED" && !artifact.verified ? (
+                        <Button size="sm" variant="success" disabled={busy || !canVerifyArtifact} onClick={() => void handleVerifyArtifact()}>
+                          <BadgeCheck size={14} /> Verify & publish
+                        </Button>
+                      ) : null}
                       {artifact.verified ? (
-                        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">Verified on {formatDate(artifact.verifiedAt ?? null)}</span>
+                        <a href={publicPortfolioUrl ?? "#"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+                          <ExternalLink size={12} /> View public portfolio
+                        </a>
                       ) : null}
                     </div>
+                    {artifact.verified ? (
+                      <p className="text-xs text-emerald-300">Verified & published.</p>
+                    ) : null}
                   </>
                 ) : (
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-400">
                     {review.status === "APPROVED" ? (
                       <p>No matching portfolio artifact yet. Ensure the student's snapshot is linked to a live deployable project.</p>
                     ) : (
-                      <p>Approve the project first, then verify its portfolio artifact here after the student publishes their work.</p>
+                      <p>Approve the project first, then verify its portfolio artifact once the live deploy is available.</p>
                     )}
                   </div>
                 )}
