@@ -39,11 +39,11 @@ function BuilderCard({ builder, index }: { builder: CohortBuilder; index: number
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.04, 0.4) }}
-      className="group relative"
+      className="group relative min-w-0"
     >
       <Link
         href={profilePath(builder.matric)}
-        className="block h-full rounded-2xl border border-white/8 bg-[#0a0a12]/80 overflow-hidden transition-all duration-300 hover:border-cyan-400/25 hover:shadow-[0_0_40px_rgba(0,229,255,0.08)] hover:-translate-y-0.5"
+        className="block w-full h-full rounded-2xl border border-white/8 bg-[#0a0a12]/80 overflow-hidden transition-all duration-300 hover:border-cyan-400/25 hover:shadow-[0_0_40px_rgba(0,229,255,0.08)] hover:-translate-y-0.5"
       >
         <div
           className={cn(
@@ -89,7 +89,7 @@ function BuilderCard({ builder, index }: { builder: CohortBuilder; index: number
             {builder.headline}
           </p>
 
-          <div className="grid grid-cols-3 gap-2 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
             <div className="rounded-lg bg-white/[0.03] border border-white/6 px-2 py-2 text-center">
               <p className="text-sm font-bold text-white tabular-nums">{builder.verifiedCount}</p>
               <p className="text-[9px] text-zinc-600 uppercase">Verified</p>
