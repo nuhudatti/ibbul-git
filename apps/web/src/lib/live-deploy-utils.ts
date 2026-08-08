@@ -1,4 +1,12 @@
-﻿export const normalizeRequestPath = (segments: string[] | undefined): string => {
+﻿const decodePathSegment = (segment: string): string => {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+};
+
+export const normalizeRequestPath = (segments: string[] | undefined): string => {
   const raw = (segments ?? []).join("/");
   const cleaned = raw
     .replace(/\\/g, "/")
@@ -12,11 +20,12 @@
 
   for (const part of parts) {
     if (!part || part === ".") continue;
-    if (part === "..") {
+    const decoded = decodePathSegment(part);
+    if (decoded === "..") {
       resolved.pop();
       continue;
     }
-    resolved.push(part);
+    resolved.push(decoded);
   }
 
   return resolved.join("/");
@@ -131,10 +140,15 @@ export const findTargetFile = (
     .replace(/^\//, "")
     .replace(/\/$/, "");
 
+  const decoded = decodePathSegment(normalized);
+
   if (!normalized) return manifest[entry];
   if (manifest[normalized]) return manifest[normalized];
+  if (decoded !== normalized && manifest[decoded]) return manifest[decoded];
   if (!normalized.includes(".") && manifest[`${normalized}.html`]) return manifest[`${normalized}.html`];
+  if (!decoded.includes(".") && decoded !== normalized && manifest[`${decoded}.html`]) return manifest[`${decoded}.html`];
   if (manifest[`${normalized}/index.html`]) return manifest[`${normalized}/index.html`];
+  if (decoded !== normalized && manifest[`${decoded}/index.html`]) return manifest[`${decoded}/index.html`];
   return undefined;
 };
 
@@ -150,8 +164,19 @@ const isExternalOrSpecialUrl = (value: string) => {
   return /^(?:[a-z][a-z\d+.-]*:|\/\/|#|\?|data:|mailto:|tel:|javascript:)/i.test(value);
 };
 
+const isDynamicPlaceholder = (value: string) => {
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  })();
+  return /\$\{[^}]+\}|{{[^}]+}}/.test(decoded);
+};
+
 const rewriteLocalReference = (value: string, deployUrl: string, requestPath = "") => {
-  if (!value || isExternalOrSpecialUrl(value)) return null;
+  if (!value || isExternalOrSpecialUrl(value) || isDynamicPlaceholder(value)) return null;
 
   const rootBase = normalizeDeployRoot(deployUrl);
   if (value.startsWith("/")) {
@@ -172,12 +197,20 @@ const rewriteLocalCssUrl = (value: string, deployUrl: string, requestPath = "") 
 export const rewriteHtmlLocalPaths = (html: string, deployUrl: string, requestPath = ""): string => {
   let output = html;
 
-  output = output.replace(/((?:src|href|poster|action)=)(['"]?)([^'"\s>]+)(\2)/gi, (match, prefix, quote, value) => {
+  output = output.replace(/((?:src|href|poster|action)=)(['"])(.*?)\2/gi, (match, prefix, quote, value) => {
     const rewritten = rewriteLocalReference(value, deployUrl, requestPath);
     if (!rewritten) {
       return match;
     }
     return `${prefix}${quote}${rewritten}${quote}`;
+  });
+
+  output = output.replace(/((?:src|href|poster|action)=)([^'"\s>]+)/gi, (match, prefix, value) => {
+    const rewritten = rewriteLocalReference(value, deployUrl, requestPath);
+    if (!rewritten) {
+      return match;
+    }
+    return `${prefix}${rewritten}`;
   });
 
   output = output.replace(/srcset=(['"])(.*?)\1/gi, (_, quote, value) => {

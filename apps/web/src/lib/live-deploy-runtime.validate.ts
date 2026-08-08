@@ -365,6 +365,17 @@ const run = async () => {
       },
     },
     {
+      name: "serves files requested with percent-encoded request paths",
+      fn: () => {
+        const files: ProjectFile[] = [
+          { path: "img/capt abba 01.jpg", content: "DATA" },
+        ];
+        const response = buildLiveDeployResponse(files, "img/capt%20abba%2001.jpg", deployUrl);
+        assert.equal(response.status, 200);
+        assert.equal(response.body.toString(), "DATA");
+      },
+    },
+    {
       name: "returns correct MIME type for images",
       fn: () => {
         const files: ProjectFile[] = [
