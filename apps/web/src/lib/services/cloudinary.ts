@@ -7,29 +7,39 @@ function normalizeEnvValue(value: string | undefined) {
 }
 
 function getCloudinaryConfig() {
-  const CLOUDINARY_URL = normalizeEnvValue(process.env.CLOUDINARY_URL);
-  const CLOUDINARY_CLOUD_NAME = normalizeEnvValue(process.env.CLOUDINARY_CLOUD_NAME);
-  const CLOUDINARY_API_KEY = normalizeEnvValue(process.env.CLOUDINARY_API_KEY);
-  const CLOUDINARY_API_SECRET = normalizeEnvValue(process.env.CLOUDINARY_API_SECRET);
+  const cloudinaryUrl = normalizeEnvValue(process.env.CLOUDINARY_URL);
+  const cloudName = normalizeEnvValue(process.env.CLOUDINARY_CLOUD_NAME);
+  const apiKey = normalizeEnvValue(process.env.CLOUDINARY_API_KEY);
+  const apiSecret = normalizeEnvValue(process.env.CLOUDINARY_API_SECRET);
 
-  if (CLOUDINARY_URL) {
+  const hasExplicitKeys = Boolean(cloudName && apiKey && apiSecret);
+
+  if (cloudinaryUrl) {
     return {
-      cloudinary_url: CLOUDINARY_URL,
+      cloudinary_url: cloudinaryUrl,
       secure: true,
-    };
+    } as const;
   }
 
-  return {
-    cloud_name: CLOUDINARY_CLOUD_NAME,
-    api_key: CLOUDINARY_API_KEY,
-    api_secret: CLOUDINARY_API_SECRET,
-    secure: true,
-  };
+  if (hasExplicitKeys) {
+    return {
+      cloud_name: cloudName,
+      api_key: apiKey,
+      api_secret: apiSecret,
+      secure: true,
+    } as const;
+  }
+
+  return {};
 }
 
 function ensureCloudinaryConfig() {
   const config = getCloudinaryConfig();
-  const hasExplicitKeys = Boolean(config.cloud_name && config.api_key && config.api_secret);
+  const hasExplicitKeys = Boolean(
+    (config as { cloud_name?: string }).cloud_name &&
+    (config as { api_key?: string }).api_key &&
+    (config as { api_secret?: string }).api_secret
+  );
   const hasUrl = Boolean((config as { cloudinary_url?: string }).cloudinary_url);
 
   if (!hasExplicitKeys && !hasUrl) {
@@ -89,5 +99,6 @@ export async function uploadToCloudinary(buffer: Buffer, fileName: string, folde
 }
 
 export async function deleteCloudinaryAsset(publicId: string) {
+  ensureCloudinaryConfig();
   await cloudinary.uploader.destroy(publicId);
 }
