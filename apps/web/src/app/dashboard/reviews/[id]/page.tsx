@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  BadgeCheck,
   Check,
   ExternalLink,
   FileCode2,
@@ -18,8 +19,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth-store";
-import { cn } from "@/lib/utils";
-
+import { usePortfolioStore } from "@/store/portfolio-store";
+import type { PortfolioArtifact } from "@/types";
+import { cn, resolveDeployUrl } from "@/lib/utils";
+import { profilePath } from "@/lib/matric";
 type ReviewFile = { path?: string; fileName?: string; fileUrl?: string | null; content?: string; language?: string };
 
 type Review = {
@@ -89,6 +92,7 @@ export default function DashboardReviewDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const user = useAuthStore((state) => state.user);
+  const lecturerName = user ? `${user.firstName} ${user.lastName}` : "Lecturer";
   const [review, setReview] = useState<Review | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -124,11 +128,43 @@ export default function DashboardReviewDetailPage() {
     void loadReview();
   }, [user, router, loadReview]);
 
+  const portfolioArtifacts = usePortfolioStore((s) => s.artifacts);
+  const loadStudentArtifacts = usePortfolioStore((s) => s.loadStudentArtifacts);
+  const verifyArtifact = usePortfolioStore((s) => s.verifyArtifact);
+  const artifact = useMemo<PortfolioArtifact | null>(() => {
+    if (!review?.projectSnapshot?.deployUrl) return null;
+    return (
+      Object.values(portfolioArtifacts).find(
+        (artifact) =>
+          artifact.studentMatric === review.studentMatric &&
+          artifact.deployUrl === review.projectSnapshot?.deployUrl
+      ) ?? null
+    );
+  }, [portfolioArtifacts, review]);
+
+  const publicPortfolioUrl = artifact ? profilePath(artifact.studentMatric) : null;
+  const artifactStatusLabel = artifact
+    ? artifact.verified
+      ? "Verified"
+      : "Awaiting verification"
+    : "No portfolio artifact found";
+  const canVerifyArtifact = Boolean(artifact && review?.status === "APPROVED" && !artifact.verified);
+
   const canAction = review ? !["APPROVED", "PUBLISHED", "REJECTED"].includes(review.status) : false;
   const currentRevision = review?.revisions[0]?.revisionNumber ?? 1;
   const selectedStudentName = review?.student ? `${review.student.firstName} ${review.student.lastName}` : review?.studentMatric;
   const snapshotFiles = review?.projectSnapshot?.files ?? [];
-  const latestFeedback = review?.comments.at(-1)?.message ?? review?.outcomeNote ?? "No detailed review notes yet.";
+  const latestComment = review?.comments.at(-1) ?? null;
+  const latestFeedback = latestComment?.message ?? review?.outcomeNote ?? "No feedback has been posted yet.";
+  const liveProjectUrl = review?.projectSnapshot?.deployUrl
+    ? resolveDeployUrl(review.projectSnapshot.deployUrl, typeof window !== "undefined" ? window.location.origin : undefined)
+    : null;
+  const canStartReview = review ? ["SUBMITTED", "RESUBMITTED"].includes(review.status) : false;
+  const canContinueReview = review ? ["UNDER_REVIEW", "CHANGES_REQUESTED"].includes(review.status) : false;
+  const canApprove = review ? ["SUBMITTED", "UNDER_REVIEW", "RESUBMITTED", "CHANGES_REQUESTED"].includes(review.status) : false;
+  const canRequestChanges = review ? ["SUBMITTED", "UNDER_REVIEW", "RESUBMITTED", "CHANGES_REQUESTED"].includes(review.status) : false;
+  const canPublish = review ? review.status === "APPROVED" : false;
+  const isApproved = review?.status === "APPROVED";
 
   const reviewMetrics = useMemo(() => {
     const ordered = review?.rating ? Object.entries(review.rating).filter(([, value]) => value != null) : [];
@@ -138,6 +174,31 @@ export default function DashboardReviewDetailPage() {
       value: value as number,
     }));
   }, [review]);
+
+  const handleVerifyArtifact = async () => {
+    if (!artifact || !user) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      await verifyArtifact(
+        artifact.id,
+        user.matricNumber,
+        lecturerName,
+        true,
+        "Verified from review workspace"
+      );
+      setNotice("Portfolio artifact verified and published.");
+    } catch (error) {
+      setNotice((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!review?.studentMatric) return;
+    void loadStudentArtifacts(review.studentMatric);
+  }, [review?.studentMatric, loadStudentArtifacts]);
 
   const action = async (name: string, body: Record<string, unknown> = {}) => {
     if (!review) return;
@@ -156,6 +217,8 @@ export default function DashboardReviewDetailPage() {
       setNotice(
         name === "request-changes"
           ? "Changes requested. The student can now revise this submission."
+          : name === "approve"
+          ? "Project approved. Ready for verification."
           : "Review status updated."
       );
     } catch (error) {
@@ -243,30 +306,83 @@ export default function DashboardReviewDetailPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-3xl space-y-2">
-              <p className="text-sm text-zinc-400">{review.summary ?? "No summary provided."}</p>
-              {review.student?.program ? <p className="text-xs text-zinc-500">Program: {review.student.program}</p> : null}
-              {review.student?.headline ? <p className="text-xs text-zinc-500">{review.student.headline}</p> : null}
+<div className="space-y-6">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="max-w-3xl">
+                    <p className="text-sm text-zinc-400">{review.summary ?? "No summary provided."}</p>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.35em] text-zinc-500">Latest feedback</p>
+                        <p className="mt-3 text-sm text-zinc-200">{latestFeedback}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.35em] text-zinc-500">Live project</p>
+                        <p className="mt-3 text-sm text-zinc-200">{liveProjectUrl ? "Open the student's deployed project and verify it after review." : "No live deploy URL is available for this snapshot."}</p>
+                        {liveProjectUrl ? (
+                          <a href={liveProjectUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-200">
+                            <Play size={16} /> Open Live Project
+                          </a>
+                        ) : null}
+                        {publicPortfolioUrl ? (
+                          <a href={publicPortfolioUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-sm text-zinc-300">
+                            <ExternalLink size={12} /> View portfolio profile
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-3xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-200">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs uppercase tracking-[0.35em] text-zinc-500">Verification status</p>
+                      <span className={cn(
+                        "rounded-full px-3 py-1 text-xs font-medium",
+                        artifact?.verified ? "bg-emerald-500/10 text-emerald-300 border border-emerald-400/20" : "bg-amber-500/10 text-amber-300 border border-amber-400/20"
+                      )}>
+                        {artifactStatusLabel}
+                      </span>
+                    </div>
+                    {artifact ? (
+                      <div className="mt-4 space-y-2">
+                        <p className="text-sm text-zinc-200">{artifact.title}</p>
+                        <p className="text-xs text-zinc-500">{artifact.studentName} · {artifact.assignmentId}</p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" variant="secondary" disabled={busy || !canVerifyArtifact} onClick={() => void handleVerifyArtifact()}>
+                            <BadgeCheck size={14} /> Verify artifact
+                          </Button>
+                          {artifact.verified ? (
+                            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">Verified</span>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-4 text-sm text-zinc-400">No portfolio artifact found for this review snapshot.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="secondary" disabled={busy || !canStartReview} onClick={() => void action("start-review")}> 
+                  <Play size={14} /> Start review
+                </Button>
+                <Button size="sm" variant="secondary" disabled={busy || !canRequestChanges} onClick={() => void action("request-changes", { message: "Instructor requested changes.", note: "Changes requested" })}>
+                  <MessageSquare size={14} /> Request changes
+                </Button>
+                <Button size="sm" variant="success" disabled={busy || !canApprove} onClick={() => void action("approve", { message: "Approved" })}>
+                  <Check size={14} /> Approve
+                </Button>
+                <Button size="sm" variant="danger" disabled={busy || !canAction} onClick={() => void action("reject", { message: "Rejected" })}>
+                  <X size={14} /> Reject
+                </Button>
+                <Button size="sm" variant="secondary" disabled={busy || !canVerifyArtifact} onClick={() => void handleVerifyArtifact()}>
+                  <BadgeCheck size={14} /> Verify artifact
+                </Button>
+                <Button size="sm" disabled={busy || !canPublish} onClick={() => void action("publish", { note: "Published by lecturer" })}>
+                  <ExternalLink size={14} /> Publish
+                </Button>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="secondary" disabled={busy || !["SUBMITTED", "RESUBMITTED"].includes(review.status)} onClick={() => void action("start-review")}>
-                <Play size={14} /> Start review
-              </Button>
-              <Button size="sm" variant="secondary" disabled={busy || !canAction} onClick={() => void action("request-changes", { message: "Instructor requested changes.", note: "Changes requested" })}>
-                <MessageSquare size={14} /> Request changes
-              </Button>
-              <Button size="sm" variant="success" disabled={busy || !canAction} onClick={() => void action("approve", { message: "Approved" })}>
-                <Check size={14} /> Approve
-              </Button>
-              <Button size="sm" variant="danger" disabled={busy || !canAction} onClick={() => void action("reject", { message: "Rejected" })}>
-                <X size={14} /> Reject
-              </Button>
-              <Button size="sm" disabled={busy || review.status !== "APPROVED"} onClick={() => void action("publish", { note: "Published by lecturer" })}>
-                <ExternalLink size={14} /> Publish
-              </Button>
-            </div>
-          </div>
 
           {notice ? (
             <div className="mt-4 rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs text-cyan-200">
@@ -387,6 +503,55 @@ export default function DashboardReviewDetailPage() {
               <p className="mt-2 text-sm text-zinc-400">Status: {statusLabel[review.status] ?? review.status}</p>
               <p className="mt-2 text-sm text-zinc-400">Latest revision: R{currentRevision}</p>
               <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-300">{latestFeedback}</p>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-[#09101c]/90 p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/70">Portfolio verification</p>
+                  <p className="mt-2 text-sm text-zinc-300">Verify the live portfolio artifact directly from this review.</p>
+                </div>
+                <span className={cn(
+                  "rounded-full px-3 py-1 text-xs font-medium",
+                  artifact?.verified
+                    ? "bg-emerald-500/10 text-emerald-300 border border-emerald-400/20"
+                    : "bg-amber-500/10 text-amber-300 border border-amber-400/20"
+                )}
+                >
+                  {artifactStatusLabel}
+                </span>
+              </div>
+              <div className="mt-5 space-y-3">
+                {artifact ? (
+                  <>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-200">
+                      <p className="font-semibold">{artifact.title}</p>
+                      <p className="text-xs text-zinc-500">{artifact.studentName} · {artifact.assignmentId}</p>
+                      {artifact.deployUrl ? (
+                        <a href={artifact.deployUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-cyan-300 text-sm">
+                          <ExternalLink size={12} /> View live portfolio
+                        </a>
+                      ) : null}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="secondary" disabled={busy || !canVerifyArtifact} onClick={() => void handleVerifyArtifact()}>
+                        <BadgeCheck size={14} /> Verify artifact
+                      </Button>
+                      {artifact.verified ? (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">Verified on {formatDate(artifact.verifiedAt ?? null)}</span>
+                      ) : null}
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-400">
+                    {review.status === "APPROVED" ? (
+                      <p>No matching portfolio artifact yet. Ensure the student's snapshot is linked to a live deployable project.</p>
+                    ) : (
+                      <p>Approve the project first, then verify its portfolio artifact here after the student publishes their work.</p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-[#09101c]/90 p-6">
